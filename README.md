@@ -10,6 +10,7 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 ### 아키텍처 구성도
 
 ```
+frontend-service
 gateway-service
 auth-service
 user-service
