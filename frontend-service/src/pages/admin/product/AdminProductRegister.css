@@ -22,58 +22,7 @@
 }
 
 .product-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  color: #343A40;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
-  padding: 0.75rem;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #007BFF;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
-.form-group textarea {
-  resize: vertical;
-  font-family: inherit;
-}
-
-.form-group input[type="file"] {
-  padding: 0.5rem;
-  cursor: pointer;
-}
-
-.image-preview {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #343A40;
+  margin-top: 1rem;
 }
 
 .form-row {
@@ -89,43 +38,9 @@
 }
 
 .form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid #dee2e6;
-}
-
-.btn-cancel,
-.btn-submit {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel {
-  background-color: #6c757d;
-  color: #ffffff;
-}
-
-.btn-cancel:hover {
-  background-color: #5a6268;
-}
-
-.btn-submit {
-  background-color: #FFC107;
-  color: #343A40;
-  font-weight: 600;
-}
-
-.btn-submit:hover {
-  background-color: #e0a800;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+  text-align: right;
 }
 
