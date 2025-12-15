@@ -21,10 +21,10 @@ function AdminLayout() {
               대시보드
             </Link>
             <Link 
-              to="/admin/product/register" 
-              className={location.pathname === '/admin/product/register' ? 'active' : ''}
+              to="/admin/product/list" 
+              className={location.pathname.startsWith('/admin/product') ? 'active' : ''}
             >
-              상품 등록
+              상품 관리
             </Link>
             <Link 
               to="/admin/settings" 

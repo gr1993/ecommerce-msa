@@ -3,7 +3,8 @@ import Main from './pages/Main'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminSettings from './pages/admin/AdminSettings'
-import AdminProductRegister from './pages/admin/AdminProductRegister'
+import AdminProductList from './pages/admin/product/AdminProductList'
+import AdminProductRegister from './pages/admin/product/AdminProductRegister'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="product/list" element={<AdminProductList />} />
           <Route path="product/register" element={<AdminProductRegister />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
