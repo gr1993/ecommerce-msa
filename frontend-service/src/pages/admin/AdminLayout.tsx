@@ -1,17 +1,43 @@
-import { Outlet, Link } from 'react-router-dom'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import './AdminLayout.css'
 
 function AdminLayout() {
+  const location = useLocation()
+
   return (
-    <div>
-      <header>
-        <h1>관리자 페이지</h1>
+    <div className="admin-layout">
+      <header className="admin-header">
+        <Link to="/admin" className="admin-logo">
+          박신사 관리자
+        </Link>
       </header>
-      <nav>
-        <Link to="/admin/dashboard">대시보드</Link> | <Link to="/admin/settings">설정</Link>
-      </nav>
-      <main>
-        <Outlet />
-      </main>
+      <div className="admin-content-wrapper">
+        <aside className="admin-sidebar">
+          <nav className="admin-nav">
+            <Link 
+              to="/admin/dashboard" 
+              className={location.pathname === '/admin/dashboard' ? 'active' : ''}
+            >
+              대시보드
+            </Link>
+            <Link 
+              to="/admin/product/register" 
+              className={location.pathname === '/admin/product/register' ? 'active' : ''}
+            >
+              상품 등록
+            </Link>
+            <Link 
+              to="/admin/settings" 
+              className={location.pathname === '/admin/settings' ? 'active' : ''}
+            >
+              설정
+            </Link>
+          </nav>
+        </aside>
+        <main className="admin-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }
