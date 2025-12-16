@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag } from 'antd'
+import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { PlusOutlined } from '@ant-design/icons'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from '../order/OrderDetailModal'
 import './AdminShippingList.css'
 
@@ -31,6 +32,9 @@ function AdminShippingList() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [isTrackingModalVisible, setIsTrackingModalVisible] = useState(false)
+  const [selectedShipping, setSelectedShipping] = useState<Shipping | null>(null)
+  const [trackingForm] = Form.useForm()
 
   const shippingStatusMap: Record<string, { label: string; color: string }> = {
     READY: { label: '배송 준비', color: 'blue' },
@@ -200,6 +204,53 @@ function AdminShippingList() {
     }
   }
 
+  // 운송장 번호 등록 모달 열기
+  const handleTrackingRegister = (shipping: Shipping) => {
+    setSelectedShipping(shipping)
+    trackingForm.setFieldsValue({
+      shipping_company: shipping.shipping_company || '',
+      tracking_number: ''
+    })
+    setIsTrackingModalVisible(true)
+  }
+
+  // 운송장 번호 등록 저장
+  const handleTrackingSave = async () => {
+    if (!selectedShipping) return
+
+    try {
+      const values = await trackingForm.validateFields()
+      
+      // TODO: API 호출로 운송장 번호 등록
+      setShippings(prev =>
+        prev.map(shipping =>
+          shipping.shipping_id === selectedShipping.shipping_id
+            ? {
+                ...shipping,
+                shipping_company: values.shipping_company,
+                tracking_number: values.tracking_number,
+                delivery_service_status: 'SENT' as const,
+                updated_at: new Date().toISOString()
+              }
+            : shipping
+        )
+      )
+
+      message.success('운송장 번호가 등록되었습니다.')
+      setIsTrackingModalVisible(false)
+      setSelectedShipping(null)
+      trackingForm.resetFields()
+    } catch (error) {
+      console.error('Validation failed:', error)
+    }
+  }
+
+  const handleTrackingModalClose = () => {
+    setIsTrackingModalVisible(false)
+    setSelectedShipping(null)
+    trackingForm.resetFields()
+  }
+
   const columns: ColumnsType<Shipping> = [
     {
       title: '배송 ID',
@@ -273,7 +324,22 @@ function AdminShippingList() {
       title: '운송장 번호',
       dataIndex: 'tracking_number',
       key: 'tracking_number',
-      render: (tracking: string | null) => tracking || <span style={{ color: '#999' }}>-</span>,
+      render: (tracking: string | null, record: Shipping) => {
+        if (tracking) {
+          return tracking
+        }
+        return (
+          <Button
+            type="link"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => handleTrackingRegister(record)}
+            style={{ padding: 0 }}
+          >
+            등록
+          </Button>
+        )
+      },
       width: 150,
     },
     {
@@ -373,6 +439,53 @@ function AdminShippingList() {
           onClose={handleModalClose}
           onSave={handleOrderSave}
         />
+
+        {/* 운송장 번호 등록 모달 */}
+        <Modal
+          title="운송장 번호 등록"
+          open={isTrackingModalVisible}
+          onCancel={handleTrackingModalClose}
+          onOk={handleTrackingSave}
+          okText="저장"
+          cancelText="취소"
+          okButtonProps={{
+            style: { backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }
+          }}
+        >
+          <Form
+            form={trackingForm}
+            layout="vertical"
+          >
+            <Form.Item
+              label="배송사"
+              name="shipping_company"
+              rules={[{ required: true, message: '배송사를 선택하세요' }]}
+            >
+              <Select placeholder="배송사를 선택하세요">
+                <Option value="CJ대한통운">CJ대한통운</Option>
+                <Option value="한진택배">한진택배</Option>
+                <Option value="로젠택배">로젠택배</Option>
+                <Option value="쿠팡배송">쿠팡배송</Option>
+                <Option value="롯데택배">롯데택배</Option>
+                <Option value="우체국택배">우체국택배</Option>
+                <Option value="기타">기타</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
+              label="운송장 번호"
+              name="tracking_number"
+              rules={[
+                { required: true, message: '운송장 번호를 입력하세요' },
+                { max: 100, message: '운송장 번호는 최대 100자까지 입력 가능합니다.' }
+              ]}
+            >
+              <Input
+                placeholder="운송장 번호를 입력하세요"
+                maxLength={100}
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </div>
   )
