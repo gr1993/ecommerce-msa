@@ -1,8 +1,22 @@
+import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import './AdminLayout.css'
 
 function AdminLayout() {
   const location = useLocation()
+  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog'])
+
+  const toggleMenu = (menuKey: string) => {
+    setOpenMenus(prev => 
+      prev.includes(menuKey) 
+        ? prev.filter(key => key !== menuKey)
+        : [...prev, menuKey]
+    )
+  }
+
+  const isMenuOpen = (menuKey: string) => openMenus.includes(menuKey)
+  const isActive = (path: string) => location.pathname === path
+  const isActiveParent = (paths: string[]) => paths.some(path => location.pathname.startsWith(path))
 
   return (
     <div className="admin-layout">
@@ -14,24 +28,75 @@ function AdminLayout() {
       <div className="admin-content-wrapper">
         <aside className="admin-sidebar">
           <nav className="admin-nav">
-            <Link 
-              to="/admin/dashboard" 
-              className={location.pathname === '/admin/dashboard' ? 'active' : ''}
-            >
-              대시보드
-            </Link>
-            <Link 
-              to="/admin/product/list" 
-              className={location.pathname.startsWith('/admin/product') ? 'active' : ''}
-            >
-              상품 관리
-            </Link>
-            <Link 
-              to="/admin/settings" 
-              className={location.pathname === '/admin/settings' ? 'active' : ''}
-            >
-              설정
-            </Link>
+            {/* 대시보드 */}
+            <div className="nav-menu-item">
+              <Link 
+                to="/admin/dashboard" 
+                className={`nav-link ${isActive('/admin/dashboard') ? 'active' : ''}`}
+              >
+                대시보드
+              </Link>
+            </div>
+
+            {/* 상품 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/product']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('product')}
+              >
+                <span>상품 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('product') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('product') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/product/list" 
+                    className={`nav-link submenu-link ${isActive('/admin/product/list') || isActive('/admin/product/register') ? 'active' : ''}`}
+                  >
+                    상품 관리
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 카탈로그 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/catalog']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('catalog')}
+              >
+                <span>카탈로그 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('catalog') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('catalog') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/catalog/category" 
+                    className={`nav-link submenu-link ${isActive('/admin/catalog/category') ? 'active' : ''}`}
+                  >
+                    카테고리 관리
+                  </Link>
+                  <Link 
+                    to="/admin/catalog/display" 
+                    className={`nav-link submenu-link ${isActive('/admin/catalog/display') ? 'active' : ''}`}
+                  >
+                    전시 상품 관리
+                  </Link>
+                  <Link 
+                    to="/admin/catalog/recommend" 
+                    className={`nav-link submenu-link ${isActive('/admin/catalog/recommend') ? 'active' : ''}`}
+                  >
+                    추천 상품 관리
+                  </Link>
+                  <Link 
+                    to="/admin/catalog/search" 
+                    className={`nav-link submenu-link ${isActive('/admin/catalog/search') ? 'active' : ''}`}
+                  >
+                    검색/태그 관리
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         </aside>
         <main className="admin-main">
