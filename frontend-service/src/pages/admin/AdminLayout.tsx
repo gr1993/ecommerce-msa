@@ -4,7 +4,7 @@ import './AdminLayout.css'
 
 function AdminLayout() {
   const location = useLocation()
-  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog', 'order', 'shipping'])
+  const [openMenus, setOpenMenus] = useState<string[]>([])
 
   const toggleMenu = (menuKey: string) => {
     setOpenMenus(prev => 
