@@ -8,6 +8,7 @@ import AdminProductRegister from './pages/admin/product/AdminProductRegister'
 import AdminProductEdit from './pages/admin/product/AdminProductEdit'
 import AdminCategoryManage from './pages/admin/catalog/AdminCategoryManage'
 import AdminDisplayProductManage from './pages/admin/catalog/AdminDisplayProductManage'
+import AdminSearchKeywordManage from './pages/admin/catalog/AdminSearchKeywordManage'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="product/edit/:id" element={<AdminProductEdit />} />
           <Route path="catalog/category" element={<AdminCategoryManage />} />
           <Route path="catalog/display" element={<AdminDisplayProductManage />} />
+          <Route path="catalog/search" element={<AdminSearchKeywordManage />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>

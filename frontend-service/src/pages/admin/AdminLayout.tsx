@@ -83,16 +83,10 @@ function AdminLayout() {
                     전시 상품 관리
                   </Link>
                   <Link 
-                    to="/admin/catalog/recommend" 
-                    className={`nav-link submenu-link ${isActive('/admin/catalog/recommend') ? 'active' : ''}`}
-                  >
-                    추천 상품 관리
-                  </Link>
-                  <Link 
                     to="/admin/catalog/search" 
                     className={`nav-link submenu-link ${isActive('/admin/catalog/search') ? 'active' : ''}`}
                   >
-                    검색/태그 관리
+                    검색 키워드 관리
                   </Link>
                 </div>
               )}

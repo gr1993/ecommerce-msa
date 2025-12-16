@@ -31,3 +31,20 @@ CREATE TABLE product_display_mapping (
         REFERENCES product(product_id)
         ON DELETE CASCADE
 ) COMMENT='상품 전시 영역 매핑 테이블';
+
+
+-- 상품 검색 키워드 테이블
+CREATE TABLE product_search_keyword (
+    keyword_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '검색 키워드 ID',
+    product_id BIGINT NOT NULL COMMENT '상품 ID',
+    keyword VARCHAR(100) NOT NULL COMMENT '검색 키워드',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    
+    CONSTRAINT fk_psk_product
+        FOREIGN KEY (product_id)
+        REFERENCES product(product_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_product_keyword
+        UNIQUE (product_id, keyword)
+) COMMENT='상품별 검색 키워드 매핑 테이블';
