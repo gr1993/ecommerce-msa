@@ -80,12 +80,28 @@ function AdminProductList() {
       dataIndex: 'product_name',
       key: 'product_name',
       sorter: (a, b) => a.product_name.localeCompare(b.product_name),
+      render: (text: string, record: Product) => (
+        <a
+          onClick={() => navigate(`/admin/product/edit/${record.id}`)}
+          style={{ cursor: 'pointer', color: '#007BFF' }}
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: '상품 코드',
       dataIndex: 'product_code',
       key: 'product_code',
       sorter: (a, b) => a.product_code.localeCompare(b.product_code),
+      render: (text: string, record: Product) => (
+        <a
+          onClick={() => navigate(`/admin/product/edit/${record.id}`)}
+          style={{ cursor: 'pointer', color: '#007BFF' }}
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: '가격',
