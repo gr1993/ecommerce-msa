@@ -11,6 +11,10 @@ import AdminDisplayProductManage from './pages/admin/catalog/AdminDisplayProduct
 import AdminSearchKeywordManage from './pages/admin/catalog/AdminSearchKeywordManage'
 import AdminOrderList from './pages/admin/order/AdminOrderList'
 import AdminPaymentManage from './pages/admin/order/AdminPaymentManage'
+import AdminShippingList from './pages/admin/shipping/AdminShippingList'
+import AdminReturnManage from './pages/admin/shipping/AdminReturnManage'
+import AdminExchangeManage from './pages/admin/shipping/AdminExchangeManage'
+import AdminRefundManage from './pages/admin/shipping/AdminRefundManage'
 
 function App() {
   return (
@@ -28,6 +32,10 @@ function App() {
           <Route path="catalog/search" element={<AdminSearchKeywordManage />} />
           <Route path="order/list" element={<AdminOrderList />} />
           <Route path="order/payment" element={<AdminPaymentManage />} />
+          <Route path="shipping/list" element={<AdminShippingList />} />
+          <Route path="shipping/return" element={<AdminReturnManage />} />
+          <Route path="shipping/exchange" element={<AdminExchangeManage />} />
+          <Route path="shipping/refund" element={<AdminRefundManage />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>

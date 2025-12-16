@@ -41,28 +41,6 @@ CREATE TABLE order_item (
 ) COMMENT='주문에 포함된 상품 정보';
 
 
--- 주문 배송 정보 테이블
-CREATE TABLE order_shipping (
-    shipping_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '배송 ID',
-    order_id BIGINT NOT NULL COMMENT '주문 ID',
-
-    receiver_name VARCHAR(100) NOT NULL COMMENT '수령인 이름',
-    receiver_phone VARCHAR(20) NOT NULL COMMENT '수령인 연락처',
-    address VARCHAR(500) NOT NULL COMMENT '배송 주소',
-    postal_code VARCHAR(20) COMMENT '우편번호',
-
-    shipping_status VARCHAR(30) NOT NULL COMMENT '배송 상태
-    (READY, SHIPPING, DELIVERED)',
-
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
-
-    CONSTRAINT fk_shipping_order
-        FOREIGN KEY (order_id)
-        REFERENCES orders(order_id)
-        ON DELETE CASCADE
-) COMMENT='주문 배송 정보';
-
-
 -- 주문 결제 테이블
 CREATE TABLE order_payment (
     payment_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '결제 ID',

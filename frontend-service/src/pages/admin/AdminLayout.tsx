@@ -4,7 +4,7 @@ import './AdminLayout.css'
 
 function AdminLayout() {
   const location = useLocation()
-  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog', 'order'])
+  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog', 'order', 'shipping'])
 
   const toggleMenu = (menuKey: string) => {
     setOpenMenus(prev => 
@@ -114,6 +114,45 @@ function AdminLayout() {
                     className={`nav-link submenu-link ${isActive('/admin/order/payment') ? 'active' : ''}`}
                   >
                     결제 관리
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 배송 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/shipping']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('shipping')}
+              >
+                <span>배송 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('shipping') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('shipping') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/shipping/list" 
+                    className={`nav-link submenu-link ${isActive('/admin/shipping/list') ? 'active' : ''}`}
+                  >
+                    배송 관리
+                  </Link>
+                  <Link 
+                    to="/admin/shipping/return" 
+                    className={`nav-link submenu-link ${isActive('/admin/shipping/return') ? 'active' : ''}`}
+                  >
+                    반품 관리
+                  </Link>
+                  <Link 
+                    to="/admin/shipping/exchange" 
+                    className={`nav-link submenu-link ${isActive('/admin/shipping/exchange') ? 'active' : ''}`}
+                  >
+                    교환 관리
+                  </Link>
+                  <Link 
+                    to="/admin/shipping/refund" 
+                    className={`nav-link submenu-link ${isActive('/admin/shipping/refund') ? 'active' : ''}`}
+                  >
+                    환불 관리
                   </Link>
                 </div>
               )}
