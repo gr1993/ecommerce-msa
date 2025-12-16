@@ -4,7 +4,7 @@ import './AdminLayout.css'
 
 function AdminLayout() {
   const location = useLocation()
-  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog'])
+  const [openMenus, setOpenMenus] = useState<string[]>(['dashboard', 'product', 'catalog', 'order'])
 
   const toggleMenu = (menuKey: string) => {
     setOpenMenus(prev => 
@@ -87,6 +87,33 @@ function AdminLayout() {
                     className={`nav-link submenu-link ${isActive('/admin/catalog/search') ? 'active' : ''}`}
                   >
                     검색 키워드 관리
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 주문 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/order']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('order')}
+              >
+                <span>주문 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('order') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('order') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/order/list" 
+                    className={`nav-link submenu-link ${isActive('/admin/order/list') ? 'active' : ''}`}
+                  >
+                    주문 관리
+                  </Link>
+                  <Link 
+                    to="/admin/order/payment" 
+                    className={`nav-link submenu-link ${isActive('/admin/order/payment') ? 'active' : ''}`}
+                  >
+                    결제 관리
                   </Link>
                 </div>
               )}
