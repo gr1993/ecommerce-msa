@@ -148,12 +148,6 @@ function AdminLayout() {
                   >
                     교환 관리
                   </Link>
-                  <Link 
-                    to="/admin/shipping/refund" 
-                    className={`nav-link submenu-link ${isActive('/admin/shipping/refund') ? 'active' : ''}`}
-                  >
-                    환불 관리
-                  </Link>
                 </div>
               )}
             </div>
