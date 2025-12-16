@@ -6,7 +6,7 @@
 }
 
 .admin-product-register-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   background-color: #ffffff;
   border-radius: 8px;
@@ -35,6 +35,38 @@
   .form-row {
     grid-template-columns: 1fr;
   }
+}
+
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-section .ant-card-head {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #007BFF;
+}
+
+.option-group-card {
+  margin-bottom: 1rem;
+}
+
+.option-group-card .ant-card-head {
+  background-color: #ffffff;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.image-actions {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
 }
 
 .form-actions {
