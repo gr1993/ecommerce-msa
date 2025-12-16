@@ -1,20 +1,22 @@
--- 주문 테이블
-CREATE TABLE orders (
-    order_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '주문 ID',
-    order_number VARCHAR(50) NOT NULL UNIQUE COMMENT '주문 번호',
-    user_id BIGINT NOT NULL COMMENT '주문자 ID',
+  -- 주문 테이블
+  CREATE TABLE orders (
+      order_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '주문 ID',
+      order_number VARCHAR(50) NOT NULL UNIQUE COMMENT '주문 번호',
+      user_id BIGINT NOT NULL COMMENT '주문자 ID',
 
-    order_status VARCHAR(30) NOT NULL COMMENT '주문 상태
-    (CREATED, PAID, SHIPPING, DELIVERED, CANCELED)',
+      order_status VARCHAR(30) NOT NULL COMMENT '주문 상태
+      (CREATED, PAID, SHIPPING, DELIVERED, CANCELED)',
 
-    total_product_amount DECIMAL(12,2) NOT NULL COMMENT '상품 총 금액',
-    total_discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '할인 총 금액',
-    total_payment_amount DECIMAL(12,2) NOT NULL COMMENT '최종 결제 금액',
+      total_product_amount DECIMAL(12,2) NOT NULL COMMENT '상품 총 금액',
+      total_discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '할인 총 금액',
+      total_payment_amount DECIMAL(12,2) NOT NULL COMMENT '최종 결제 금액',
 
-    ordered_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '주문 일시',
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시'
-) COMMENT='주문 정보 테이블';
+      order_memo TEXT COMMENT '관리자 메모 / CS 메모',
+
+      ordered_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '주문 일시',
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시'
+  ) COMMENT='주문 정보 테이블';
 
 
 -- 주문 상품 테이블

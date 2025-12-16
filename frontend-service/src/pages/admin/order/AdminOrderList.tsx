@@ -159,6 +159,26 @@ function AdminOrderList() {
     setOrderShipping(null)
   }
 
+  const handleOrderSave = async (orderId: string, orderStatus: string, orderMemo: string) => {
+    // TODO: API 호출로 주문 상태 및 메모 업데이트
+    setOrders(prev => 
+      prev.map(order => 
+        order.order_id === orderId 
+          ? { ...order, order_status: orderStatus as Order['order_status'], order_memo: orderMemo }
+          : order
+      )
+    )
+    
+    // 선택된 주문도 업데이트
+    if (selectedOrder && selectedOrder.order_id === orderId) {
+      setSelectedOrder({
+        ...selectedOrder,
+        order_status: orderStatus as Order['order_status'],
+        order_memo: orderMemo
+      })
+    }
+  }
+
   const columns: ColumnsType<Order> = [
     {
       title: '주문 번호',
@@ -332,6 +352,7 @@ function AdminOrderList() {
           orderItems={orderItems}
           orderShipping={orderShipping}
           onClose={handleModalClose}
+          onSave={handleOrderSave}
         />
       </div>
     </div>
