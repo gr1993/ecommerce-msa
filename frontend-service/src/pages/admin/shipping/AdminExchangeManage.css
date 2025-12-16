@@ -12,10 +12,47 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.exchange-manage-container h2 {
-  color: #343A40;
+.exchange-list-header {
   margin-bottom: 1.5rem;
+}
+
+.exchange-list-header h2 {
+  color: #343A40;
   font-size: 1.75rem;
   font-weight: 600;
+  margin: 0;
+}
+
+.exchange-list-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #dee2e6;
+}
+
+.filter-inputs {
+  flex: 1;
+}
+
+.filter-actions {
+  margin-left: 1rem;
+}
+
+@media (max-width: 768px) {
+  .exchange-list-filters {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-actions {
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 

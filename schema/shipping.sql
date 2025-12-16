@@ -40,3 +40,41 @@ CREATE TABLE order_shipping_history (
         REFERENCES order_shipping(shipping_id)
         ON DELETE CASCADE
 ) COMMENT='배송 상태 변경 이력 테이블';
+
+
+-- 주문 반품 정보 테이블
+CREATE TABLE order_return (
+    return_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '반품 ID',
+    order_id BIGINT NOT NULL COMMENT '주문 ID',
+    
+    return_status VARCHAR(30) NOT NULL COMMENT '반품 상태 (RETURN_REQUESTED, RETURN_APPROVED, RETURNED)',
+    tracking_number VARCHAR(50) COMMENT '회수용 운송장 번호',
+    courier VARCHAR(50) COMMENT '택배사',
+    
+    receiver_name VARCHAR(100) COMMENT '반품 수령인 이름',
+    receiver_phone VARCHAR(20) COMMENT '반품 수령인 연락처',
+    return_address VARCHAR(500) COMMENT '반품 회수 주소',
+    postal_code VARCHAR(20) COMMENT '반품 우편번호',
+    
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '반품 신청 일시',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '반품 정보 수정 일시'
+) COMMENT='주문 상품 반품 정보 테이블';
+
+
+-- 주문 교환 정보 테이블
+CREATE TABLE order_exchange (
+    exchange_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 ID',
+    order_id BIGINT NOT NULL COMMENT '주문 ID',
+    
+    exchange_status VARCHAR(30) NOT NULL COMMENT '교환 상태 (EXCHANGE_REQUESTED, EXCHANGE_APPROVED, EXCHANGED)',
+    tracking_number VARCHAR(50) COMMENT '회수/배송용 운송장 번호',
+    courier VARCHAR(50) COMMENT '택배사',
+    
+    receiver_name VARCHAR(100) COMMENT '교환 수령인 이름',
+    receiver_phone VARCHAR(20) COMMENT '교환 수령인 연락처',
+    exchange_address VARCHAR(500) COMMENT '교환 회수/배송 주소',
+    postal_code VARCHAR(20) COMMENT '교환 우편번호',
+    
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '교환 신청 일시',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '교환 정보 수정 일시'
+) COMMENT='주문 상품 교환 정보 테이블';

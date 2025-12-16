@@ -24,6 +24,7 @@ CREATE TABLE order_item (
     order_item_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '주문 상품 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
     product_id BIGINT NOT NULL COMMENT '상품 ID',
+    sku_id BIGINT NOT NULL COMMENT '상품 옵션 SKU ID',
 
     product_name VARCHAR(200) NOT NULL COMMENT '상품명 스냅샷',
     product_code VARCHAR(50) COMMENT '상품 코드 스냅샷',
@@ -38,7 +39,7 @@ CREATE TABLE order_item (
         FOREIGN KEY (order_id)
         REFERENCES orders(order_id)
         ON DELETE CASCADE
-) COMMENT='주문에 포함된 상품 정보';
+) COMMENT='주문에 포함된 상품 정보 (SKU 단위 포함)';
 
 
 -- 주문 결제 테이블
