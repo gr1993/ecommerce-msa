@@ -8,11 +8,11 @@ const { Option } = Select
 
 interface Product {
   id: string
-  name: string
+  product_name: string
+  product_code: string
   category: string
-  price: number
-  stock: number
-  description: string
+  base_price: number
+  updated_at: string
 }
 
 function AdminProductList() {
@@ -25,27 +25,27 @@ function AdminProductList() {
   const [products] = useState<Product[]>([
     {
       id: '1',
-      name: '노트북',
+      product_name: '노트북',
+      product_code: 'PRD-001',
       category: 'electronics',
-      price: 1200000,
-      stock: 10,
-      description: '고성능 노트북'
+      base_price: 1200000,
+      updated_at: '2024-01-15 10:30:00'
     },
     {
       id: '2',
-      name: '티셔츠',
+      product_name: '티셔츠',
+      product_code: 'PRD-002',
       category: 'clothing',
-      price: 30000,
-      stock: 50,
-      description: '면 티셔츠'
+      base_price: 30000,
+      updated_at: '2024-01-14 15:20:00'
     },
     {
       id: '3',
-      name: '책',
+      product_name: '책',
+      product_code: 'PRD-003',
       category: 'books',
-      price: 15000,
-      stock: 100,
-      description: '소설책'
+      base_price: 15000,
+      updated_at: '2024-01-13 09:10:00'
     }
   ])
 
@@ -60,18 +60,6 @@ function AdminProductList() {
 
   const columns: ColumnsType<Product> = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-    },
-    {
-      title: '상품명',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
-    {
       title: '카테고리',
       dataIndex: 'category',
       key: 'category',
@@ -85,25 +73,42 @@ function AdminProductList() {
         { text: '뷰티', value: 'beauty' },
       ],
       onFilter: (value, record) => record.category === value,
+      sorter: (a, b) => (categoryMap[a.category] || a.category).localeCompare(categoryMap[b.category] || b.category),
+    },
+    {
+      title: '상품명',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      sorter: (a, b) => a.product_name.localeCompare(b.product_name),
+    },
+    {
+      title: '상품 코드',
+      dataIndex: 'product_code',
+      key: 'product_code',
+      sorter: (a, b) => a.product_code.localeCompare(b.product_code),
     },
     {
       title: '가격',
-      dataIndex: 'price',
-      key: 'price',
+      dataIndex: 'base_price',
+      key: 'base_price',
       render: (price: number) => `${price.toLocaleString()}원`,
-      sorter: (a, b) => a.price - b.price,
+      sorter: (a, b) => a.base_price - b.base_price,
     },
     {
-      title: '재고',
-      dataIndex: 'stock',
-      key: 'stock',
-      sorter: (a, b) => a.stock - b.stock,
-    },
-    {
-      title: '설명',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
+      title: '수정일',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      render: (date: string) => {
+        const dateObj = new Date(date)
+        return dateObj.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      },
     },
   ]
 
@@ -129,7 +134,7 @@ function AdminProductList() {
 
   // 필터링된 데이터
   const filteredProducts = products.filter((product) => {
-    const nameMatch = !searchName || product.name.toLowerCase().includes(searchName.toLowerCase())
+    const nameMatch = !searchName || product.product_name.toLowerCase().includes(searchName.toLowerCase())
     const categoryMatch = !searchCategory || product.category === searchCategory
     return nameMatch && categoryMatch
   })
