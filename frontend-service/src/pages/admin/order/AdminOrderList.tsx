@@ -1,30 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Table, Card, Space, Input, Button, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router-dom'
+import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from './OrderDetailModal'
 import './AdminOrderList.css'
 
 const { Option } = Select
 
-interface Order {
-  order_id: string
-  order_number: string
-  user_id: string
-  user_name?: string
-  order_status: 'CREATED' | 'PAID' | 'SHIPPING' | 'DELIVERED' | 'CANCELED'
-  total_product_amount: number
-  total_discount_amount: number
-  total_payment_amount: number
-  ordered_at: string
-  updated_at: string
-}
-
 function AdminOrderList() {
-  const navigate = useNavigate()
   const [orders, setOrders] = useState<Order[]>([])
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [searchOrderNumber, setSearchOrderNumber] = useState('')
   const [searchStatus, setSearchStatus] = useState<string | undefined>(undefined)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([])
+  const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
+  const [isModalVisible, setIsModalVisible] = useState(false)
 
   const statusMap: Record<string, { label: string; color: string }> = {
     CREATED: { label: '주문 생성', color: 'blue' },
@@ -122,9 +112,51 @@ function AdminOrderList() {
     setSearchStatus(undefined)
   }
 
-  const handleOrderClick = (orderId: string) => {
-    // TODO: 주문 상세 페이지로 이동
-    // navigate(`/admin/order/detail/${orderId}`)
+  // 주문 상세 조회
+  const handleOrderClick = async (orderId: string) => {
+    const order = orders.find(o => o.order_id === orderId)
+    if (!order) return
+
+    setSelectedOrder(order)
+    
+    // TODO: API 호출로 주문 상세 데이터 로드
+    // 샘플 데이터
+    const sampleOrderItems: OrderItem[] = [
+      {
+        order_item_id: '1',
+        order_id: orderId,
+        product_id: '1',
+        product_name: '노트북',
+        product_code: 'PRD-001',
+        quantity: 1,
+        unit_price: 150000,
+        total_price: 150000,
+        created_at: order.ordered_at
+      }
+    ]
+
+    const sampleShipping: OrderShipping = {
+      shipping_id: '1',
+      order_id: orderId,
+      receiver_name: '홍길동',
+      receiver_phone: '010-1234-5678',
+      address: '서울특별시 강남구 테헤란로 123',
+      postal_code: '06234',
+      shipping_status: order.order_status === 'SHIPPING' ? 'SHIPPING' : 
+                       order.order_status === 'DELIVERED' ? 'DELIVERED' : 'READY',
+      created_at: order.ordered_at
+    }
+
+    setOrderItems(sampleOrderItems)
+    setOrderShipping(sampleShipping)
+    setIsModalVisible(true)
+  }
+
+  const handleModalClose = () => {
+    setIsModalVisible(false)
+    setSelectedOrder(null)
+    setOrderItems([])
+    setOrderShipping(null)
   }
 
   const columns: ColumnsType<Order> = [
@@ -291,6 +323,15 @@ function AdminOrderList() {
             showSizeChanger: true,
             showTotal: (total) => `총 ${total}개`,
           }}
+        />
+
+        {/* 주문 상세 모달 */}
+        <OrderDetailModal
+          open={isModalVisible}
+          order={selectedOrder}
+          orderItems={orderItems}
+          orderShipping={orderShipping}
+          onClose={handleModalClose}
         />
       </div>
     </div>
