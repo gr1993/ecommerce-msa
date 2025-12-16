@@ -7,6 +7,7 @@ import AdminProductList from './pages/admin/product/AdminProductList'
 import AdminProductRegister from './pages/admin/product/AdminProductRegister'
 import AdminProductEdit from './pages/admin/product/AdminProductEdit'
 import AdminCategoryManage from './pages/admin/catalog/AdminCategoryManage'
+import AdminDisplayProductManage from './pages/admin/catalog/AdminDisplayProductManage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="product/register" element={<AdminProductRegister />} />
           <Route path="product/edit/:id" element={<AdminProductEdit />} />
           <Route path="catalog/category" element={<AdminCategoryManage />} />
+          <Route path="catalog/display" element={<AdminDisplayProductManage />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>
