@@ -9,8 +9,9 @@ React 환경에서 개발되었으며, 쇼핑몰 사용자 인터페이스와 �
 * typescript
 * react 19.2.5
 * react-router-dom
-* antd : Ant Design 라이브러리로 Ant Design Table을 사용하기 위해 추가
 * react-quill-new : 에디터 라이브러리로 기존 react-quill는 React 19에서 ReactDOM.findDOMNode가 제거되었기 때문에 사용할 수 없어서 react-quill-new로 사용
+* antd : Ant Design 라이브러리로 Ant Design Table을 사용하기 위해 추가
+* ant-design/charts
 
 
 ### 관리자 메뉴
