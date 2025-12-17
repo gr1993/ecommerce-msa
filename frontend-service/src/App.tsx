@@ -21,6 +21,7 @@ import AdminSettlementManage from './pages/admin/settlement/AdminSettlementManag
 import AdminRevenueStatistics from './pages/admin/settlement/AdminRevenueStatistics'
 import MarketMain from './pages/market/MarketMain'
 import MarketProductList from './pages/market/MarketProductList'
+import MarketProductDetail from './pages/market/MarketProductDetail'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<Navigate to="/market" replace />} />
         <Route path="/market" element={<MarketMain />} />
         <Route path="/market/products" element={<MarketProductList />} />
+        <Route path="/market/product/:productId" element={<MarketProductDetail />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />

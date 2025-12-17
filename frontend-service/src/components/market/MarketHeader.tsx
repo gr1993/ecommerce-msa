@@ -1,5 +1,5 @@
 import { Button } from 'antd'
-import { ShoppingCartOutlined, HeartOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import './MarketHeader.css'
 
@@ -16,9 +16,6 @@ function MarketHeader() {
           <a href="/market/products">상품</a>
         </nav>
         <div className="header-actions">
-          <Button type="text" icon={<HeartOutlined />}>
-            찜
-          </Button>
           <Button type="text" icon={<ShoppingCartOutlined />}>
             장바구니
           </Button>
