@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
-import { Card, Row, Col, Carousel, Button, Badge } from 'antd'
-import { ShoppingCartOutlined, HeartOutlined, FireOutlined, StarOutlined, GiftOutlined } from '@ant-design/icons'
+import { useState, useEffect, useRef } from 'react'
+import { Card, Carousel, Button, Badge } from 'antd'
+import { ShoppingCartOutlined, FireOutlined, StarOutlined, GiftOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import MarketHeader from '../../components/market/MarketHeader'
+import MarketFooter from '../../components/market/MarketFooter'
 import './MarketMain.css'
 
 interface DisplayProduct {
@@ -19,6 +21,15 @@ function MarketMain() {
   const [mainProducts, setMainProducts] = useState<DisplayProduct[]>([])
   const [recommendProducts, setRecommendProducts] = useState<DisplayProduct[]>([])
   const [eventProducts, setEventProducts] = useState<DisplayProduct[]>([])
+  const mainScrollRef = useRef<HTMLDivElement>(null)
+  const recommendScrollRef = useRef<HTMLDivElement>(null)
+  const eventScrollRef = useRef<HTMLDivElement>(null)
+  
+  // 드래그 상태 관리
+  const [isDragging, setIsDragging] = useState(false)
+  const [startX, setStartX] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
+  const [currentScrollRef, setCurrentScrollRef] = useState<React.RefObject<HTMLDivElement | null> | null>(null)
 
   // 전시 상품 데이터 로드 (샘플 데이터)
   useEffect(() => {
@@ -59,6 +70,42 @@ function MarketMain() {
         base_price: 150000,
         display_order: 4,
         image_url: 'https://via.placeholder.com/300x300?text=이어폰'
+      },
+      {
+        id: '13',
+        product_id: '13',
+        product_name: '게이밍 마우스',
+        product_code: 'PRD-013',
+        base_price: 120000,
+        display_order: 5,
+        image_url: 'https://via.placeholder.com/300x300?text=마우스'
+      },
+      {
+        id: '14',
+        product_id: '14',
+        product_name: '기계식 키보드',
+        product_code: 'PRD-014',
+        base_price: 180000,
+        display_order: 6,
+        image_url: 'https://via.placeholder.com/300x300?text=키보드'
+      },
+      {
+        id: '15',
+        product_id: '15',
+        product_name: '4K 모니터',
+        product_code: 'PRD-015',
+        base_price: 500000,
+        display_order: 7,
+        image_url: 'https://via.placeholder.com/300x300?text=모니터'
+      },
+      {
+        id: '16',
+        product_id: '16',
+        product_name: '웹캠',
+        product_code: 'PRD-016',
+        base_price: 200000,
+        display_order: 8,
+        image_url: 'https://via.placeholder.com/300x300?text=웹캠'
       }
     ])
 
@@ -98,6 +145,42 @@ function MarketMain() {
         base_price: 200000,
         display_order: 4,
         image_url: 'https://via.placeholder.com/300x300?text=가방'
+      },
+      {
+        id: '17',
+        product_id: '17',
+        product_name: '데님 자켓',
+        product_code: 'PRD-017',
+        base_price: 150000,
+        display_order: 5,
+        image_url: 'https://via.placeholder.com/300x300?text=자켓'
+      },
+      {
+        id: '18',
+        product_id: '18',
+        product_name: '캐주얼 후드',
+        product_code: 'PRD-018',
+        base_price: 90000,
+        display_order: 6,
+        image_url: 'https://via.placeholder.com/300x300?text=후드'
+      },
+      {
+        id: '19',
+        product_id: '19',
+        product_name: '스니커즈',
+        product_code: 'PRD-019',
+        base_price: 180000,
+        display_order: 7,
+        image_url: 'https://via.placeholder.com/300x300?text=스니커즈'
+      },
+      {
+        id: '20',
+        product_id: '20',
+        product_name: '크로스백',
+        product_code: 'PRD-020',
+        base_price: 140000,
+        display_order: 8,
+        image_url: 'https://via.placeholder.com/300x300?text=크로스백'
       }
     ])
 
@@ -137,12 +220,109 @@ function MarketMain() {
         base_price: 100000,
         display_order: 4,
         image_url: 'https://via.placeholder.com/300x300?text=프로모션이어폰'
+      },
+      {
+        id: '21',
+        product_id: '21',
+        product_name: '초특가 마우스',
+        product_code: 'PRD-021',
+        base_price: 80000,
+        display_order: 5,
+        image_url: 'https://via.placeholder.com/300x300?text=특가마우스'
+      },
+      {
+        id: '22',
+        product_id: '22',
+        product_name: '할인 키보드',
+        product_code: 'PRD-022',
+        base_price: 120000,
+        display_order: 6,
+        image_url: 'https://via.placeholder.com/300x300?text=할인키보드'
+      },
+      {
+        id: '23',
+        product_id: '23',
+        product_name: '이벤트 모니터',
+        product_code: 'PRD-023',
+        base_price: 350000,
+        display_order: 7,
+        image_url: 'https://via.placeholder.com/300x300?text=이벤트모니터'
+      },
+      {
+        id: '24',
+        product_id: '24',
+        product_name: '프로모션 웹캠',
+        product_code: 'PRD-024',
+        base_price: 150000,
+        display_order: 8,
+        image_url: 'https://via.placeholder.com/300x300?text=프로모션웹캠'
       }
     ])
   }, [])
 
   const handleProductClick = (productId: string) => {
     navigate(`/market/product/${productId}`)
+  }
+
+  const scrollProducts = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = 300
+      ref.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
+
+  // 드래그 시작
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (!ref.current) return
+    setIsDragging(true)
+    setCurrentScrollRef(ref)
+    setStartX(e.pageX - ref.current.offsetLeft)
+    setScrollLeft(ref.current.scrollLeft)
+    ref.current.style.cursor = 'grabbing'
+    ref.current.style.userSelect = 'none'
+  }
+
+  // 드래그 중
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !currentScrollRef?.current) return
+    e.preventDefault()
+    const x = e.pageX - currentScrollRef.current.offsetLeft
+    const walk = (x - startX) * 2 // 스크롤 속도 조절
+    currentScrollRef.current.scrollLeft = scrollLeft - walk
+  }
+
+  // 드래그 종료
+  const handleMouseUp = () => {
+    if (currentScrollRef?.current) {
+      currentScrollRef.current.style.cursor = 'grab'
+      currentScrollRef.current.style.userSelect = 'auto'
+    }
+    setIsDragging(false)
+    setCurrentScrollRef(null)
+  }
+
+  // 터치 이벤트 (모바일)
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (!ref.current) return
+    setIsDragging(true)
+    setCurrentScrollRef(ref)
+    setStartX(e.touches[0].pageX - ref.current.offsetLeft)
+    setScrollLeft(ref.current.scrollLeft)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isDragging || !currentScrollRef?.current) return
+    const x = e.touches[0].pageX - currentScrollRef.current.offsetLeft
+    const walk = (x - startX) * 2
+    currentScrollRef.current.scrollLeft = scrollLeft - walk
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+    setCurrentScrollRef(null)
   }
 
   const ProductCard = ({ product }: { product: DisplayProduct }) => (
@@ -206,33 +386,17 @@ function MarketMain() {
 
   return (
     <div className="market-main">
-      {/* 헤더 */}
-      <header className="market-header">
-        <div className="header-container">
-          <div className="logo" onClick={() => navigate('/market')}>
-            <h1>박신사</h1>
-          </div>
-          <nav className="main-nav">
-            <a href="#main">메인</a>
-            <a href="#recommend">추천</a>
-            <a href="#event">이벤트</a>
-            <a href="#categories">카테고리</a>
-          </nav>
-          <div className="header-actions">
-            <Button type="text" icon={<HeartOutlined />}>
-              찜
-            </Button>
-            <Button type="text" icon={<ShoppingCartOutlined />}>
-              장바구니
-            </Button>
-            <Button type="primary">로그인</Button>
-          </div>
-        </div>
-      </header>
+      <MarketHeader />
 
       {/* 메인 배너 */}
       <section className="main-banner">
-        <Carousel autoplay effect="fade" className="banner-carousel">
+        <Carousel 
+          autoplay 
+          effect="fade" 
+          className="banner-carousel"
+          draggable={true}
+          swipe={true}
+        >
           {bannerImages.map((banner) => (
             <div key={banner.id} className="banner-slide">
               <div
@@ -260,13 +424,37 @@ function MarketMain() {
             <FireOutlined className="section-icon" />
             <h2>메인 상품</h2>
           </div>
-          <Row gutter={[24, 24]}>
-            {mainProducts.map((product) => (
-              <Col xs={12} sm={8} md={6} key={product.id}>
-                <ProductCard product={product} />
-              </Col>
-            ))}
-          </Row>
+          <div className="product-scroll-container">
+            <Button
+              className="scroll-btn scroll-btn-left"
+              icon={<LeftOutlined />}
+              onClick={() => scrollProducts(mainScrollRef, 'left')}
+            />
+            <div
+              className="product-scroll-wrapper"
+              ref={mainScrollRef}
+              onMouseDown={(e) => handleMouseDown(e, mainScrollRef)}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={(e) => handleTouchStart(e, mainScrollRef)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="product-scroll-content">
+                {mainProducts.map((product) => (
+                  <div key={product.id} className="product-scroll-item">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Button
+              className="scroll-btn scroll-btn-right"
+              icon={<RightOutlined />}
+              onClick={() => scrollProducts(mainScrollRef, 'right')}
+            />
+          </div>
         </section>
 
         {/* 추천 상품 영역 */}
@@ -275,13 +463,37 @@ function MarketMain() {
             <StarOutlined className="section-icon" />
             <h2>추천 상품</h2>
           </div>
-          <Row gutter={[24, 24]}>
-            {recommendProducts.map((product) => (
-              <Col xs={12} sm={8} md={6} key={product.id}>
-                <ProductCard product={product} />
-              </Col>
-            ))}
-          </Row>
+          <div className="product-scroll-container">
+            <Button
+              className="scroll-btn scroll-btn-left"
+              icon={<LeftOutlined />}
+              onClick={() => scrollProducts(recommendScrollRef, 'left')}
+            />
+            <div
+              className="product-scroll-wrapper"
+              ref={recommendScrollRef}
+              onMouseDown={(e) => handleMouseDown(e, recommendScrollRef)}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={(e) => handleTouchStart(e, recommendScrollRef)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="product-scroll-content">
+                {recommendProducts.map((product) => (
+                  <div key={product.id} className="product-scroll-item">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Button
+              className="scroll-btn scroll-btn-right"
+              icon={<RightOutlined />}
+              onClick={() => scrollProducts(recommendScrollRef, 'right')}
+            />
+          </div>
         </section>
 
         {/* 이벤트 상품 영역 */}
@@ -290,44 +502,44 @@ function MarketMain() {
             <GiftOutlined className="section-icon" />
             <h2>
               이벤트 상품
-              <Badge count="HOT" style={{ backgroundColor: '#ff4d4f', marginLeft: '10px' }} />
+              <Badge count="HOT" style={{ backgroundColor: '#e74c3c', marginLeft: '10px' }} />
             </h2>
           </div>
-          <Row gutter={[24, 24]}>
-            {eventProducts.map((product) => (
-              <Col xs={12} sm={8} md={6} key={product.id}>
-                <ProductCard product={product} />
-              </Col>
-            ))}
-          </Row>
+          <div className="product-scroll-container">
+            <Button
+              className="scroll-btn scroll-btn-left"
+              icon={<LeftOutlined />}
+              onClick={() => scrollProducts(eventScrollRef, 'left')}
+            />
+            <div
+              className="product-scroll-wrapper"
+              ref={eventScrollRef}
+              onMouseDown={(e) => handleMouseDown(e, eventScrollRef)}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={(e) => handleTouchStart(e, eventScrollRef)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="product-scroll-content">
+                {eventProducts.map((product) => (
+                  <div key={product.id} className="product-scroll-item">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Button
+              className="scroll-btn scroll-btn-right"
+              icon={<RightOutlined />}
+              onClick={() => scrollProducts(eventScrollRef, 'right')}
+            />
+          </div>
         </section>
       </main>
 
-      {/* 푸터 */}
-      <footer className="market-footer">
-        <div className="footer-container">
-          <div className="footer-section">
-            <h3>고객센터</h3>
-            <p>1588-0000</p>
-            <p>평일 09:00 ~ 18:00</p>
-          </div>
-          <div className="footer-section">
-            <h3>회사정보</h3>
-            <p>상호: 박신사</p>
-            <p>대표: 박신사</p>
-            <p>사업자등록번호: 000-00-00000</p>
-          </div>
-          <div className="footer-section">
-            <h3>이용안내</h3>
-            <p>배송안내</p>
-            <p>교환/반품 안내</p>
-            <p>이용약관</p>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <p>© 2024 박신사. All rights reserved.</p>
-        </div>
-      </footer>
+      <MarketFooter />
     </div>
   )
 }
