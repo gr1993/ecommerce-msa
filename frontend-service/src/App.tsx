@@ -18,6 +18,8 @@ import AdminCouponManage from './pages/admin/operation/AdminCouponManage'
 import AdminDiscountPolicyManage from './pages/admin/operation/AdminDiscountPolicyManage'
 import AdminNoticeManage from './pages/admin/operation/AdminNoticeManage'
 import AdminUserManage from './pages/admin/user/AdminUserManage'
+import AdminSettlementManage from './pages/admin/settlement/AdminSettlementManage'
+import AdminRevenueStatistics from './pages/admin/settlement/AdminRevenueStatistics'
 
 function App() {
   return (
@@ -42,6 +44,8 @@ function App() {
           <Route path="operation/coupon" element={<AdminCouponManage />} />
           <Route path="operation/discount" element={<AdminDiscountPolicyManage />} />
           <Route path="operation/notice" element={<AdminNoticeManage />} />
+          <Route path="settlement/manage" element={<AdminSettlementManage />} />
+          <Route path="settlement/statistics" element={<AdminRevenueStatistics />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>

@@ -205,6 +205,33 @@ function AdminLayout() {
                 </div>
               )}
             </div>
+
+            {/* 정산 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/settlement']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('settlement')}
+              >
+                <span>정산 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('settlement') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('settlement') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/settlement/manage" 
+                    className={`nav-link submenu-link ${isActive('/admin/settlement/manage') ? 'active' : ''}`}
+                  >
+                    정산 관리
+                  </Link>
+                  <Link 
+                    to="/admin/settlement/statistics" 
+                    className={`nav-link submenu-link ${isActive('/admin/settlement/statistics') ? 'active' : ''}`}
+                  >
+                    매출 통계
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         </aside>
         <main className="admin-main">
