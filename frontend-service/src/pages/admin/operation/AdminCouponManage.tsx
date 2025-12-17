@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag } from 'antd'
+import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, InputNumber, DatePicker, Switch, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined } from '@ant-design/icons'
+import dayjs, { type Dayjs } from 'dayjs'
 import './AdminCouponManage.css'
 
 const { Option } = Select
+const { RangePicker } = DatePicker
 
 interface Coupon {
   coupon_id: string
@@ -28,6 +30,8 @@ function AdminCouponManage() {
   const [filteredCoupons, setFilteredCoupons] = useState<Coupon[]>([])
   const [searchCouponCode, setSearchCouponCode] = useState('')
   const [searchIsActive, setSearchIsActive] = useState<string | undefined>(undefined)
+  const [isRegisterModalVisible, setIsRegisterModalVisible] = useState(false)
+  const [couponForm] = Form.useForm()
 
   const couponTypeMap: Record<string, string> = {
     PERCENTAGE: '퍼센트 할인',
@@ -112,8 +116,44 @@ function AdminCouponManage() {
   }
 
   const handleRegister = () => {
-    // TODO: 쿠폰 등록 페이지로 이동
-    console.log('쿠폰 등록')
+    couponForm.resetFields()
+    setIsRegisterModalVisible(true)
+  }
+
+  const handleRegisterSave = async () => {
+    try {
+      const values = await couponForm.validateFields()
+      
+      const newCoupon: Coupon = {
+        coupon_id: `coupon_${Date.now()}`,
+        coupon_code: values.coupon_code,
+        coupon_name: values.coupon_name,
+        coupon_type: values.coupon_type,
+        discount_value: values.discount_value,
+        min_purchase_amount: values.min_purchase_amount || undefined,
+        max_discount_amount: values.coupon_type === 'PERCENTAGE' ? values.max_discount_amount : undefined,
+        valid_from: values.valid_period[0].format('YYYY-MM-DD HH:mm:ss'),
+        valid_to: values.valid_period[1].format('YYYY-MM-DD HH:mm:ss'),
+        usage_limit: values.usage_limit || undefined,
+        used_count: 0,
+        is_active: values.is_active !== false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      // TODO: API 호출로 쿠폰 등록
+      setCoupons(prev => [newCoupon, ...prev])
+      message.success('쿠폰이 등록되었습니다.')
+      setIsRegisterModalVisible(false)
+      couponForm.resetFields()
+    } catch (error) {
+      console.error('Validation failed:', error)
+    }
+  }
+
+  const handleRegisterModalClose = () => {
+    setIsRegisterModalVisible(false)
+    couponForm.resetFields()
   }
 
   const columns: ColumnsType<Coupon> = [
@@ -281,6 +321,161 @@ function AdminCouponManage() {
             showTotal: (total) => `총 ${total}개`,
           }}
         />
+
+        {/* 쿠폰 등록 모달 */}
+        <Modal
+          title="쿠폰 등록"
+          open={isRegisterModalVisible}
+          onCancel={handleRegisterModalClose}
+          onOk={handleRegisterSave}
+          okText="등록"
+          cancelText="취소"
+          okButtonProps={{
+            style: { backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }
+          }}
+          width={700}
+        >
+          <Form
+            form={couponForm}
+            layout="vertical"
+            initialValues={{
+              coupon_type: 'PERCENTAGE',
+              is_active: true
+            }}
+          >
+            <Form.Item
+              label="쿠폰 코드"
+              name="coupon_code"
+              rules={[
+                { required: true, message: '쿠폰 코드를 입력하세요' },
+                { max: 50, message: '쿠폰 코드는 최대 50자까지 입력 가능합니다.' }
+              ]}
+            >
+              <Input placeholder="쿠폰 코드를 입력하세요 (예: WELCOME10)" maxLength={50} />
+            </Form.Item>
+
+            <Form.Item
+              label="쿠폰명"
+              name="coupon_name"
+              rules={[
+                { required: true, message: '쿠폰명을 입력하세요' },
+                { max: 100, message: '쿠폰명은 최대 100자까지 입력 가능합니다.' }
+              ]}
+            >
+              <Input placeholder="쿠폰명을 입력하세요" maxLength={100} />
+            </Form.Item>
+
+            <Form.Item
+              label="할인 유형"
+              name="coupon_type"
+              rules={[{ required: true, message: '할인 유형을 선택하세요' }]}
+            >
+              <Select>
+                <Option value="PERCENTAGE">퍼센트 할인</Option>
+                <Option value="FIXED_AMOUNT">정액 할인</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              noStyle
+              shouldUpdate={(prevValues, currentValues) => prevValues.coupon_type !== currentValues.coupon_type}
+            >
+              {({ getFieldValue }) => {
+                const couponType = getFieldValue('coupon_type')
+                return (
+                  <>
+                    <Form.Item
+                      label={couponType === 'PERCENTAGE' ? '할인율 (%)' : '할인 금액 (원)'}
+                      name="discount_value"
+                      rules={[
+                        { required: true, message: couponType === 'PERCENTAGE' ? '할인율을 입력하세요' : '할인 금액을 입력하세요' },
+                        { type: 'number', min: couponType === 'PERCENTAGE' ? 1 : 1, max: couponType === 'PERCENTAGE' ? 100 : undefined, message: couponType === 'PERCENTAGE' ? '할인율은 1~100% 사이여야 합니다' : '할인 금액은 1원 이상이어야 합니다' }
+                      ]}
+                    >
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        placeholder={couponType === 'PERCENTAGE' ? '할인율을 입력하세요 (1~100)' : '할인 금액을 입력하세요'}
+                        min={1}
+                        max={couponType === 'PERCENTAGE' ? 100 : undefined}
+                        formatter={couponType === 'PERCENTAGE' ? (value) => `${value}%` : (value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={couponType === 'PERCENTAGE' ? (value) => value!.replace('%', '') : (value) => value!.replace(/\$\s?|(,*)/g, '')}
+                      />
+                    </Form.Item>
+
+                    {couponType === 'PERCENTAGE' && (
+                      <Form.Item
+                        label="최대 할인 금액 (원)"
+                        name="max_discount_amount"
+                        rules={[
+                          { type: 'number', min: 1, message: '최대 할인 금액은 1원 이상이어야 합니다' }
+                        ]}
+                      >
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          placeholder="최대 할인 금액을 입력하세요 (선택사항)"
+                          min={1}
+                          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                        />
+                      </Form.Item>
+                    )}
+                  </>
+                )
+              }}
+            </Form.Item>
+
+            <Form.Item
+              label="최소 구매 금액 (원)"
+              name="min_purchase_amount"
+              rules={[
+                { type: 'number', min: 0, message: '최소 구매 금액은 0원 이상이어야 합니다' }
+              ]}
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="최소 구매 금액을 입력하세요 (선택사항)"
+                min={0}
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="유효 기간"
+              name="valid_period"
+              rules={[{ required: true, message: '유효 기간을 선택하세요' }]}
+            >
+              <RangePicker
+                style={{ width: '100%' }}
+                showTime={{ format: 'HH:mm' }}
+                format="YYYY-MM-DD HH:mm"
+                placeholder={['시작일시', '종료일시']}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="사용 제한 횟수"
+              name="usage_limit"
+              rules={[
+                { type: 'number', min: 1, message: '사용 제한 횟수는 1회 이상이어야 합니다' }
+              ]}
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="사용 제한 횟수를 입력하세요 (선택사항, 미입력 시 무제한)"
+                min={1}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="활성화"
+              name="is_active"
+              valuePropName="checked"
+            >
+              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </div>
   )
