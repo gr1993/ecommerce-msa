@@ -179,7 +179,7 @@ function AdminLayout() {
                     to="/admin/operation/notice" 
                     className={`nav-link submenu-link ${isActive('/admin/operation/notice') ? 'active' : ''}`}
                   >
-                    공지사항
+                    공지사항 관리
                   </Link>
                 </div>
               )}

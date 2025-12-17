@@ -12,10 +12,57 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.notice-manage-container h2 {
-  color: #343A40;
+.notice-list-header {
   margin-bottom: 1.5rem;
+}
+
+.notice-list-header h2 {
+  color: #343A40;
+  margin: 0;
   font-size: 1.75rem;
   font-weight: 600;
 }
 
+.notice-list-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.filter-inputs {
+  flex: 1;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Quill 에디터 스타일 */
+.admin-notice-manage .ql-container {
+  min-height: 300px;
+  font-size: 14px;
+}
+
+.admin-notice-manage .ql-editor {
+  min-height: 300px;
+}
+
+.admin-notice-manage .ql-editor.ql-blank::before {
+  color: #bfbfbf;
+  font-style: normal;
+}
+
+/* 모달 내부 스타일 */
+.admin-notice-manage .ant-modal-body {
+  padding: 24px;
+}
+
+.admin-notice-manage .ant-form-item-label > label {
+  font-weight: 500;
+  color: #343A40;
+}

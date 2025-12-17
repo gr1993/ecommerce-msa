@@ -60,3 +60,23 @@ CREATE TABLE discount_policy (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시'
 ) COMMENT='상품/주문 단위 할인 정책 테이블';
+
+
+-- 공지사항 테이블
+CREATE TABLE notice (
+    notice_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '공지사항 ID',
+    title VARCHAR(200) NOT NULL COMMENT '공지사항 제목',
+    content TEXT NOT NULL COMMENT '공지사항 내용',
+
+    is_displayed TINYINT(1) NOT NULL DEFAULT 1 COMMENT '진열 여부 (0: 비노출, 1: 노출)',
+    display_start TIMESTAMP COMMENT '노출 시작 일시',
+    display_end TIMESTAMP COMMENT '노출 종료 일시',
+
+    view_count BIGINT NOT NULL DEFAULT 0 COMMENT '조회수',
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시',
+    created_by BIGINT COMMENT '생성자 ID',
+    updated_by BIGINT COMMENT '수정자 ID'
+) COMMENT='관리자 공지사항 정보 테이블';
