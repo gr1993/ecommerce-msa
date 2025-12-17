@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Main from './pages/Main'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminSettings from './pages/admin/AdminSettings'
@@ -20,12 +19,14 @@ import AdminNoticeManage from './pages/admin/operation/AdminNoticeManage'
 import AdminUserManage from './pages/admin/user/AdminUserManage'
 import AdminSettlementManage from './pages/admin/settlement/AdminSettlementManage'
 import AdminRevenueStatistics from './pages/admin/settlement/AdminRevenueStatistics'
+import MarketMain from './pages/market/MarketMain'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Main />} />
+        <Route path="/" element={<Navigate to="/market" replace />} />
+        <Route path="/market" element={<MarketMain />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
