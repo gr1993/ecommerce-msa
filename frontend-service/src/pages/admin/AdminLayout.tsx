@@ -38,6 +38,27 @@ function AdminLayout() {
               </Link>
             </div>
 
+            {/* 사용자 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/user']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('user')}
+              >
+                <span>사용자 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('user') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('user') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/user/manage" 
+                    className={`nav-link submenu-link ${isActive('/admin/user/manage') ? 'active' : ''}`}
+                  >
+                    회원 관리
+                  </Link>
+                </div>
+              )}
+            </div>
+
             {/* 상품 관리 */}
             <div className="nav-menu-item">
               <div 

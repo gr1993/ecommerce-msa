@@ -17,6 +17,7 @@ import AdminExchangeManage from './pages/admin/shipping/AdminExchangeManage'
 import AdminCouponManage from './pages/admin/operation/AdminCouponManage'
 import AdminDiscountPolicyManage from './pages/admin/operation/AdminDiscountPolicyManage'
 import AdminNoticeManage from './pages/admin/operation/AdminNoticeManage'
+import AdminUserManage from './pages/admin/user/AdminUserManage'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="user/manage" element={<AdminUserManage />} />
           <Route path="product/list" element={<AdminProductList />} />
           <Route path="product/register" element={<AdminProductRegister />} />
           <Route path="product/edit/:id" element={<AdminProductEdit />} />
