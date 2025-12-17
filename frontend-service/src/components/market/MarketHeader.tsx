@@ -12,9 +12,6 @@ function MarketHeader() {
         <div className="logo" onClick={() => navigate('/market')}>
           <h1>박신사</h1>
         </div>
-        <nav className="main-nav">
-          <a href="/market/products">상품</a>
-        </nav>
         <div className="header-actions">
           <Button type="text" icon={<ShoppingCartOutlined />}>
             장바구니

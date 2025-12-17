@@ -406,7 +406,11 @@ function MarketMain() {
                 <div className="banner-content">
                   <h2>{banner.title}</h2>
                   <p>{banner.subtitle}</p>
-                  <Button type="primary" size="large">
+                  <Button 
+                    type="primary" 
+                    size="large"
+                    onClick={() => navigate('/market/products')}
+                  >
                     바로가기
                   </Button>
                 </div>
