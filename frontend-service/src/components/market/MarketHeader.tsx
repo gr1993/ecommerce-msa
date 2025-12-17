@@ -19,7 +19,7 @@ function MarketHeader() {
           <Button type="text" icon={<ShoppingCartOutlined />}>
             장바구니
           </Button>
-          <Button type="primary">로그인</Button>
+          <Button type="primary" onClick={() => navigate('/market/login')}>로그인</Button>
         </div>
       </div>
     </header>
