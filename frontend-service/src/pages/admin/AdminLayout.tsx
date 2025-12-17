@@ -151,6 +151,39 @@ function AdminLayout() {
                 </div>
               )}
             </div>
+
+            {/* 운영 관리 */}
+            <div className="nav-menu-item">
+              <div 
+                className={`nav-parent ${isActiveParent(['/admin/operation']) ? 'active-parent' : ''}`}
+                onClick={() => toggleMenu('operation')}
+              >
+                <span>운영 관리</span>
+                <span className={`nav-arrow ${isMenuOpen('operation') ? 'open' : ''}`}>▼</span>
+              </div>
+              {isMenuOpen('operation') && (
+                <div className="nav-submenu">
+                  <Link 
+                    to="/admin/operation/coupon" 
+                    className={`nav-link submenu-link ${isActive('/admin/operation/coupon') ? 'active' : ''}`}
+                  >
+                    쿠폰 관리
+                  </Link>
+                  <Link 
+                    to="/admin/operation/discount" 
+                    className={`nav-link submenu-link ${isActive('/admin/operation/discount') ? 'active' : ''}`}
+                  >
+                    할인 정책 관리
+                  </Link>
+                  <Link 
+                    to="/admin/operation/notice" 
+                    className={`nav-link submenu-link ${isActive('/admin/operation/notice') ? 'active' : ''}`}
+                  >
+                    공지사항
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         </aside>
         <main className="admin-main">

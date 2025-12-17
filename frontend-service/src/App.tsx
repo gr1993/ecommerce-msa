@@ -14,6 +14,9 @@ import AdminPaymentManage from './pages/admin/order/AdminPaymentManage'
 import AdminShippingList from './pages/admin/shipping/AdminShippingList'
 import AdminReturnManage from './pages/admin/shipping/AdminReturnManage'
 import AdminExchangeManage from './pages/admin/shipping/AdminExchangeManage'
+import AdminCouponManage from './pages/admin/operation/AdminCouponManage'
+import AdminDiscountPolicyManage from './pages/admin/operation/AdminDiscountPolicyManage'
+import AdminNoticeManage from './pages/admin/operation/AdminNoticeManage'
 
 function App() {
   return (
@@ -34,6 +37,9 @@ function App() {
           <Route path="shipping/list" element={<AdminShippingList />} />
           <Route path="shipping/return" element={<AdminReturnManage />} />
           <Route path="shipping/exchange" element={<AdminExchangeManage />} />
+          <Route path="operation/coupon" element={<AdminCouponManage />} />
+          <Route path="operation/discount" element={<AdminDiscountPolicyManage />} />
+          <Route path="operation/notice" element={<AdminNoticeManage />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>
