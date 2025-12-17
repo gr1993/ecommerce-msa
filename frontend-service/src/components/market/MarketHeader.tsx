@@ -13,10 +13,7 @@ function MarketHeader() {
           <h1>박신사</h1>
         </div>
         <nav className="main-nav">
-          <a href="#main">메인</a>
-          <a href="#recommend">추천</a>
-          <a href="#event">이벤트</a>
-          <a href="#categories">카테고리</a>
+          <a href="/market/products">상품</a>
         </nav>
         <div className="header-actions">
           <Button type="text" icon={<HeartOutlined />}>
