@@ -20,6 +20,7 @@ interface Product {
   product_name: string
   product_code: string
   base_price: number
+  discount_price?: number
   category_id: string
   category_name: string
   sales_count: number
@@ -111,7 +112,8 @@ function MarketProductList() {
         product_id: '1',
         product_name: '프리미엄 노트북',
         product_code: 'PRD-001',
-        base_price: 1200000,
+        base_price: 1500000,
+        discount_price: 1200000,
         category_id: '1-1',
         category_name: '노트북',
         sales_count: 150,
@@ -144,7 +146,8 @@ function MarketProductList() {
         product_id: '4',
         product_name: '프리미엄 티셔츠',
         product_code: 'PRD-004',
-        base_price: 50000,
+        base_price: 70000,
+        discount_price: 50000,
         category_id: '2-1',
         category_name: '상의',
         sales_count: 320,
@@ -177,7 +180,8 @@ function MarketProductList() {
         product_id: '7',
         product_name: '베스트셀러 도서',
         product_code: 'PRD-007',
-        base_price: 15000,
+        base_price: 20000,
+        discount_price: 15000,
         category_id: '3',
         category_name: '도서',
         sales_count: 450,
@@ -429,14 +433,24 @@ function MarketProductList() {
       onClick={() => handleProductClick(product.product_id)}
     >
       <div className="product-info">
+        <div className="product-category-badge">{product.category_name}</div>
         <h3 className="product-name">{product.product_name}</h3>
-        <p className="product-code">{product.product_code}</p>
-        <div className="product-meta">
-          <span className="product-category">{product.category_name}</span>
-          <span className="product-sales">판매량: {product.sales_count}</span>
-        </div>
         <div className="product-price">
-          <span className="price">{product.base_price.toLocaleString()}원</span>
+          {product.discount_price ? (
+            <>
+              <div className="price-original">
+                <span className="original-price">{product.base_price.toLocaleString()}원</span>
+              </div>
+              <div className="price-discount">
+                <span className="discount-rate">
+                  {Math.round(((product.base_price - product.discount_price) / product.base_price) * 100)}%
+                </span>
+                <span className="discount-price">{product.discount_price.toLocaleString()}원</span>
+              </div>
+            </>
+          ) : (
+            <span className="price">{product.base_price.toLocaleString()}원</span>
+          )}
         </div>
       </div>
     </Card>
