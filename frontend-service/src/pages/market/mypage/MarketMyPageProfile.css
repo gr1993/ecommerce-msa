@@ -1,0 +1,77 @@
+.market-mypage-profile {
+  width: 100%;
+}
+
+.profile-card {
+  box-shadow: none;
+  border: none;
+}
+
+.profile-card .ant-card-head {
+  border-bottom: 2px solid #f0f0f0;
+  padding: 1rem 0;
+}
+
+.profile-card .ant-card-head-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.profile-form {
+  max-width: 600px;
+}
+
+.profile-info-section {
+  margin-bottom: 2rem;
+  background-color: #fafafa;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.profile-info-section .ant-descriptions-item-label {
+  font-weight: 600;
+  color: #2c3e50;
+  width: 150px;
+}
+
+.profile-edit-section {
+  margin-top: 2rem;
+}
+
+.profile-edit-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+}
+
+.profile-form .ant-form-item {
+  margin-bottom: 1.5rem;
+}
+
+.profile-form .ant-input-affix-wrapper {
+  border-radius: 8px;
+}
+
+.profile-form .ant-input-affix-wrapper:hover {
+  border-color: #667eea;
+}
+
+.profile-form .ant-input-affix-wrapper:focus,
+.profile-form .ant-input-affix-wrapper-focused {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .profile-form {
+    max-width: 100%;
+  }
+
+  .profile-info-section .ant-descriptions-item-label {
+    width: 100px;
+  }
+}
+
