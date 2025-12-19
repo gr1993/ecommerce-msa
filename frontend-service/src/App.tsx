@@ -23,6 +23,7 @@ import AdminLogin from './pages/admin/AdminLogin'
 import MarketMain from './pages/market/MarketMain'
 import MarketProductList from './pages/market/MarketProductList'
 import MarketProductDetail from './pages/market/MarketProductDetail'
+import MarketCart from './pages/market/MarketCart'
 import MarketLogin from './pages/market/MarketLogin'
 import MarketSignup from './pages/market/MarketSignup'
 
@@ -34,6 +35,7 @@ function App() {
         <Route path="/market" element={<MarketMain />} />
         <Route path="/market/products" element={<MarketProductList />} />
         <Route path="/market/product/:productId" element={<MarketProductDetail />} />
+        <Route path="/market/cart" element={<MarketCart />} />
         <Route path="/market/login" element={<MarketLogin />} />
         <Route path="/market/signup" element={<MarketSignup />} />
         <Route path="/admin/login" element={<AdminLogin />} />
