@@ -28,6 +28,7 @@ import MarketOrder from './pages/market/MarketOrder'
 import MarketOrderComplete from './pages/market/MarketOrderComplete'
 import MarketMyPageLayout from './pages/market/mypage/MarketMyPageLayout'
 import MarketMyPageOrders from './pages/market/mypage/MarketMyPageOrders'
+import MarketMyPageShipping from './pages/market/mypage/MarketMyPageShipping'
 import MarketLogin from './pages/market/MarketLogin'
 import MarketSignup from './pages/market/MarketSignup'
 
@@ -45,6 +46,7 @@ function App() {
         <Route path="/market/mypage" element={<MarketMyPageLayout />}>
           <Route index element={<Navigate to="/market/mypage/orders" replace />} />
           <Route path="orders" element={<MarketMyPageOrders />} />
+          <Route path="shipping" element={<MarketMyPageShipping />} />
         </Route>
         <Route path="/market/login" element={<MarketLogin />} />
         <Route path="/market/signup" element={<MarketSignup />} />
