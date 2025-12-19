@@ -30,6 +30,7 @@ import MarketMyPageLayout from './pages/market/mypage/MarketMyPageLayout'
 import MarketMyPageOrders from './pages/market/mypage/MarketMyPageOrders'
 import MarketMyPageShipping from './pages/market/mypage/MarketMyPageShipping'
 import MarketMyPageReturns from './pages/market/mypage/MarketMyPageReturns'
+import MarketMyPageCoupons from './pages/market/mypage/MarketMyPageCoupons'
 import MarketLogin from './pages/market/MarketLogin'
 import MarketSignup from './pages/market/MarketSignup'
 
@@ -49,6 +50,7 @@ function App() {
           <Route path="orders" element={<MarketMyPageOrders />} />
           <Route path="shipping" element={<MarketMyPageShipping />} />
           <Route path="returns" element={<MarketMyPageReturns />} />
+          <Route path="coupons" element={<MarketMyPageCoupons />} />
         </Route>
         <Route path="/market/login" element={<MarketLogin />} />
         <Route path="/market/signup" element={<MarketSignup />} />

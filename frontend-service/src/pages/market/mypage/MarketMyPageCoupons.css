@@ -1,0 +1,69 @@
+.market-mypage-coupons {
+  width: 100%;
+}
+
+.coupons-card {
+  box-shadow: none;
+  border: none;
+}
+
+.coupons-card .ant-card-head {
+  border-bottom: 2px solid #f0f0f0;
+  padding: 1rem 0;
+}
+
+.coupons-card .ant-card-head-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.coupon-register-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.coupon-register-card .ant-card-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem 1.5rem;
+}
+
+.coupon-register-card .ant-card-head-title {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.coupon-register-card .ant-card-body {
+  padding: 1.5rem;
+}
+
+.coupon-register-card .ant-input {
+  border-radius: 8px 0 0 8px;
+  padding-left: 1rem;
+}
+
+.coupon-register-card .ant-btn {
+  border-radius: 0 8px 8px 0;
+}
+
+.coupons-card .ant-table {
+  font-size: 0.95rem;
+}
+
+.coupons-card .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.coupons-card .ant-table-tbody > tr:hover > td {
+  background-color: #f5f5f5;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .coupons-card .ant-table {
+    font-size: 0.85rem;
+  }
+}
+
