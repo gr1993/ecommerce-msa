@@ -21,7 +21,8 @@ import {
 } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import { getCartItems, CartItem } from '../../utils/cartUtils'
+import { getCartItems } from '../../utils/cartUtils'
+import type { CartItem } from '../../utils/cartUtils'
 import './MarketCart.css'
 
 function MarketCart() {
@@ -126,8 +127,14 @@ function MarketCart() {
       message.warning('주문할 상품을 선택해주세요.')
       return
     }
-    // TODO: 주문 페이지로 이동
-    message.info('주문 기능은 준비 중입니다.')
+    // 선택된 아이템들만 주문 페이지로 전달
+    const selectedCartItems = cartItems.filter(item => selectedItems.has(item.product_id))
+    navigate('/market/order', {
+      state: {
+        items: selectedCartItems,
+        fromCart: true
+      }
+    })
   }
 
   const totalPrice = calculateTotal()

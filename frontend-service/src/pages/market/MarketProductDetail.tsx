@@ -4,6 +4,7 @@ import { Button, Card, Row, Col, InputNumber, Space, Divider, Tag, Image, messag
 import { ShoppingCartOutlined, ArrowLeftOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
+import type { CartItem } from '../../utils/cartUtils'
 import './MarketProductDetail.css'
 
 interface Product {
@@ -127,8 +128,35 @@ function MarketProductDetail() {
   }
 
   const handleBuyNow = () => {
-    // TODO: 바로 구매 로직
-    message.info('구매 기능은 준비 중입니다.')
+    if (!product) return
+    
+    if (product.stock === 0) {
+      message.warning('재고가 없습니다.')
+      return
+    }
+
+    if (quantity > product.stock) {
+      message.warning(`재고가 부족합니다. (최대 ${product.stock}개)`)
+      return
+    }
+
+    // 바로구매: 주문 페이지로 이동
+    const orderItem: CartItem = {
+      product_id: product.product_id,
+      product_name: product.product_name,
+      product_code: product.product_code,
+      base_price: product.base_price,
+      image_url: product.image_url,
+      quantity: quantity,
+      stock: product.stock
+    }
+
+    navigate('/market/order', {
+      state: {
+        item: orderItem,
+        fromCart: false
+      }
+    })
   }
 
 
