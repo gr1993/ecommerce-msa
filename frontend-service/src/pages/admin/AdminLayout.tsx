@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Button, message } from 'antd'
+import { LogoutOutlined } from '@ant-design/icons'
 import './AdminLayout.css'
 
 function AdminLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [openMenus, setOpenMenus] = useState<string[]>([])
 
   const toggleMenu = (menuKey: string) => {
@@ -18,12 +21,27 @@ function AdminLayout() {
   const isActive = (path: string) => location.pathname === path
   const isActiveParent = (paths: string[]) => paths.some(path => location.pathname.startsWith(path))
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('adminUser')
+    message.success('로그아웃되었습니다.')
+    navigate('/admin/login')
+  }
+
   return (
     <div className="admin-layout">
       <header className="admin-header">
         <Link to="/admin" className="admin-logo">
           박신사 관리자
         </Link>
+        <Button
+          type="text"
+          icon={<LogoutOutlined />}
+          onClick={handleLogout}
+          className="admin-logout-button"
+        >
+          로그아웃
+        </Button>
       </header>
       <div className="admin-content-wrapper">
         <aside className="admin-sidebar">

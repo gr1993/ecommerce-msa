@@ -19,6 +19,7 @@ import AdminNoticeManage from './pages/admin/operation/AdminNoticeManage'
 import AdminUserManage from './pages/admin/user/AdminUserManage'
 import AdminSettlementManage from './pages/admin/settlement/AdminSettlementManage'
 import AdminRevenueStatistics from './pages/admin/settlement/AdminRevenueStatistics'
+import AdminLogin from './pages/admin/AdminLogin'
 import MarketMain from './pages/market/MarketMain'
 import MarketProductList from './pages/market/MarketProductList'
 import MarketProductDetail from './pages/market/MarketProductDetail'
@@ -35,6 +36,7 @@ function App() {
         <Route path="/market/product/:productId" element={<MarketProductDetail />} />
         <Route path="/market/login" element={<MarketLogin />} />
         <Route path="/market/signup" element={<MarketSignup />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />

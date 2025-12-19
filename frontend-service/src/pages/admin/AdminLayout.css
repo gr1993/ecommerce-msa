@@ -11,6 +11,7 @@
   padding: 1rem 2rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 100;
 }
@@ -25,6 +26,26 @@
 
 .admin-logo:hover {
   opacity: 0.9;
+}
+
+.admin-logout-button {
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.admin-logout-button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+}
+
+.admin-logout-button .anticon {
+  font-size: 1rem;
 }
 
 .admin-content-wrapper {
