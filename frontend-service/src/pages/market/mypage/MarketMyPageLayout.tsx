@@ -43,7 +43,7 @@ function MarketMyPageLayout() {
     {
       key: '/market/mypage/returns',
       icon: <UndoOutlined />,
-      label: <Link to="/market/mypage/returns">반품/환불</Link>
+      label: <Link to="/market/mypage/returns">반품/교환</Link>
     },
     {
       key: '/market/mypage/coupons',

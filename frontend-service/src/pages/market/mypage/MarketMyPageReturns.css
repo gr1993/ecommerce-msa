@@ -1,0 +1,41 @@
+.market-mypage-returns {
+  width: 100%;
+}
+
+.returns-card {
+  box-shadow: none;
+  border: none;
+}
+
+.returns-card .ant-card-head {
+  border-bottom: 2px solid #f0f0f0;
+  padding: 1rem 0;
+}
+
+.returns-card .ant-card-head-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.returns-card .ant-table {
+  font-size: 0.95rem;
+}
+
+.returns-card .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.returns-card .ant-table-tbody > tr:hover > td {
+  background-color: #f5f5f5;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .returns-card .ant-table {
+    font-size: 0.85rem;
+  }
+}
+
