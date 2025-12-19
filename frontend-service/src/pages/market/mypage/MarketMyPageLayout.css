@@ -1,0 +1,98 @@
+.market-mypage-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+}
+
+.mypage-layout-container {
+  flex: 1;
+  min-height: calc(100vh - 200px);
+  margin: 0;
+  padding: 0;
+}
+
+.mypage-sider {
+  background-color: #ffffff;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.mypage-sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mypage-sidebar-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.mypage-menu {
+  border-right: none;
+  padding: 1rem 0;
+}
+
+.mypage-menu .ant-menu-item {
+  margin: 0.25rem 0.5rem;
+  border-radius: 8px;
+  height: 48px;
+  line-height: 48px;
+}
+
+.mypage-menu .ant-menu-item-selected {
+  background-color: #667eea;
+  color: #ffffff;
+}
+
+.mypage-menu .ant-menu-item-selected .anticon {
+  color: #ffffff;
+}
+
+.mypage-menu .ant-menu-item:hover {
+  background-color: rgba(102, 126, 234, 0.1);
+}
+
+.mypage-sidebar-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #f0f0f0;
+  background-color: #ffffff;
+}
+
+.mypage-content-layout {
+  background-color: #f5f5f5;
+  padding: 2rem;
+}
+
+.mypage-content {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: calc(100vh - 250px);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .mypage-layout-container {
+    flex-direction: column;
+  }
+
+  .mypage-sider {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .mypage-content-layout {
+    padding: 1rem;
+  }
+
+  .mypage-content {
+    padding: 1rem;
+  }
+}
+

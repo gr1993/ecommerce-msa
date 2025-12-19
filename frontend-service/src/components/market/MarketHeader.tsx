@@ -1,10 +1,12 @@
 import { Button } from 'antd'
-import { ShoppingCartOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, UserOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { isLoggedIn } from '../../utils/authUtils'
 import './MarketHeader.css'
 
 function MarketHeader() {
   const navigate = useNavigate()
+  const loggedIn = isLoggedIn()
 
   return (
     <header className="market-header">
@@ -20,7 +22,19 @@ function MarketHeader() {
           >
             장바구니
           </Button>
-          <Button type="primary" onClick={() => navigate('/market/login')}>로그인</Button>
+          {loggedIn ? (
+            <Button 
+              type="primary" 
+              icon={<UserOutlined />}
+              onClick={() => navigate('/market/mypage')}
+            >
+              마이페이지
+            </Button>
+          ) : (
+            <Button type="primary" onClick={() => navigate('/market/login')}>
+              로그인
+            </Button>
+          )}
         </div>
       </div>
     </header>

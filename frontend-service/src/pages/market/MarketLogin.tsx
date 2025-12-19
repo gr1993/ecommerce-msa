@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
+import { login } from '../../utils/authUtils'
 import './MarketLogin.css'
 
 function MarketLogin() {
@@ -19,6 +20,16 @@ function MarketLogin() {
       
       // 임시 처리
       await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 로그인 성공 시 세션 저장
+      login(
+        {
+          userId: 'user-1',
+          email: values.email,
+          name: '사용자'
+        },
+        'user-token-' + Date.now()
+      )
       
       message.success('로그인되었습니다.')
       navigate('/market')
