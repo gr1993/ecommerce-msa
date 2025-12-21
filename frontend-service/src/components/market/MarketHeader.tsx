@@ -1,5 +1,5 @@
 import { Button } from 'antd'
-import { ShoppingCartOutlined, UserOutlined } from '@ant-design/icons'
+import { ShoppingCartOutlined, UserOutlined, CustomerServiceOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { isLoggedIn } from '../../utils/authUtils'
 import './MarketHeader.css'
@@ -21,6 +21,13 @@ function MarketHeader() {
             onClick={() => navigate('/market/cart')}
           >
             장바구니
+          </Button>
+          <Button 
+            type="text" 
+            icon={<CustomerServiceOutlined />}
+            onClick={() => navigate('/market/support/notices')}
+          >
+            고객센터
           </Button>
           {loggedIn ? (
             <Button 
