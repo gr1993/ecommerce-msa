@@ -25,6 +25,9 @@ return-service
 notification-service
 ```
 
+원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
+사용하는 서비스들은 **하나의 MySQL 서버에서 논리적으로 분리된 데이터베이스를 사용하도록 할 예정**이다.  
+
 
 ### 유틸 서비스
 
