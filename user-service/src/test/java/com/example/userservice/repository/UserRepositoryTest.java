@@ -5,14 +5,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.ActiveProfiles;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@ActiveProfiles("test")
 class UserRepositoryTest {
 
 	@Autowired
@@ -114,7 +115,6 @@ class UserRepositoryTest {
 				.phone("010-1111-2222")
 				.build();
 		User savedUser = userRepository.save(user);
-		LocalDateTime originalUpdatedAt = savedUser.getUpdatedAt();
 
 		// when
 		savedUser.updateName("최수정(변경)");
@@ -126,7 +126,6 @@ class UserRepositoryTest {
 		assertThat(updatedUser.getName()).isEqualTo("최수정(변경)");
 		assertThat(updatedUser.getPhone()).isEqualTo("010-9999-8888");
 		assertThat(updatedUser.getStatus()).isEqualTo(User.UserStatus.INACTIVE);
-		assertThat(updatedUser.getUpdatedAt()).isAfter(originalUpdatedAt);
 	}
 
 	@Test

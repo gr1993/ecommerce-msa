@@ -3,7 +3,7 @@ CREATE DATABASE IF NOT EXISTS user_service;
 USE user_service;
 
 -- 사용자 테이블
-CREATE TABLE user (
+CREATE TABLE users (
     user_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '사용자 ID',
     email VARCHAR(255) NOT NULL UNIQUE COMMENT '이메일 (로그인용)',
     password VARCHAR(255) NOT NULL COMMENT '비밀번호 (해시 저장)',
