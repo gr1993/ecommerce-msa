@@ -14,23 +14,43 @@ function MarketSignup() {
   const onFinish = async (values: any) => {
     setLoading(true)
     try {
-      // TODO: API 호출로 회원가입 처리
-      console.log('Signup values:', values)
-      
       // 비밀번호 확인
       if (values.password !== values.passwordConfirm) {
         message.error('비밀번호가 일치하지 않습니다.')
         setLoading(false)
         return
       }
-      
-      // 임시 처리
-      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // API 호출로 회원가입 처리
+      const response = await fetch('http://localhost:8080/api/users/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+          passwordConfirm: values.passwordConfirm,
+          name: values.name,
+          phone: values.phone || '',
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || '회원가입에 실패했습니다.')
+      }
+
+      const data = await response.json()
+      console.log('Signup success:', data)
       
       message.success('회원가입이 완료되었습니다. 로그인해주세요.')
       navigate('/market/login')
     } catch (error) {
-      message.error('회원가입에 실패했습니다. 다시 시도해주세요.')
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : '회원가입에 실패했습니다. 다시 시도해주세요.'
+      message.error(errorMessage)
     } finally {
       setLoading(false)
     }
