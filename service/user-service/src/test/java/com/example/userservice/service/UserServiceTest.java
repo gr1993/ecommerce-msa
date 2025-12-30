@@ -1,14 +1,18 @@
 package com.example.userservice.service;
 
+import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
 import com.example.userservice.dto.request.SignUpRequest;
 import com.example.userservice.dto.response.SignUpResponse;
 import com.example.userservice.exception.DuplicateEmailException;
 import com.example.userservice.exception.PasswordMismatchException;
+import com.example.userservice.repository.OutboxRepository;
 import com.example.userservice.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,14 +34,20 @@ class UserServiceTest {
 	private UserRepository userRepository;
 
 	@Mock
+	private OutboxRepository outboxRepository;
+
+	@Mock
 	private PasswordEncoder passwordEncoder;
+
+	@Mock
+	private ObjectMapper objectMapper;
 
 	@InjectMocks
 	private UserService userService;
 
 	@Test
 	@DisplayName("정상 회원가입 테스트")
-	void testSignUpSuccess() {
+	void testSignUpSuccess() throws Exception {
 		// given
 		SignUpRequest request = new SignUpRequest();
 		request.setEmail("test@example.com");
@@ -45,6 +55,9 @@ class UserServiceTest {
 		request.setPasswordConfirm("password123!");
 		request.setName("홍길동");
 		request.setPhone("010-1234-5678");
+
+		LocalDateTime createdAt = LocalDateTime.now();
+		String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\",\"name\":\"홍길동\",\"phone\":\"010-1234-5678\",\"registeredAt\":\"" + createdAt + "\"}";
 
 		when(userRepository.existsByEmail(anyString())).thenReturn(false);
 		when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -57,9 +70,11 @@ class UserServiceTest {
 					.phone(user.getPhone())
 					.build();
 			ReflectionTestUtils.setField(savedUser, "userId", 1L);
-			ReflectionTestUtils.setField(savedUser, "createdAt", LocalDateTime.now());
+			ReflectionTestUtils.setField(savedUser, "createdAt", createdAt);
 			return savedUser;
 		});
+		when(objectMapper.writeValueAsString(any())).thenReturn(eventPayload);
+		when(outboxRepository.save(any(Outbox.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
 		SignUpResponse response = userService.signUp(request);
@@ -75,6 +90,18 @@ class UserServiceTest {
 		verify(userRepository, times(1)).existsByEmail("test@example.com");
 		verify(passwordEncoder, times(1)).encode("password123!");
 		verify(userRepository, times(1)).save(any(User.class));
+		verify(objectMapper, times(1)).writeValueAsString(any());
+		
+		// Outbox 저장 검증
+		ArgumentCaptor<Outbox> outboxCaptor = ArgumentCaptor.forClass(Outbox.class);
+		verify(outboxRepository, times(1)).save(outboxCaptor.capture());
+		
+		Outbox savedOutbox = outboxCaptor.getValue();
+		assertThat(savedOutbox.getAggregateType()).isEqualTo("User");
+		assertThat(savedOutbox.getAggregateId()).isEqualTo("1");
+		assertThat(savedOutbox.getEventType()).isEqualTo("UserRegistered");
+		assertThat(savedOutbox.getPayload()).isEqualTo(eventPayload);
+		assertThat(savedOutbox.getStatus()).isEqualTo(Outbox.OutboxStatus.PENDING);
 	}
 
 	@Test
@@ -125,7 +152,7 @@ class UserServiceTest {
 
 	@Test
 	@DisplayName("연락처 없이 회원가입 테스트")
-	void testSignUpWithoutPhone() {
+	void testSignUpWithoutPhone() throws Exception {
 		// given
 		SignUpRequest request = new SignUpRequest();
 		request.setEmail("test@example.com");
@@ -133,6 +160,9 @@ class UserServiceTest {
 		request.setPasswordConfirm("password123!");
 		request.setName("홍길동");
 		request.setPhone(null);
+
+		LocalDateTime createdAt = LocalDateTime.now();
+		String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\",\"name\":\"홍길동\",\"phone\":null,\"registeredAt\":\"" + createdAt + "\"}";
 
 		when(userRepository.existsByEmail(anyString())).thenReturn(false);
 		when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -145,9 +175,11 @@ class UserServiceTest {
 					.phone(user.getPhone())
 					.build();
 			ReflectionTestUtils.setField(savedUser, "userId", 1L);
-			ReflectionTestUtils.setField(savedUser, "createdAt", LocalDateTime.now());
+			ReflectionTestUtils.setField(savedUser, "createdAt", createdAt);
 			return savedUser;
 		});
+		when(objectMapper.writeValueAsString(any())).thenReturn(eventPayload);
+		when(outboxRepository.save(any(Outbox.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		// when
 		SignUpResponse response = userService.signUp(request);
@@ -157,6 +189,48 @@ class UserServiceTest {
 		assertThat(response.getEmail()).isEqualTo("test@example.com");
 		assertThat(response.getName()).isEqualTo("홍길동");
 		assertThat(response.getPhone()).isNull();
+
+		// Outbox 저장 검증
+		verify(outboxRepository, times(1)).save(any(Outbox.class));
+	}
+
+	@Test
+	@DisplayName("이벤트 직렬화 실패 시 예외 발생 테스트")
+	void testSignUpWithJsonProcessingException() throws Exception {
+		// given
+		SignUpRequest request = new SignUpRequest();
+		request.setEmail("test@example.com");
+		request.setPassword("password123!");
+		request.setPasswordConfirm("password123!");
+		request.setName("홍길동");
+		request.setPhone("010-1234-5678");
+
+		LocalDateTime createdAt = LocalDateTime.now();
+
+		when(userRepository.existsByEmail(anyString())).thenReturn(false);
+		when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+		when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+			User user = invocation.getArgument(0);
+			User savedUser = User.builder()
+					.email(user.getEmail())
+					.password(user.getPassword())
+					.name(user.getName())
+					.phone(user.getPhone())
+					.build();
+			ReflectionTestUtils.setField(savedUser, "userId", 1L);
+			ReflectionTestUtils.setField(savedUser, "createdAt", createdAt);
+			return savedUser;
+		});
+		when(objectMapper.writeValueAsString(any())).thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("직렬화 실패") {});
+
+		// when & then
+		assertThatThrownBy(() -> userService.signUp(request))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessageContaining("이벤트 저장 중 오류가 발생했습니다.");
+
+		verify(userRepository, times(1)).save(any(User.class));
+		verify(objectMapper, times(1)).writeValueAsString(any());
+		verify(outboxRepository, never()).save(any(Outbox.class));
 	}
 }
 
