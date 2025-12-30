@@ -1,5 +1,6 @@
 package com.example.userservice.repository;
 
+import com.example.userservice.common.EventTypeConstants;
 import com.example.userservice.domain.entity.Outbox;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ class OutboxRepositoryTest {
 		Outbox outbox = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1,\"email\":\"test@example.com\"}")
 				.build();
 
@@ -36,7 +37,7 @@ class OutboxRepositoryTest {
 		assertThat(savedOutbox.getId()).isNotNull();
 		assertThat(savedOutbox.getAggregateType()).isEqualTo("User");
 		assertThat(savedOutbox.getAggregateId()).isEqualTo("1");
-		assertThat(savedOutbox.getEventType()).isEqualTo("UserRegistered");
+		assertThat(savedOutbox.getEventType()).isEqualTo(EventTypeConstants.TOPIC_USER_REGISTERED);
 		assertThat(savedOutbox.getPayload()).isEqualTo("{\"userId\":1,\"email\":\"test@example.com\"}");
 		assertThat(savedOutbox.getStatus()).isEqualTo(Outbox.OutboxStatus.PENDING);
 		assertThat(savedOutbox.getCreatedAt()).isNotNull();
@@ -50,21 +51,21 @@ class OutboxRepositoryTest {
 		Outbox outbox1 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1}")
 				.build();
 
 		Outbox outbox2 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("2")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":2}")
 				.build();
 
 		Outbox outbox3 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("3")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":3}")
 				.build();
 		outbox3.markAsPublished();
@@ -89,7 +90,7 @@ class OutboxRepositoryTest {
 		Outbox outbox1 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1}")
 				.build();
 		outbox1.markAsPublished();
@@ -97,7 +98,7 @@ class OutboxRepositoryTest {
 		Outbox outbox2 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("2")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":2}")
 				.build();
 		outbox2.markAsPublished();
@@ -105,7 +106,7 @@ class OutboxRepositoryTest {
 		Outbox outbox3 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("3")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":3}")
 				.build();
 
@@ -130,7 +131,7 @@ class OutboxRepositoryTest {
 		Outbox outbox = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1}")
 				.build();
 		Outbox savedOutbox = outboxRepository.save(outbox);
@@ -151,7 +152,7 @@ class OutboxRepositoryTest {
 		Outbox outbox = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1}")
 				.build();
 		Outbox savedOutbox = outboxRepository.save(outbox);
@@ -172,7 +173,7 @@ class OutboxRepositoryTest {
 		Outbox outbox1 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("1")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":1}")
 				.build();
 		outboxRepository.save(outbox1);
@@ -182,7 +183,7 @@ class OutboxRepositoryTest {
 		Outbox outbox2 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("2")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":2}")
 				.build();
 		outboxRepository.save(outbox2);
@@ -192,7 +193,7 @@ class OutboxRepositoryTest {
 		Outbox outbox3 = Outbox.builder()
 				.aggregateType("User")
 				.aggregateId("3")
-				.eventType("UserRegistered")
+				.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 				.payload("{\"userId\":3}")
 				.build();
 		outboxRepository.save(outbox3);

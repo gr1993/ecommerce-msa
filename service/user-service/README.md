@@ -19,7 +19,8 @@ com.example.userservice
 │   └── response
 ├── exception           # 커스텀 예외 처리 및 Global Handler
 ├── repository          # DB 접근 (Spring Data JPA Interface 등)
-└── service             # 비즈니스 로직 인터페이스 및 구현체
+│── service             # 비즈니스 로직 인터페이스 및 구현체
+└   └── outbox/         # 이벤트 발행 Polling
 ```
 
 
@@ -27,6 +28,8 @@ com.example.userservice
 * Spring Boot 3.5.9 (JDK 17)
 * spring-boot-starter-data-jpa
 * spring-security-crypto : BCryptPasswordEncoder를 위해 추가
+* spring-kafka
+* springdoc-openapi-starter-webmvc-ui:2.8.9 : swagger
 
 
 ### REST API
@@ -43,5 +46,5 @@ REST API 명세는 다음 방법으로 확인할 수 있다.
 
 | 구분 | 설명 |
 |-----|------|
-| 발행(Published) | UserRegistered |
+| 발행(Published) | user.registered |
 | 구독(Subscribed) | - |

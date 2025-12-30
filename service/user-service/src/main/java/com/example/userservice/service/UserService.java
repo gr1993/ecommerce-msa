@@ -1,5 +1,6 @@
 package com.example.userservice.service;
 
+import com.example.userservice.common.EventTypeConstants;
 import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
 import com.example.userservice.domain.event.UserRegisteredEvent;
@@ -79,7 +80,7 @@ public class UserService {
 			Outbox outbox = Outbox.builder()
 					.aggregateType("User")
 					.aggregateId(String.valueOf(user.getUserId()))
-					.eventType("UserRegistered")
+					.eventType(EventTypeConstants.TOPIC_USER_REGISTERED)
 					.payload(payload)
 					.build();
 

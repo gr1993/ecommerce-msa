@@ -1,5 +1,6 @@
 package com.example.userservice.service;
 
+import com.example.userservice.common.EventTypeConstants;
 import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
 import com.example.userservice.dto.request.SignUpRequest;
@@ -99,7 +100,7 @@ class UserServiceTest {
 		Outbox savedOutbox = outboxCaptor.getValue();
 		assertThat(savedOutbox.getAggregateType()).isEqualTo("User");
 		assertThat(savedOutbox.getAggregateId()).isEqualTo("1");
-		assertThat(savedOutbox.getEventType()).isEqualTo("UserRegistered");
+		assertThat(savedOutbox.getEventType()).isEqualTo(EventTypeConstants.TOPIC_USER_REGISTERED);
 		assertThat(savedOutbox.getPayload()).isEqualTo(eventPayload);
 		assertThat(savedOutbox.getStatus()).isEqualTo(Outbox.OutboxStatus.PENDING);
 	}

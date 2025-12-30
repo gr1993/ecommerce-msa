@@ -4,6 +4,16 @@ spring:
     username: root
     password: 123123
     driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
+    producer:
+      transaction-id-prefix: tx-producer-
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all
+        enable.idempotence: true
 
 springdoc:
   api-docs:
