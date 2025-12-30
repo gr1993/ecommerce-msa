@@ -1,24 +1,33 @@
 package com.example.userservice.service;
 
+import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
+import com.example.userservice.domain.event.UserRegisteredEvent;
 import com.example.userservice.dto.request.SignUpRequest;
 import com.example.userservice.dto.response.SignUpResponse;
 import com.example.userservice.exception.DuplicateEmailException;
 import com.example.userservice.exception.PasswordMismatchException;
+import com.example.userservice.repository.OutboxRepository;
 import com.example.userservice.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class UserService {
 
 	private final UserRepository userRepository;
+	private final OutboxRepository outboxRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final ObjectMapper objectMapper;
 
+	@Transactional
 	public SignUpResponse signUp(SignUpRequest request) {
 		// 이메일 중복 체크
 		if (userRepository.existsByEmail(request.getEmail())) {
@@ -43,6 +52,9 @@ public class UserService {
 
 		User savedUser = userRepository.save(user);
 
+		// 이벤트 생성 및 Outbox에 저장
+		saveUserRegisteredEvent(savedUser);
+
 		return new SignUpResponse(
 				savedUser.getUserId(),
 				savedUser.getEmail(),
@@ -50,6 +62,33 @@ public class UserService {
 				savedUser.getPhone(),
 				savedUser.getCreatedAt()
 		);
+	}
+
+	private void saveUserRegisteredEvent(User user) {
+		try {
+			UserRegisteredEvent event = new UserRegisteredEvent(
+					user.getUserId(),
+					user.getEmail(),
+					user.getName(),
+					user.getPhone(),
+					user.getCreatedAt()
+			);
+
+			String payload = objectMapper.writeValueAsString(event);
+
+			Outbox outbox = Outbox.builder()
+					.aggregateType("User")
+					.aggregateId(String.valueOf(user.getUserId()))
+					.eventType("UserRegistered")
+					.payload(payload)
+					.build();
+
+			outboxRepository.save(outbox);
+			log.info("UserRegistered 이벤트가 Outbox에 저장되었습니다. userId: {}", user.getUserId());
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 직렬화 실패: userId={}", user.getUserId(), e);
+			throw new RuntimeException("이벤트 저장 중 오류가 발생했습니다.", e);
+		}
 	}
 }
 

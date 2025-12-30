@@ -17,3 +17,16 @@ CREATE TABLE users (
         ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   COMMENT='쇼핑몰 사용자 정보 테이블';
+
+-- 이벤트 메시지 테이블
+CREATE TABLE outbox (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '이벤트 ID',
+    aggregate_type VARCHAR(255) NOT NULL COMMENT '이벤트 소스 타입',
+    aggregate_id VARCHAR(255) NOT NULL COMMENT '이벤트 소스 ID',
+    event_type VARCHAR(255) NOT NULL COMMENT '이벤트 타입',
+    payload TEXT NOT NULL COMMENT '이벤트 페이로드',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '이벤트 상태 (PENDING, PUBLISHED, FAILED)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
+    published_at TIMESTAMP NULL COMMENT '발행 일시',
+    INDEX idx_event_type_status (event_type, status) COMMENT '이벤트 타입과 상태 인덱스'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='이벤트 메시지 테이블';
