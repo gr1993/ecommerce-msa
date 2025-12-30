@@ -18,6 +18,10 @@ public class OutboxEventPublisher {
 	private final OutboxRepository outboxRepository;
 	private final KafkaTemplate<String, String> kafkaTemplate;
 
+	/**
+	 * DB 트랜잭션으로 Outbox 상태를 관리하고 Kafka 트랜잭션은 
+	 * DB-Kafka 간 분산 트랜잭션을 만들지 않기 위해 사용하지 않는다.
+	 */
 	@Transactional
 	public void publishPendingEvents() {
 		List<Outbox> pendingEvents = outboxRepository.findByStatusOrderByCreatedAtAsc(Outbox.OutboxStatus.PENDING);
