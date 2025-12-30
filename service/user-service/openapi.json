@@ -1,0 +1,162 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+      "title": "User Service API",
+      "description": "사용자 관리 서비스 API 문서",
+      "contact": {
+        "name": "User Service Team",
+        "email": "user-service@example.com"
+      },
+      "license": {
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+      },
+      "version": "v1.0"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:8080",
+        "description": "Generated server url"
+      }
+    ],
+    "tags": [
+      {
+        "name": "User",
+        "description": "사용자 관리 API"
+      }
+    ],
+    "paths": {
+      "/api/users/signup": {
+        "post": {
+          "tags": [
+            "User"
+          ],
+          "summary": "회원가입",
+          "description": "새로운 사용자를 등록합니다. 이메일, 비밀번호, 이름, 연락처 정보가 필요합니다.",
+          "operationId": "signUp",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignUpRequest"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "201": {
+              "description": "회원가입 성공",
+              "content": {
+                "*/*": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SignUpResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "잘못된 요청 (유효성 검증 실패 또는 비밀번호 불일치)",
+              "content": {
+                "*/*": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SignUpResponse"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "이메일 중복",
+              "content": {
+                "*/*": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SignUpResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "SignUpRequest": {
+          "type": "object",
+          "description": "회원가입 요청 DTO",
+          "properties": {
+            "email": {
+              "type": "string",
+              "description": "이메일 주소",
+              "example": "user@example.com",
+              "minLength": 1
+            },
+            "password": {
+              "type": "string",
+              "description": "비밀번호 (최소 8자, 영문/숫자/특수문자 포함)",
+              "example": "Password123!",
+              "minLength": 1,
+              "pattern": "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$"
+            },
+            "passwordConfirm": {
+              "type": "string",
+              "description": "비밀번호 확인",
+              "example": "Password123!",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "description": "사용자 이름",
+              "example": "홍길동",
+              "minLength": 1
+            },
+            "phone": {
+              "type": "string",
+              "description": "연락처 (예: 010-1234-5678)",
+              "example": "010-1234-5678",
+              "pattern": "^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$"
+            }
+          },
+          "required": [
+            "email",
+            "name",
+            "password",
+            "passwordConfirm"
+          ]
+        },
+        "SignUpResponse": {
+          "type": "object",
+          "description": "회원가입 응답 DTO",
+          "properties": {
+            "userId": {
+              "type": "integer",
+              "format": "int64",
+              "description": "사용자 ID",
+              "example": 1
+            },
+            "email": {
+              "type": "string",
+              "description": "이메일 주소",
+              "example": "user@example.com"
+            },
+            "name": {
+              "type": "string",
+              "description": "사용자 이름",
+              "example": "홍길동"
+            },
+            "phone": {
+              "type": "string",
+              "description": "연락처",
+              "example": "010-1234-5678"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "생성 일시",
+              "example": "2024-01-01T12:00:00"
+            }
+          }
+        }
+      }
+    }
+  }
