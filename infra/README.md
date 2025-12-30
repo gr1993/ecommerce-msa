@@ -20,9 +20,6 @@ docker-compose -f docker-compose.infra.yml up -d
 아래는 Kafka 클러스터가 구축되고 난 후 파티션 수를 지정하기 위해 직접 토픽 생성 명령어를 실행하였다.
 
 ```shell
-docker exec -it kafka1 kafka-topics --create --topic chat.message.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
-docker exec -it kafka1 kafka-topics --create --topic chat.message.notification --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
-docker exec -it kafka1 kafka-topics --create --topic chat.room.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
-docker exec -it kafka1 kafka-topics --create --topic chat.room.notification --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
-docker exec -it kafka1 kafka-topics --create --topic chat.user.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic user.registered --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+
 ```
