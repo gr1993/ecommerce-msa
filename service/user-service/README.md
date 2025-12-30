@@ -27,3 +27,13 @@ com.example.userservice
 * Spring Boot 3.5.9 (JDK 17)
 * spring-boot-starter-data-jpa
 * spring-security-crypto : BCryptPasswordEncoder를 위해 추가
+
+
+### Events
+
+이벤트 상세 명세는 `asyncapi.yaml` 파일을 참고하면 된다.
+
+| 구분 | 설명 |
+|-----|------|
+| 발행(Published) | UserRegistered |
+| 구독(Subscribed) | - |

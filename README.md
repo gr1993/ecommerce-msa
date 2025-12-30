@@ -10,19 +10,21 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 ### 아키텍처 구성도
 
 ```
-frontend-service
-gateway-service
-auth-service
-user-service
-product-service
-catalog-service
-order-service
-payment-service
-promotion-service
-delivery-service
-settlement-service
-return-service
-notification-service
+docs/
+infra/
+service/
+  frontend-service/
+  gateway-service/
+  auth-service/
+  user-service/
+  product-service/
+  catalog-service/
+  order-service/
+  payment-service/
+  promotion-service/
+  delivery-service/
+  settlement-service/
+  return-service/
 ```
 
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
