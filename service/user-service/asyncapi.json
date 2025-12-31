@@ -1,0 +1,129 @@
+{
+    "asyncapi": "3.0.0",
+    "info": {
+      "title": "user-service",
+      "version": "1.0.0",
+      "x-generator": "springwolf"
+    },
+    "defaultContentType": "application/json",
+    "servers": {
+      "kafka-server": {
+        "host": "localhost:9091",
+        "protocol": "kafka"
+      }
+    },
+    "channels": {
+      "order.created": {
+        "address": "order.created",
+        "messages": {
+          "com.example.userservice.domain.entity.Outbox": {
+            "$ref": "#/components/messages/com.example.userservice.domain.entity.Outbox"
+          }
+        },
+        "bindings": {}
+      }
+    },
+    "components": {
+      "schemas": {
+        "HeadersNotDocumented": {
+          "title": "HeadersNotDocumented",
+          "type": "object",
+          "properties": {},
+          "description": "There can be headers, but they are not explicitly documented.",
+          "examples": [
+            {}
+          ]
+        },
+        "com.example.userservice.domain.entity.Outbox": {
+          "title": "Outbox",
+          "type": "object",
+          "properties": {
+            "aggregateId": {
+              "type": "string"
+            },
+            "aggregateType": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "eventType": {
+              "type": "string"
+            },
+            "id": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "payload": {
+              "type": "string"
+            },
+            "publishedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PUBLISHED",
+                "FAILED"
+              ]
+            }
+          },
+          "examples": [
+            {
+              "aggregateId": "string",
+              "aggregateType": "string",
+              "createdAt": "2015-07-20T15:49:04-07:00",
+              "eventType": "string",
+              "id": 0,
+              "payload": "string",
+              "publishedAt": "2015-07-20T15:49:04-07:00",
+              "status": "PENDING"
+            }
+          ]
+        }
+      },
+      "messages": {
+        "com.example.userservice.domain.entity.Outbox": {
+          "headers": {
+            "$ref": "#/components/schemas/HeadersNotDocumented"
+          },
+          "payload": {
+            "schemaFormat": "application/vnd.aai.asyncapi+json;version=3.0.0",
+            "schema": {
+              "$ref": "#/components/schemas/com.example.userservice.domain.entity.Outbox"
+            }
+          },
+          "name": "com.example.userservice.domain.entity.Outbox",
+          "title": "Outbox",
+          "bindings": {
+            "kafka": {
+              "bindingVersion": "0.5.0"
+            }
+          }
+        }
+      }
+    },
+    "operations": {
+      "order.created_send_publishEvent": {
+        "action": "send",
+        "channel": {
+          "$ref": "#/channels/order.created"
+        },
+        "title": "order.created_send",
+        "description": "Order 생성 이벤트 발행",
+        "bindings": {
+          "kafka": {
+            "bindingVersion": "0.5.0"
+          }
+        },
+        "messages": [
+          {
+            "$ref": "#/channels/order.created/messages/com.example.userservice.domain.entity.Outbox"
+          }
+        ]
+      }
+    }
+  }

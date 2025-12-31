@@ -2,6 +2,10 @@ package com.example.userservice.service.outbox;
 
 import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.repository.OutboxRepository;
+
+import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -49,6 +53,13 @@ public class OutboxEventPublisher {
 		}
 	}
 
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = "order.created",
+			description = "Order 생성 이벤트 발행"
+		)
+	)
+	@KafkaAsyncOperationBinding
 	private void publishEvent(Outbox outbox) {
 		String topic = buildTopic(outbox.getEventType());
 		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());

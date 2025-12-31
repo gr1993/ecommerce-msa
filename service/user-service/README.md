@@ -30,6 +30,7 @@ com.example.userservice
 * spring-security-crypto : BCryptPasswordEncoder를 위해 추가
 * spring-kafka
 * springdoc-openapi-starter-webmvc-ui:2.8.9 : swagger
+* springwolf-kafka:1.20.0 : AsyncAPI (이벤트 문서화)
 
 
 ### REST API

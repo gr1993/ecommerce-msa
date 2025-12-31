@@ -1,4 +1,7 @@
 spring:
+  application:
+    name: user-service
+
   datasource:
     url: jdbc:mysql://localhost:3306/user_service?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: root
@@ -30,3 +33,13 @@ springdoc:
       display-name: 'User Service API'
       paths-to-match: '/api/**'
 
+springwolf:
+  docket:
+    base-package: com.example.userservice.service
+    info:
+      title: ${spring.application.name}
+      version: 1.0.0
+    servers:
+      kafka-server:
+        protocol: kafka
+        host: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091}
