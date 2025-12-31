@@ -42,4 +42,15 @@ springwolf:
     servers:
       kafka-server:
         protocol: kafka
-        host: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091}
+        host: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
+  plugin:
+    kafka:
+      publishing:
+        enabled: true
+        producer:
+          bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            acks: all
+            enable.idempotence: true

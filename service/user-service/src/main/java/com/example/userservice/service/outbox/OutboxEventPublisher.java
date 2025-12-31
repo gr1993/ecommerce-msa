@@ -5,6 +5,8 @@ import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.event.UserRegisteredEvent;
 import com.example.userservice.repository.OutboxRepository;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
+import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding.KafkaAsyncKey;
+import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding.KafkaAsyncMessageBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
 import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
 import lombok.RequiredArgsConstructor;
@@ -68,10 +70,18 @@ public class OutboxEventPublisher {
 	@AsyncPublisher(
 		operation = @AsyncOperation(
 			channelName = EventTypeConstants.TOPIC_USER_REGISTERED,
-			description = "사용자 등록 이벤트 발행"
+			description = "사용자 등록 이벤트 발행",
+			payloadType = UserRegisteredEvent.class
 		)
 	)
-	@KafkaAsyncOperationBinding
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "User-123"
+			)
+		)
+	)
 	private void publishUserRegisteredEvent(Outbox outbox) {
 		String topic = EventTypeConstants.TOPIC_USER_REGISTERED;
 		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
