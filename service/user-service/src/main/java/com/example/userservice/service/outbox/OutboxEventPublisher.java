@@ -1,8 +1,9 @@
 package com.example.userservice.service.outbox;
 
+import com.example.userservice.common.EventTypeConstants;
 import com.example.userservice.domain.entity.Outbox;
+import com.example.userservice.domain.event.UserRegisteredEvent;
 import com.example.userservice.repository.OutboxRepository;
-
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
 import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
@@ -39,7 +40,7 @@ public class OutboxEventPublisher {
 
 		for (Outbox outbox : pendingEvents) {
 			try {
-				publishEvent(outbox);
+				publishEventByType(outbox);
 				outbox.markAsPublished();
 				outboxRepository.save(outbox);
 				log.info("이벤트 발행 성공: id={}, eventType={}, aggregateId={}", 
@@ -53,13 +54,38 @@ public class OutboxEventPublisher {
 		}
 	}
 
+	private void publishEventByType(Outbox outbox) {
+		String eventType = outbox.getEventType();
+		
+		if (EventTypeConstants.TOPIC_USER_REGISTERED.equals(eventType)) {
+			publishUserRegisteredEvent(outbox);
+		} else {
+			// 알 수 없는 이벤트 타입은 기본 메서드로 처리
+			publishEvent(outbox);
+		}
+	}
+
 	@AsyncPublisher(
 		operation = @AsyncOperation(
-			channelName = "order.created",
-			description = "Order 생성 이벤트 발행"
+			channelName = EventTypeConstants.TOPIC_USER_REGISTERED,
+			description = "사용자 등록 이벤트 발행"
 		)
 	)
 	@KafkaAsyncOperationBinding
+	private void publishUserRegisteredEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_USER_REGISTERED;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+		String payload = outbox.getPayload();
+
+		try {
+			kafkaTemplate.send(topic, key, payload).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
+
 	private void publishEvent(Outbox outbox) {
 		String topic = buildTopic(outbox.getEventType());
 		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
