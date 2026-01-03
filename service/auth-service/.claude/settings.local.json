@@ -3,7 +3,9 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(./gradlew tasks:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(if not exist \"src\\\\test\\\\resources\" mkdir \"src\\\\test\\\\resources\")"
     ]
   }
 }
