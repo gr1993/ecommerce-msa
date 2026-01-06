@@ -31,3 +31,14 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+springwolf:
+  docket:
+    base-package: com.example.authservice.consumer
+    info:
+      title: ${spring.application.name}
+      version: 1.0.0
+    servers:
+      kafka-server:
+        protocol: kafka
+        host: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}

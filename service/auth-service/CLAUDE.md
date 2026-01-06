@@ -41,6 +41,7 @@ Spring Cloud 기반 이커머스 MSA 시스템의 인증 마이크로서비스�
 - JJWT 0.12.6 (JWT 토큰 생성 및 검증)
 - Spring Security Crypto (BCryptPasswordEncoder)
 - Springdoc OpenAPI 2.8.9 (REST API 문서화, `/swagger-ui.html`)
+- springwolf-kafka:1.20.0 : AsyncAPI (이벤트 문서화)
 
 **패키지 구조 (DDD 기반):**
 ```

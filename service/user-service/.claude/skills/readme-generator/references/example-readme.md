@@ -43,7 +43,10 @@ REST API 명세는 다음 방법으로 확인할 수 있다.
 
 ### Events
 
-이벤트 상세 명세는 [`asyncapi.yaml`](./asyncapi.yaml) 파일을 참고하면 된다.
+이벤트 상세 명세는 다음 방법으로 확인할 수 있다.
+
+1. 브라우저에서 Swagger UI 열기: `/springwolf/asyncapi-ui.html`
+2. 정적 문서 확인: [`asyncapi.yaml`](./asyncapi.yaml)
 
 | 구분 | 설명 |
 |-----|------|
