@@ -11,6 +11,8 @@ mysql 및 kafka 등을 도커 컨테이너로 구동할 수 있는 디렉토리�
 docker-compose up -d
 # 재빌드 후 서비스 실행
 docker-compose up --build -d
+# 특정 서비스만 재빌드
+docker-compose up --build -d user-service
 
 # 저장소 구축
 docker-compose -f docker-compose.infra.yml up -d
