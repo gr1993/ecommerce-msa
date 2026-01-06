@@ -28,7 +28,6 @@ class AuthUserRepositoryTest {
         AuthUser user = AuthUser.builder()
                 .email("test@example.com")
                 .password("encodedPassword")
-                .role(AuthUser.UserRole.USER)
                 .status(AuthUser.UserStatus.ACTIVE)
                 .build();
         entityManager.persist(user);
@@ -41,7 +40,6 @@ class AuthUserRepositoryTest {
         assertThat(result).isPresent();
         assertThat(result.get().getEmail()).isEqualTo("test@example.com");
         assertThat(result.get().getPassword()).isEqualTo("encodedPassword");
-        assertThat(result.get().getRole()).isEqualTo(AuthUser.UserRole.USER);
         assertThat(result.get().getStatus()).isEqualTo(AuthUser.UserStatus.ACTIVE);
     }
 
@@ -90,7 +88,6 @@ class AuthUserRepositoryTest {
         AuthUser user = AuthUser.builder()
                 .email("newuser@example.com")
                 .password("encodedPassword")
-                .role(AuthUser.UserRole.ADMIN)
                 .status(AuthUser.UserStatus.ACTIVE)
                 .build();
 
@@ -100,7 +97,6 @@ class AuthUserRepositoryTest {
         // then
         assertThat(savedUser.getUserId()).isNotNull();
         assertThat(savedUser.getEmail()).isEqualTo("newuser@example.com");
-        assertThat(savedUser.getRole()).isEqualTo(AuthUser.UserRole.ADMIN);
         assertThat(savedUser.getCreatedAt()).isNotNull();
         assertThat(savedUser.getUpdatedAt()).isNotNull();
     }

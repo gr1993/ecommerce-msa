@@ -55,7 +55,6 @@ class AuthServiceTest {
         activeUser = AuthUser.builder()
                 .email("test@example.com")
                 .password("encodedPassword")
-                .role(AuthUser.UserRole.USER)
                 .status(AuthUser.UserStatus.ACTIVE)
                 .build();
 
