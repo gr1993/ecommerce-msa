@@ -26,6 +26,7 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-crypto'
 
 	implementation 'org.springframework.kafka:spring-kafka'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
 
 	// JWT (jjwt)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
@@ -48,6 +49,7 @@ dependencies {
 
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.awaitility:awaitility:4.2.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testRuntimeOnly 'com.h2database:h2'
 }

@@ -1,7 +1,9 @@
 package com.example.authservice.consumer;
 
 import com.example.authservice.common.EventTypeConstants;
+import com.example.authservice.domain.entity.FailedMessage;
 import com.example.authservice.domain.event.UserRegisteredEvent;
+import com.example.authservice.repository.FailedMessageRepository;
 import com.example.authservice.service.EventProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * UserRegistered 이벤트 컨슈머
@@ -30,6 +33,7 @@ import org.springframework.stereotype.Component;
 public class UserRegisteredEventConsumer {
 
 	private final EventProcessingService eventProcessingService;
+	private final FailedMessageRepository failedMessageRepository;
 	private final ObjectMapper objectMapper;
 
 	@RetryableTopic(
@@ -75,12 +79,19 @@ public class UserRegisteredEventConsumer {
 	/**
 	 * DLQ(Dead Letter Queue) 핸들러
 	 * 모든 재시도가 실패한 후 호출됩니다.
+	 * 여기서 추가 처리 가능:
+	 * 1. 별도 DB 테이블에 저장
+	 * 2. 알림 발송 (Slack, Email 등)
+	 * 3. 외부 모니터링 시스템에 전송
+	 * 4. 수동 처리를 위한 대시보드에 표시
 	 */
 	@DltHandler
+	@Transactional
 	public void handleDlt(
 		@Payload String message,
 		@Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
 		@Header(KafkaHeaders.OFFSET) Long offset,
+		@Header(value = KafkaHeaders.PARTITION, required = false) Integer partition,
 		@Header(value = KafkaHeaders.EXCEPTION_MESSAGE, required = false) String exceptionMessage,
 		@Header(value = KafkaHeaders.EXCEPTION_STACKTRACE, required = false) String stackTrace
 	) {
@@ -89,28 +100,39 @@ public class UserRegisteredEventConsumer {
 			DLQ 메시지 수신 (재시도 실패)
 			========================================
 			Topic: {}
+			Partition: {}
 			Offset: {}
 			Message: {}
 			Exception: {}
 			StackTrace: {}
 			========================================
-			""", topic, offset, message, exceptionMessage, stackTrace);
+			""", topic, partition, offset, message, exceptionMessage, stackTrace);
 
-		// 여기서 추가 처리 가능:
-		// 1. 별도 DB 테이블에 저장
-		// 2. 알림 발송 (Slack, Email 등)
-		// 3. 외부 모니터링 시스템에 전송
-		// 4. 수동 처리를 위한 대시보드에 표시
-
+		// 이벤트 타입 추출 (파싱 가능한 경우 USER_REGISTERED, 불가능한 경우 PARSE_FAILED)
+		String eventType = "USER_REGISTERED";
 		try {
 			UserRegisteredEvent event = objectMapper.readValue(message, UserRegisteredEvent.class);
 			log.error("DLQ 처리 필요 - userId: {}, email: {}", event.getUserId(), event.getEmail());
-
-			// TODO: 실패 메시지를 별도 테이블에 저장하거나 알림 발송
-			// failedMessageRepository.save(new FailedMessage(topic, message, exceptionMessage));
-
 		} catch (Exception e) {
 			log.error("DLQ 메시지 파싱 실패: {}", message, e);
+			eventType = "PARSE_FAILED_" + EventTypeConstants.TOPIC_USER_REGISTERED;
 		}
+
+		// 실패 메시지를 DB에 저장하여 수동 재처리 및 모니터링 가능하도록 함
+		FailedMessage failedMessage = FailedMessage.builder()
+			.topic(topic)
+			.eventType(eventType)
+			.partition(partition)
+			.offset(offset)
+			.payload(message)
+			.exceptionMessage(exceptionMessage)
+			.stackTrace(stackTrace != null && stackTrace.length() > 5000
+				? stackTrace.substring(0, 5000)
+				: stackTrace)
+			.build();
+
+		failedMessageRepository.save(failedMessage);
+		log.info("DLQ 메시지 저장 완료 - id: {}, topic: {}, eventType: {}",
+			failedMessage.getId(), topic, eventType);
 	}
 }

@@ -1,6 +1,8 @@
 package com.example.authservice.consumer;
 
+import com.example.authservice.domain.entity.FailedMessage;
 import com.example.authservice.domain.event.UserRegisteredEvent;
+import com.example.authservice.repository.FailedMessageRepository;
 import com.example.authservice.service.EventProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +27,9 @@ class UserRegisteredEventConsumerTest {
 
     @Mock
     private EventProcessingService eventProcessingService;
+
+    @Mock
+    private FailedMessageRepository failedMessageRepository;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -115,18 +120,26 @@ class UserRegisteredEventConsumerTest {
         // given
         given(objectMapper.readValue(validJsonMessage, UserRegisteredEvent.class))
                 .willReturn(validEvent);
+        given(failedMessageRepository.save(any(FailedMessage.class)))
+                .willAnswer(invocation -> {
+                    FailedMessage fm = invocation.getArgument(0);
+                    // Simulate ID assignment
+                    return fm;
+                });
 
         // when
         consumer.handleDlt(
                 validJsonMessage,
                 "user-registered-dlt",
                 0L,
+                0,  // partition
                 "처리 실패",
                 "stacktrace..."
         );
 
         // then
         verify(objectMapper, times(1)).readValue(validJsonMessage, UserRegisteredEvent.class);
+        verify(failedMessageRepository, times(1)).save(any(FailedMessage.class));
     }
 
     @Test
@@ -136,17 +149,21 @@ class UserRegisteredEventConsumerTest {
         String invalidMessage = "{invalid}";
         given(objectMapper.readValue(invalidMessage, UserRegisteredEvent.class))
                 .willThrow(new RuntimeException("JSON parsing error"));
+        given(failedMessageRepository.save(any(FailedMessage.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
 
         // when
         consumer.handleDlt(
                 invalidMessage,
                 "user-registered-dlt",
                 0L,
+                0,  // partition
                 "처리 실패",
                 "stacktrace..."
         );
 
         // then
         verify(objectMapper, times(1)).readValue(invalidMessage, UserRegisteredEvent.class);
+        verify(failedMessageRepository, times(1)).save(any(FailedMessage.class));
     }
 }
