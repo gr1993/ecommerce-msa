@@ -2,6 +2,7 @@ package com.example.authservice.service;
 
 import com.example.authservice.config.JwtProperties;
 import com.example.authservice.domain.entity.AuthUser;
+import com.example.authservice.domain.event.UserRegisteredEvent;
 import com.example.authservice.dto.request.LoginRequest;
 import com.example.authservice.dto.request.RefreshTokenRequest;
 import com.example.authservice.dto.response.TokenResponse;
@@ -18,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -242,5 +244,55 @@ class AuthServiceTest {
         verify(jwtTokenProvider, times(1)).validateRefreshToken(anyString());
         verify(authUserRepository, times(1)).findById(1L);
         verify(jwtTokenProvider, never()).createAccessToken(any());
+    }
+
+    @Test
+    @DisplayName("이벤트로부터 사용자 등록 성공")
+    void registerUserFromEvent_Success() {
+        // given
+        UserRegisteredEvent event = new UserRegisteredEvent(
+                1L,
+                "newuser@example.com",
+                "홍길동",
+                "010-1234-5678",
+                "$2a$10$hashedPassword",
+                LocalDateTime.now()
+        );
+
+        given(authUserRepository.existsByEmail(event.getEmail())).willReturn(false);
+        given(authUserRepository.save(any(AuthUser.class))).willAnswer(invocation -> {
+            AuthUser user = invocation.getArgument(0);
+            return user;
+        });
+
+        // when
+        authService.registerUserFromEvent(event);
+
+        // then
+        verify(authUserRepository, times(1)).existsByEmail(event.getEmail());
+        verify(authUserRepository, times(1)).save(any(AuthUser.class));
+    }
+
+    @Test
+    @DisplayName("이벤트로부터 사용자 등록 - 이미 존재하는 이메일")
+    void registerUserFromEvent_DuplicateEmail() {
+        // given
+        UserRegisteredEvent event = new UserRegisteredEvent(
+                1L,
+                "existing@example.com",
+                "홍길동",
+                "010-1234-5678",
+                "$2a$10$hashedPassword",
+                LocalDateTime.now()
+        );
+
+        given(authUserRepository.existsByEmail(event.getEmail())).willReturn(true);
+
+        // when
+        authService.registerUserFromEvent(event);
+
+        // then
+        verify(authUserRepository, times(1)).existsByEmail(event.getEmail());
+        verify(authUserRepository, never()).save(any(AuthUser.class));
     }
 }
