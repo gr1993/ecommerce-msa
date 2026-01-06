@@ -11,15 +11,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
 
-  h2:
-    console:
-      enabled: true
+  sql:
+    init:
+      mode: never
 
 jwt:
   secret: test-jwt-secret-key-for-testing-purposes-must-be-256-bit-minimum

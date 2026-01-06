@@ -2,6 +2,7 @@ package com.example.authservice.service;
 
 import com.example.authservice.config.JwtProperties;
 import com.example.authservice.domain.entity.AuthUser;
+import com.example.authservice.domain.event.UserRegisteredEvent;
 import com.example.authservice.dto.request.LoginRequest;
 import com.example.authservice.dto.request.RefreshTokenRequest;
 import com.example.authservice.dto.response.TokenResponse;
@@ -75,5 +76,25 @@ public class AuthService {
                 newRefreshToken,
                 jwtProperties.getAccessToken().getExpiration()
         );
+    }
+
+    @Transactional
+    public void registerUserFromEvent(UserRegisteredEvent event) {
+        // 이메일 중복 체크 (이미 등록된 사용자는 skip)
+        if (authUserRepository.existsByEmail(event.getEmail())) {
+            log.info("이미 등록된 사용자입니다. email: {}", event.getEmail());
+            return;
+        }
+
+        // AuthUser 생성 (비밀번호는 이미 해시된 상태)
+        AuthUser authUser = AuthUser.builder()
+                .email(event.getEmail())
+                .password(event.getHashedPassword())
+                .status(AuthUser.UserStatus.ACTIVE)
+                .build();
+
+        authUserRepository.save(authUser);
+        log.info("UserRegisteredEvent로부터 AuthUser 생성 완료. email: {}, userId: {}",
+                event.getEmail(), authUser.getUserId());
     }
 }
