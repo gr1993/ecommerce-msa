@@ -1,7 +1,7 @@
 package com.example.authservice.consumer;
 
 import com.example.authservice.domain.event.UserRegisteredEvent;
-import com.example.authservice.service.AuthService;
+import com.example.authservice.service.EventProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -22,7 +24,7 @@ import static org.mockito.Mockito.*;
 class UserRegisteredEventConsumerTest {
 
     @Mock
-    private AuthService authService;
+    private EventProcessingService eventProcessingService;
 
     @Mock
     private ObjectMapper objectMapper;
@@ -53,46 +55,98 @@ class UserRegisteredEventConsumerTest {
         // given
         given(objectMapper.readValue(validJsonMessage, UserRegisteredEvent.class))
                 .willReturn(validEvent);
-        doNothing().when(authService).registerUserFromEvent(any(UserRegisteredEvent.class));
+        doNothing().when(eventProcessingService)
+                .processUserRegisteredEvent(any(UserRegisteredEvent.class), anyString());
 
         // when
-        consumer.consume(validJsonMessage);
+        consumer.consume(validJsonMessage, "user-registered", 0L);
 
         // then
         verify(objectMapper, times(1)).readValue(validJsonMessage, UserRegisteredEvent.class);
-        verify(authService, times(1)).registerUserFromEvent(any(UserRegisteredEvent.class));
+        verify(eventProcessingService, times(1))
+                .processUserRegisteredEvent(validEvent, validJsonMessage);
     }
 
     @Test
-    @DisplayName("JSON 역직렬화 실패 - 예외 처리")
+    @DisplayName("JSON 역직렬화 실패 - 예외 전파")
     void consume_JsonProcessingException() throws Exception {
         // given
         String invalidJsonMessage = "{invalid json}";
         given(objectMapper.readValue(invalidJsonMessage, UserRegisteredEvent.class))
                 .willThrow(new RuntimeException("JSON parsing error"));
 
-        // when
-        consumer.consume(invalidJsonMessage);
+        // when & then
+        assertThatThrownBy(() ->
+                consumer.consume(invalidJsonMessage, "user-registered", 0L)
+        )
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("이벤트 처리 실패");
 
-        // then
         verify(objectMapper, times(1)).readValue(invalidJsonMessage, UserRegisteredEvent.class);
-        verify(authService, never()).registerUserFromEvent(any(UserRegisteredEvent.class));
+        verify(eventProcessingService, never())
+                .processUserRegisteredEvent(any(UserRegisteredEvent.class), anyString());
     }
 
     @Test
-    @DisplayName("서비스 처리 중 예외 발생")
+    @DisplayName("서비스 처리 중 예외 발생 - 예외 전파 (재시도 트리거)")
     void consume_ServiceException() throws Exception {
         // given
         given(objectMapper.readValue(validJsonMessage, UserRegisteredEvent.class))
                 .willReturn(validEvent);
-        doThrow(new RuntimeException("Service error"))
-                .when(authService).registerUserFromEvent(any(UserRegisteredEvent.class));
+        doThrow(new IllegalStateException("DB 연결 실패"))
+                .when(eventProcessingService)
+                .processUserRegisteredEvent(any(UserRegisteredEvent.class), anyString());
+
+        // when & then
+        assertThatThrownBy(() ->
+                consumer.consume(validJsonMessage, "user-registered", 0L)
+        )
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("이벤트 처리 실패");
+
+        verify(objectMapper, times(1)).readValue(validJsonMessage, UserRegisteredEvent.class);
+        verify(eventProcessingService, times(1))
+                .processUserRegisteredEvent(validEvent, validJsonMessage);
+    }
+
+    @Test
+    @DisplayName("DLQ 핸들러 - 정상 메시지")
+    void handleDlt_ValidMessage() throws Exception {
+        // given
+        given(objectMapper.readValue(validJsonMessage, UserRegisteredEvent.class))
+                .willReturn(validEvent);
 
         // when
-        consumer.consume(validJsonMessage);
+        consumer.handleDlt(
+                validJsonMessage,
+                "user-registered-dlt",
+                0L,
+                "처리 실패",
+                "stacktrace..."
+        );
 
         // then
         verify(objectMapper, times(1)).readValue(validJsonMessage, UserRegisteredEvent.class);
-        verify(authService, times(1)).registerUserFromEvent(any(UserRegisteredEvent.class));
+    }
+
+    @Test
+    @DisplayName("DLQ 핸들러 - 파싱 실패 메시지")
+    void handleDlt_InvalidMessage() throws Exception {
+        // given
+        String invalidMessage = "{invalid}";
+        given(objectMapper.readValue(invalidMessage, UserRegisteredEvent.class))
+                .willThrow(new RuntimeException("JSON parsing error"));
+
+        // when
+        consumer.handleDlt(
+                invalidMessage,
+                "user-registered-dlt",
+                0L,
+                "처리 실패",
+                "stacktrace..."
+        );
+
+        // then
+        verify(objectMapper, times(1)).readValue(invalidMessage, UserRegisteredEvent.class);
     }
 }

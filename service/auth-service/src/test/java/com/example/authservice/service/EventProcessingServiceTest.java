@@ -37,11 +37,9 @@ class EventProcessingServiceTest {
     @InjectMocks
     private EventProcessingService eventProcessingService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     @Test
     @DisplayName("정상적인 회원 등록 이벤트 처리")
-    void processUserRegisteredEvent_Success() throws Exception {
+    void processUserRegisteredEvent_Success() {
         // given
         UserRegisteredEvent event = new UserRegisteredEvent(
             1L,
@@ -51,7 +49,7 @@ class EventProcessingServiceTest {
             "$2a$10$hashedPassword",
             LocalDateTime.now()
         );
-        String eventPayload = objectMapper.writeValueAsString(event);
+        String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\"}";
 
         given(processedEventRepository.existsByEventTypeAndEventKey(anyString(), anyString()))
             .willReturn(false);
@@ -81,7 +79,7 @@ class EventProcessingServiceTest {
 
     @Test
     @DisplayName("이미 처리된 이벤트 - 중복 처리 방지")
-    void processUserRegisteredEvent_AlreadyProcessed() throws Exception {
+    void processUserRegisteredEvent_AlreadyProcessed() {
         // given
         UserRegisteredEvent event = new UserRegisteredEvent(
             1L,
@@ -91,7 +89,7 @@ class EventProcessingServiceTest {
             "$2a$10$hashedPassword",
             LocalDateTime.now()
         );
-        String eventPayload = objectMapper.writeValueAsString(event);
+        String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\"}";
 
         ProcessedEvent existingProcessed = ProcessedEvent.builder()
             .eventType("USER_REGISTERED")
@@ -120,7 +118,7 @@ class EventProcessingServiceTest {
 
     @Test
     @DisplayName("이메일 중복 - 비즈니스 검증 실패")
-    void processUserRegisteredEvent_DuplicateEmail() throws Exception {
+    void processUserRegisteredEvent_DuplicateEmail() {
         // given
         UserRegisteredEvent event = new UserRegisteredEvent(
             1L,
@@ -130,7 +128,7 @@ class EventProcessingServiceTest {
             "$2a$10$hashedPassword",
             LocalDateTime.now()
         );
-        String eventPayload = objectMapper.writeValueAsString(event);
+        String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\"}";
 
         given(processedEventRepository.existsByEventTypeAndEventKey(anyString(), anyString()))
             .willReturn(false);
@@ -152,7 +150,7 @@ class EventProcessingServiceTest {
 
     @Test
     @DisplayName("처리 중 예외 발생 - 실패 이력 기록 및 예외 전파")
-    void processUserRegisteredEvent_Exception() throws Exception {
+    void processUserRegisteredEvent_Exception() {
         // given
         UserRegisteredEvent event = new UserRegisteredEvent(
             1L,
@@ -162,7 +160,7 @@ class EventProcessingServiceTest {
             "$2a$10$hashedPassword",
             LocalDateTime.now()
         );
-        String eventPayload = objectMapper.writeValueAsString(event);
+        String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\"}";
 
         given(processedEventRepository.existsByEventTypeAndEventKey(anyString(), anyString()))
             .willReturn(false);
@@ -188,7 +186,7 @@ class EventProcessingServiceTest {
 
     @Test
     @DisplayName("AuthUser 생성 검증")
-    void processUserRegisteredEvent_AuthUserCreation() throws Exception {
+    void processUserRegisteredEvent_AuthUserCreation() {
         // given
         UserRegisteredEvent event = new UserRegisteredEvent(
             1L,
@@ -198,7 +196,7 @@ class EventProcessingServiceTest {
             "$2a$10$hashedPassword",
             LocalDateTime.now()
         );
-        String eventPayload = objectMapper.writeValueAsString(event);
+        String eventPayload = "{\"userId\":1,\"email\":\"test@example.com\"}";
 
         given(processedEventRepository.existsByEventTypeAndEventKey(anyString(), anyString()))
             .willReturn(false);
