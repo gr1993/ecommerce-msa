@@ -38,27 +38,26 @@ Spring Cloud 기반 이커머스 MSA 시스템의 인증 마이크로서비스�
 - Gradle 8.14.3 (wrapper)
 - MySQL 8 (영속성 저장소, 공유 인스턴스, 논리적 분리)
 - Kafka (서비스 간 메시징, 3-node 클러스터)
-- Springdoc OpenAPI (REST API 문서화, `/swagger-ui.html`)
-- Springwolf (AsyncAPI/Kafka 이벤트 문서화)
+- JJWT 0.12.6 (JWT 토큰 생성 및 검증)
+- Spring Security Crypto (BCryptPasswordEncoder)
+- Springdoc OpenAPI 2.8.9 (REST API 문서화, `/swagger-ui.html`)
 
 **패키지 구조 (DDD 기반):**
 ```
 com.example.authservice
-├── client/         # 외부 서비스 통신 (FeignClient, RestTemplate)
 ├── common/         # 유틸리티 및 공통 상수
-├── config/         # 설정 클래스 (Security, Swagger, Bean 설정)
+├── config/         # 설정 클래스 (Security, JWT, CORS, Swagger 등)
+├── consumer/       # Kafka 이벤트 컨슈머
 ├── controller/     # REST API 엔드포인트
 ├── domain/
 │   ├── entity/     # JPA 엔티티
-│   ├── event/      # 도메인 이벤트 클래스
-│   ├── service/    # 도메인 서비스
-│   └── value/      # Value Objects
+│   └── event/      # 도메인 이벤트 클래스
 ├── dto/
 │   ├── request/
 │   └── response/
 ├── exception/      # 커스텀 예외 및 글로벌 핸들러
 ├── repository/     # Spring Data JPA 인터페이스
-└── service/        # 비즈니스 로직 인터페이스 및 구현체
+└── service/        # 비즈니스 로직 (JWT 토큰 생성/검증, 인증 처리)
 ```
 
 ## MSA 컨텍스트

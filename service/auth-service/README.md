@@ -1,31 +1,36 @@
 # auth-service
-인증 관련 API를 제공하는 MSA 서비스
+JWT 기반 인증 토큰 발급 및 검증을 담당하는 MSA 서비스
 
 
 ### 프로젝트 패키지 구조
 ```
-com.example.userservice
-├── client              # 외부 서비스 통신 (FeignClient, RestTemplate)
+com.example.authservice
 ├── common              # 유틸리티, 공통 상수
-├── config              # 설정 클래스 (Security, Swagger, Bean 설정 등)
+├── config              # 설정 클래스 (Security, JWT, CORS, Swagger 등)
+├── consumer            # Kafka 이벤트 컨슈머
 ├── controller          # API 엔드포인트 (REST Controller)
-├── domain              # Entity 및 관련 값 객체 (VO)
+├── domain
 │   ├── entity/         # DB와 매핑되는 JPA 엔티티
-│   ├── event/          # 도메인 이벤트 클래스
-│   ├── service/        # 도메인 서비스 (비즈니스 로직)
-│   └── value/          # VO(Value Object) 등
+│   └── event/          # 도메인 이벤트 클래스
 ├── dto                 # Request/Response 데이터 전송 객체
 │   ├── request
 │   └── response
 ├── exception           # 커스텀 예외 처리 및 Global Handler
-├── repository          # DB 접근 (Spring Data JPA Interface 등)
-└── service             # 비즈니스 로직 인터페이스 및 구현체
+├── repository          # DB 접근 (Spring Data JPA Interface)
+└── service             # 비즈니스 로직 (JWT 토큰 생성/검증, 인증 처리)
 ```
 
 
 ### 백엔드 기술
 * Spring Boot 3.5.9 (JDK 17)
+* spring-boot-starter-web
+* spring-boot-starter-data-jpa
+* spring-boot-starter-validation
 * spring-security-crypto : BCryptPasswordEncoder를 위해 추가
+* spring-kafka
+* jjwt:0.12.6 : JWT 토큰 생성 및 검증
+* MySQL : 영속성 저장소
+* springdoc-openapi-starter-webmvc-ui:2.8.9 : Swagger
 
 
 ### REST API
@@ -42,5 +47,5 @@ REST API 명세는 다음 방법으로 확인할 수 있다.
 
 | 구분 | 설명 |
 |-----|------|
-| 발행(Published) | user.registered |
-| 구독(Subscribed) | - |
+| 발행(Published) | - |
+| 구독(Subscribed) | user.registered |

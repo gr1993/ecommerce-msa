@@ -5,7 +5,8 @@
       "Bash(./gradlew tasks:*)",
       "Bash(rm:*)",
       "Bash(./gradlew test:*)",
-      "Bash(if not exist \"src\\\\test\\\\resources\" mkdir \"src\\\\test\\\\resources\")"
+      "Bash(if not exist \"src\\\\test\\\\resources\" mkdir \"src\\\\test\\\\resources\")",
+      "Skill(readme-generator)"
     ]
   }
 }
