@@ -1,0 +1,30 @@
+x-service-common: &service-common
+  privileged: true
+  networks:
+    - ecommerce-net
+  environment: &service-common-env
+    MYSQL_HOST: mysql8
+    KAFKA_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092,kafka3:9094
+
+services:
+  auth-service:
+    <<: *service-common
+    container_name: auth-service
+    build: ../service/auth-service
+    ports:
+      - "8081:8080"
+    environment:
+      <<: *service-common-env
+
+  user-service:
+    <<: *service-common
+    container_name: user-service
+    build: ../service/user-service
+    ports:
+      - "8082:8080"  
+    environment:
+      <<: *service-common-env
+
+networks:
+  ecommerce-net:
+    external: true
