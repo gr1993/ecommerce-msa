@@ -2,6 +2,12 @@ spring:
   application:
     name: config-server
 
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/gr1993/ecommerce-msa-config
+
 server:
   port: 8888
 
