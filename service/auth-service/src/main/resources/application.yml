@@ -1,48 +1,8 @@
 spring:
   application:
     name: auth-service
-
-  datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/auth_service?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: root
-    password: 123123
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
-    consumer:
-      group-id: auth-service-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      enable-auto-commit: false
-      max-poll-records: 10
-    producer: # (DLQ 전송용)
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: all
-      retries: 3
-
-jwt:
-  secret: ecommerce-msa-auth-service-jwt-secret-key-256-bit-minimum-length
-  access-token:
-    expiration: 1800000
-  refresh-token:
-    expiration: 604800000
-
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-
-springwolf:
-  docket:
-    base-package: com.example.authservice.consumer
-    info:
-      title: ${spring.application.name}
-      version: 1.0.0
-    servers:
-      kafka-server:
-        protocol: kafka
-        host: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
+  profiles:
+    active: default
+  config:
+    import: "configserver:http://${CONFIG_HOST:localhost}:8888"
+    fail-fast: true
