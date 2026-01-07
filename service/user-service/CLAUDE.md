@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 전자상거래 MSA 시스템의 사용자 관리 마이크로서비스입니다. 사용자 등록을 처리하고 Transactional Outbox 패턴을 사용하여 Kafka를 통해 도메인 이벤트를 발행합니다.
 
-**기술 스택:** Spring Boot 3.5.9 (JDK 17), MySQL, Kafka, Spring Data JPA, Springdoc OpenAPI, Springwolf AsyncAPI
+**기술 스택:** Spring Boot 3.5.9 (JDK 17), MySQL, Kafka, Spring Data JPA, Springdoc OpenAPI, Springwolf AsyncAPI, Config Client
 
 ## 명령어
 
