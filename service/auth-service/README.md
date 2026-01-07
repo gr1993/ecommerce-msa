@@ -33,6 +33,7 @@ com.example.authservice
 * springdoc-openapi-starter-webmvc-ui:2.8.9 : Swagger
 * springwolf-kafka:1.20.0 : AsyncAPI (이벤트 문서화)
 * spring-cloud-starter-config : Config Client
+* eureka-client
 
 
 ### REST API

@@ -43,6 +43,7 @@ Spring Cloud 기반 이커머스 MSA 시스템의 인증 마이크로서비스�
 - Springdoc OpenAPI 2.8.9 (REST API 문서화, `/swagger-ui.html`)
 - springwolf-kafka:1.20.0 : AsyncAPI (이벤트 문서화)
 - spring-cloud-starter-config : Config Client
+- eureka-client
 
 **패키지 구조 (DDD 기반):**
 ```
