@@ -6,6 +6,19 @@ x-service-common: &service-common
     MYSQL_HOST: mysql8
     KAFKA_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092,kafka3:9094
     CONFIG_HOST: config-server
+    EUREKA_HOST: discovery-service
+
+x-healthcheck-template: &healthcheck-template
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 10s
+
+x-depends-on-infra: &depends-on-infra
+  config-server:
+    condition: service_healthy
+  discovery-service:
+    condition: service_healthy
 
 services:
   config-server:
@@ -14,12 +27,9 @@ services:
     build: ../service/config-server
     ports:
       - "8888:8888"
-    healthcheck:  # 이 컨테이너가 완전히 실행된 후에 의존 서비스들이 기동되도록 하기 위함
+    healthcheck:
+      <<: *healthcheck-template
       test: ["CMD-SHELL", "nc -z localhost 8888 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
   discovery-service:
     <<: *service-common
@@ -28,11 +38,8 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 8888 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      <<: *healthcheck-template
+      test: ["CMD-SHELL", "nc -z localhost 8761 || exit 1"]
 
   auth-service:
     <<: *service-common
@@ -42,25 +49,17 @@ services:
       - "8081:8080"
     environment:
       <<: *service-common-env
-    depends_on:
-      config-server:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
+    depends_on: *depends-on-infra
 
   user-service:
     <<: *service-common
     container_name: user-service
     build: ../service/user-service
     ports:
-      - "8082:8080"  
+      - "8082:8080"
     environment:
       <<: *service-common-env
-    depends_on:
-      config-server:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
+    depends_on: *depends-on-infra
 
 networks:
   ecommerce-net:
