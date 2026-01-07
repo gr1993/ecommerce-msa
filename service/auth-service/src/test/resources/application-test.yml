@@ -2,6 +2,13 @@ spring:
   application:
     name: auth-service-test
 
+  # Config Server 비활성화 (테스트 환경)
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
@@ -20,9 +27,30 @@ spring:
     init:
       mode: never
 
+  kafka:
+    consumer:
+      group-id: auth-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+      max-poll-records: 10
+    producer: # (DLQ 전송용)
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: all
+        enable.idempotence: true
+
 jwt:
   secret: test-jwt-secret-key-for-testing-purposes-must-be-256-bit-minimum
   access-token:
     expiration: 1800000
   refresh-token:
     expiration: 604800000
+
+springwolf:
+  enabled: false  # 전체 기능 비활성화
+  scanner:
+    async-api-json:
+      enabled: false
