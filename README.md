@@ -16,6 +16,7 @@ infra/
   docker-compose.infra.yml   # 저장소(인프라) 구축 설정
 service/
   config-server/
+  discovery-service/
   frontend-service/
   gateway-service/
   auth-service/
@@ -38,6 +39,8 @@ service/
 
 * Config-Server
   * Spring Boot 기반 서비스들의 설정 서버이며 [해당 Git 저장소](https://github.com/gr1993/ecommerce-msa-config)에서 설정 정보를 로딩한다.
+* discovery-service
+  * 각 마이크로서비스의 등록 및 위치 정보를 관리하고, 다른 서비스들이 이를 통해 동적으로 서로를 찾을 수 있도록 지원하는 서비스
 * Gateway-Service
   * 인증/인가(토큰 검증)
   * 로깅
