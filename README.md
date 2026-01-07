@@ -12,7 +12,10 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 ```
 docs/
 infra/
+  docker-compose.yml         # 모든 서비스 실행 설정
+  docker-compose.infra.yml   # 저장소(인프라) 구축 설정
 service/
+  config-server/
   frontend-service/
   gateway-service/
   auth-service/
@@ -33,6 +36,8 @@ service/
 
 ### 유틸 서비스
 
+* Config-Server
+  * Spring Boot 기반 서비스들의 설정 서버이며 [해당 Git 저장소](https://github.com/gr1993/ecommerce-msa-config)에서 설정 정보를 로딩한다.
 * Gateway-Service
   * 인증/인가(토큰 검증)
   * 로깅

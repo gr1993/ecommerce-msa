@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: config-server
+
+server:
+  port: 8888
+
+encrypt:
+  key: ${CONFIG_KEY:myConfigKey}
