@@ -4,5 +4,4 @@ spring:
   profiles:
     active: default
   config:
-    import: "configserver:http://${CONFIG_HOST:localhost}:8888"
-    fail-fast: true
+    import: "optional:configserver:http://${CONFIG_HOST:localhost}:8888"
