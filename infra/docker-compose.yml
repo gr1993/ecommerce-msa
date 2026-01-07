@@ -14,7 +14,20 @@ services:
     build: ../service/config-server
     ports:
       - "8888:8888"
-    healthcheck:  # Config Server가 준비 완료된 후에 의존 서비스들이 기동되도록 하기 위함
+    healthcheck:  # 이 컨테이너가 완전히 실행된 후에 의존 서비스들이 기동되도록 하기 위함
+      test: ["CMD-SHELL", "nc -z localhost 8888 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  discovery-service:
+    <<: *service-common
+    container_name: discovery-service
+    build: ../service/discovery-service
+    ports:
+      - "8761:8761"
+    healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8888 || exit 1"]
       interval: 10s
       timeout: 5s
@@ -32,6 +45,8 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
+      discovery-service:
+        condition: service_healthy
 
   user-service:
     <<: *service-common
@@ -43,6 +58,8 @@ services:
       <<: *service-common-env
     depends_on:
       config-server:
+        condition: service_healthy
+      discovery-service:
         condition: service_healthy
 
 networks:
