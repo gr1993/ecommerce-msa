@@ -2,7 +2,6 @@ package com.example.gatewayservice.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,7 +13,7 @@ import java.util.Map;
 @RequestMapping("/fallback")
 public class FallbackController {
 
-    @GetMapping("/auth")
+    @RequestMapping("/auth")
     public ResponseEntity<Map<String, Object>> authServiceFallback() {
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
@@ -26,7 +25,7 @@ public class FallbackController {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
-    @GetMapping("/user")
+    @RequestMapping("/user")
     public ResponseEntity<Map<String, Object>> userServiceFallback() {
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
