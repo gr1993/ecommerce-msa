@@ -17,8 +17,8 @@ infra/
 service/
   config-server/
   discovery-service/
-  frontend-service/
   gateway-service/
+  frontend-service/
   auth-service/
   user-service/
   product-service/
