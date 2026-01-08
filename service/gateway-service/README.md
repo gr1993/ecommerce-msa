@@ -2,6 +2,25 @@
 Gateway 서비스는 프론트엔드 서버가 단일 진입점으로서 모든 요청을 전달할 수 있도록 구성된 서비스이다.  
 또한 인증, 인가와 같이 모든 서비스에 공통으로 적용되어야 하는 로직을 중앙에서 처리하여 각 서비스의 부담을 줄인다.
 
+
+### 프로젝트 패키지 구조
+```
+com.example.gatewayservice
+├── config              # 설정 클래스 (JWT 속성 등)
+├── filter              # Gateway 필터 (JWT 인증 필터)
+└── util                # 유틸리티 (JWT 토큰 검증)
+```
+
+
+### 백엔드 기술
+* Spring Boot 3.5.9 (JDK 17)
+* Spring Cloud 2025.0.1
+* spring-cloud-starter-gateway-server-webflux : 비동기 논블로킹 게이트웨이
+* spring-cloud-starter-config : Config Server 연동
+* spring-cloud-starter-netflix-eureka-client : 서비스 디스커버리
+* io.jsonwebtoken:jjwt:0.12.6 : JWT 토큰 검증
+
+
 ### Health Check vs Circuit Breaker
 별도의 LoadBalancer Health Check 기능을 사용하지 않는 경우, API Gateway는 기본적으로 Eureka의  
 상태 정보에 의존한다. Eureka는 인스턴스가 하트비트를 전송하지 않거나 Actuator Health 상태가 DOWN일  
