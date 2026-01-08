@@ -23,8 +23,17 @@ ext {
 }
 
 dependencies {
+	// Webflux 환경 Gateway
 	implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webflux'
+
+	// Monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// Config Client
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+	// Eureka Client
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
 	// Circuit Breaker
