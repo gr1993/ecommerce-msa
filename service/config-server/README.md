@@ -19,5 +19,5 @@ http://localhost:8888/user-service/default
 
 ```shell
 # 암호화 명령어
-curl -X POST http://localhost:8888/encrypt -d 'mySecretPassword'
+curl -X POST http://localhost:8888/encrypt -d mySecretPassword
 ```
