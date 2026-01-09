@@ -43,12 +43,13 @@ public class UserService {
 		// 비밀번호 암호화
 		String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-		// 사용자 생성
+		// 사용자 생성 (role은 무조건 USER로 설정, 관리자는 DB에서 수동 변경)
 		User user = User.builder()
 				.email(request.getEmail())
 				.password(encodedPassword)
 				.name(request.getName())
 				.phone(request.getPhone())
+				.role(User.UserRole.USER)
 				.build();
 
 		User savedUser = userRepository.save(user);
@@ -72,6 +73,7 @@ public class UserService {
 					user.getEmail(),
 					user.getName(),
 					user.getPhone(),
+					user.getRole().name(),
 					user.getPassword(),
 					user.getCreatedAt()
 			);

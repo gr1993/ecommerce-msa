@@ -34,6 +34,10 @@ public class User {
 	private String phone;
 
 	@Enumerated(EnumType.STRING)
+	@Column(name = "role", nullable = false, length = 20)
+	private UserRole role = UserRole.USER;
+
+	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false, length = 20)
 	private UserStatus status = UserStatus.ACTIVE;
 
@@ -53,11 +57,12 @@ public class User {
 	private LocalDateTime updatedAt;
 
 	@Builder
-	public User(String email, String password, String name, String phone, UserStatus status, UserGrade grade, Long points) {
+	public User(String email, String password, String name, String phone, UserRole role, UserStatus status, UserGrade grade, Long points) {
 		this.email = email;
 		this.password = password;
 		this.name = name;
 		this.phone = phone;
+		this.role = role != null ? role : UserRole.USER;
 		this.status = status != null ? status : UserStatus.ACTIVE;
 		this.grade = grade != null ? grade : UserGrade.NORMAL;
 		this.points = points != null ? points : 0L;
@@ -69,6 +74,10 @@ public class User {
 
 	public void updatePhone(String phone) {
 		this.phone = phone;
+	}
+
+	public void updateRole(UserRole role) {
+		this.role = role;
 	}
 
 	public void updateStatus(UserStatus status) {
@@ -88,6 +97,10 @@ public class User {
 			throw new IllegalArgumentException("포인트가 부족합니다.");
 		}
 		this.points -= points;
+	}
+
+	public enum UserRole {
+		USER, ADMIN
 	}
 
 	public enum UserStatus {
