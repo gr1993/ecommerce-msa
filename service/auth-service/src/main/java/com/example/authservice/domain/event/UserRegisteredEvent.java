@@ -15,5 +15,6 @@ public class UserRegisteredEvent {
 	private String name;
 	private String phone;
 	private String hashedPassword;
+	private String role;
 	private LocalDateTime registeredAt;
 }

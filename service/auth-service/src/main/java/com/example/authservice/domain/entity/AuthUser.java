@@ -31,6 +31,10 @@ public class AuthUser {
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private UserRole role = UserRole.USER;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -40,10 +44,11 @@ public class AuthUser {
     private LocalDateTime updatedAt;
 
     @Builder
-    public AuthUser(String email, String password, UserStatus status) {
+    public AuthUser(String email, String password, UserStatus status, UserRole role) {
         this.email = email;
         this.password = password;
         this.status = status != null ? status : UserStatus.ACTIVE;
+        this.role = role != null ? role : UserRole.USER;
     }
 
     public void updatePassword(String password) {
@@ -56,5 +61,9 @@ public class AuthUser {
 
     public enum UserStatus {
         ACTIVE, INACTIVE, SUSPENDED
+    }
+
+    public enum UserRole {
+        USER, ADMIN
     }
 }

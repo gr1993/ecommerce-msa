@@ -87,10 +87,20 @@ public class AuthService {
         }
 
         // AuthUser 생성 (비밀번호는 이미 해시된 상태)
+        AuthUser.UserRole userRole = AuthUser.UserRole.USER;
+        if (event.getRole() != null) {
+            try {
+                userRole = AuthUser.UserRole.valueOf(event.getRole());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid role received: {}. Defaulting to USER.", event.getRole());
+            }
+        }
+
         AuthUser authUser = AuthUser.builder()
                 .email(event.getEmail())
                 .password(event.getHashedPassword())
                 .status(AuthUser.UserStatus.ACTIVE)
+                .role(userRole)
                 .build();
 
         authUserRepository.save(authUser);
