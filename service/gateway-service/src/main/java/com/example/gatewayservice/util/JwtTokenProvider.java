@@ -74,4 +74,15 @@ public class JwtTokenProvider {
         Claims claims = validateToken(token);
         return claims.get("email", String.class);
     }
+
+    /**
+     * 토큰에서 사용자 역할을 추출합니다.
+     *
+     * @param token JWT 토큰
+     * @return 사용자 역할 (USER 또는 ADMIN)
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = validateToken(token);
+        return claims.get("role", String.class);
+    }
 }
