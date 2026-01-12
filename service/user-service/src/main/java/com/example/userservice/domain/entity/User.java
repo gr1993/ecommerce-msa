@@ -108,7 +108,7 @@ public class User {
 	}
 
 	public enum UserGrade {
-		NORMAL, VIP
+		NORMAL, VIP, GOLD, SILVER
 	}
 }
 

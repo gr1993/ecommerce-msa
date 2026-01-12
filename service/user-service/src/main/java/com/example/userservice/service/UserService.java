@@ -6,8 +6,10 @@ import com.example.userservice.domain.entity.User;
 import com.example.userservice.domain.event.UserRegisteredEvent;
 import com.example.userservice.dto.request.SignUpRequest;
 import com.example.userservice.dto.response.SignUpResponse;
+import com.example.userservice.dto.response.UserResponse;
 import com.example.userservice.exception.DuplicateEmailException;
 import com.example.userservice.exception.PasswordMismatchException;
+import com.example.userservice.exception.UserNotFoundException;
 import com.example.userservice.repository.OutboxRepository;
 import com.example.userservice.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -64,6 +69,21 @@ public class UserService {
 				savedUser.getPhone(),
 				savedUser.getCreatedAt()
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public List<UserResponse> getAllUsers() {
+		List<User> users = userRepository.findAll();
+		return users.stream()
+				.map(UserResponse::from)
+				.collect(Collectors.toList());
+	}
+
+	@Transactional(readOnly = true)
+	public UserResponse getUserById(Long userId) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다. userId: " + userId));
+		return UserResponse.from(user);
 	}
 
 	private void saveUserRegisteredEvent(User user) {
