@@ -5,6 +5,8 @@ import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
 import com.example.userservice.domain.event.UserRegisteredEvent;
 import com.example.userservice.dto.request.SignUpRequest;
+import com.example.userservice.dto.request.UserSearchRequest;
+import com.example.userservice.dto.response.PageResponse;
 import com.example.userservice.dto.response.SignUpResponse;
 import com.example.userservice.dto.response.UserResponse;
 import com.example.userservice.exception.DuplicateEmailException;
@@ -16,6 +18,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,6 +81,37 @@ public class UserService {
 		return users.stream()
 				.map(UserResponse::from)
 				.collect(Collectors.toList());
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<UserResponse> searchUsers(UserSearchRequest searchRequest, Pageable pageable) {
+		User.UserStatus status = null;
+		if (searchRequest.getStatus() != null && !searchRequest.getStatus().isEmpty()) {
+			try {
+				status = User.UserStatus.valueOf(searchRequest.getStatus());
+			} catch (IllegalArgumentException e) {
+				log.warn("Invalid status value: {}", searchRequest.getStatus());
+			}
+		}
+
+		User.UserGrade grade = null;
+		if (searchRequest.getGrade() != null && !searchRequest.getGrade().isEmpty()) {
+			try {
+				grade = User.UserGrade.valueOf(searchRequest.getGrade());
+			} catch (IllegalArgumentException e) {
+				log.warn("Invalid grade value: {}", searchRequest.getGrade());
+			}
+		}
+
+		Page<User> userPage = userRepository.findBySearchCriteria(
+				searchRequest.getSearchText(),
+				status,
+				grade,
+				pageable
+		);
+
+		Page<UserResponse> responsePage = userPage.map(UserResponse::from);
+		return PageResponse.of(responsePage);
 	}
 
 	@Transactional(readOnly = true)

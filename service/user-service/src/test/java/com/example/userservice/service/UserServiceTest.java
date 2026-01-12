@@ -4,6 +4,8 @@ import com.example.userservice.common.EventTypeConstants;
 import com.example.userservice.domain.entity.Outbox;
 import com.example.userservice.domain.entity.User;
 import com.example.userservice.dto.request.SignUpRequest;
+import com.example.userservice.dto.request.UserSearchRequest;
+import com.example.userservice.dto.response.PageResponse;
 import com.example.userservice.dto.response.SignUpResponse;
 import com.example.userservice.dto.response.UserResponse;
 import com.example.userservice.exception.DuplicateEmailException;
@@ -19,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -366,6 +369,165 @@ class UserServiceTest {
 		// then
 		assertThat(responses).isEmpty();
 		verify(userRepository, times(1)).findAll();
+	}
+
+	@Test
+	@DisplayName("페이지네이션 회원 검색 테스트")
+	void testSearchUsersWithPagination() {
+		// given
+		LocalDateTime now = LocalDateTime.now();
+
+		User user1 = User.builder()
+				.email("user1@example.com")
+				.password("encodedPassword1")
+				.name("홍길동")
+				.phone("010-1234-5678")
+				.status(User.UserStatus.ACTIVE)
+				.grade(User.UserGrade.VIP)
+				.points(5000L)
+				.build();
+		ReflectionTestUtils.setField(user1, "userId", 1L);
+		ReflectionTestUtils.setField(user1, "createdAt", now);
+		ReflectionTestUtils.setField(user1, "updatedAt", now);
+
+		User user2 = User.builder()
+				.email("user2@example.com")
+				.password("encodedPassword2")
+				.name("김철수")
+				.phone("010-2345-6789")
+				.status(User.UserStatus.ACTIVE)
+				.grade(User.UserGrade.NORMAL)
+				.points(1200L)
+				.build();
+		ReflectionTestUtils.setField(user2, "userId", 2L);
+		ReflectionTestUtils.setField(user2, "createdAt", now);
+		ReflectionTestUtils.setField(user2, "updatedAt", now);
+
+		List<User> users = Arrays.asList(user1, user2);
+		Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 10), 2);
+
+		UserSearchRequest searchRequest = new UserSearchRequest(null, null, null);
+		Pageable pageable = PageRequest.of(0, 10);
+
+		when(userRepository.findBySearchCriteria(null, null, null, pageable))
+				.thenReturn(userPage);
+
+		// when
+		PageResponse<UserResponse> response = userService.searchUsers(searchRequest, pageable);
+
+		// then
+		assertThat(response.getContent()).hasSize(2);
+		assertThat(response.getPage()).isEqualTo(0);
+		assertThat(response.getSize()).isEqualTo(10);
+		assertThat(response.getTotalElements()).isEqualTo(2);
+		assertThat(response.getTotalPages()).isEqualTo(1);
+		assertThat(response.isLast()).isTrue();
+
+		verify(userRepository, times(1)).findBySearchCriteria(null, null, null, pageable);
+	}
+
+	@Test
+	@DisplayName("검색 필터 적용 회원 검색 테스트")
+	void testSearchUsersWithFilters() {
+		// given
+		LocalDateTime now = LocalDateTime.now();
+
+		User user1 = User.builder()
+				.email("user1@example.com")
+				.password("encodedPassword1")
+				.name("홍길동")
+				.phone("010-1234-5678")
+				.status(User.UserStatus.ACTIVE)
+				.grade(User.UserGrade.VIP)
+				.points(5000L)
+				.build();
+		ReflectionTestUtils.setField(user1, "userId", 1L);
+		ReflectionTestUtils.setField(user1, "createdAt", now);
+		ReflectionTestUtils.setField(user1, "updatedAt", now);
+
+		List<User> users = Arrays.asList(user1);
+		Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 10), 1);
+
+		UserSearchRequest searchRequest = new UserSearchRequest("홍길동", "ACTIVE", "VIP");
+		Pageable pageable = PageRequest.of(0, 10);
+
+		when(userRepository.findBySearchCriteria("홍길동", User.UserStatus.ACTIVE, User.UserGrade.VIP, pageable))
+				.thenReturn(userPage);
+
+		// when
+		PageResponse<UserResponse> response = userService.searchUsers(searchRequest, pageable);
+
+		// then
+		assertThat(response.getContent()).hasSize(1);
+		assertThat(response.getContent().get(0).getName()).isEqualTo("홍길동");
+		assertThat(response.getContent().get(0).getStatus()).isEqualTo("ACTIVE");
+		assertThat(response.getContent().get(0).getGrade()).isEqualTo("VIP");
+		assertThat(response.getTotalElements()).isEqualTo(1);
+
+		verify(userRepository, times(1))
+				.findBySearchCriteria("홍길동", User.UserStatus.ACTIVE, User.UserGrade.VIP, pageable);
+	}
+
+	@Test
+	@DisplayName("부분 필터 적용 회원 검색 테스트")
+	void testSearchUsersWithPartialFilters() {
+		// given
+		LocalDateTime now = LocalDateTime.now();
+
+		User user1 = User.builder()
+				.email("user1@example.com")
+				.password("encodedPassword1")
+				.name("홍길동")
+				.phone("010-1234-5678")
+				.status(User.UserStatus.ACTIVE)
+				.grade(User.UserGrade.VIP)
+				.points(5000L)
+				.build();
+		ReflectionTestUtils.setField(user1, "userId", 1L);
+		ReflectionTestUtils.setField(user1, "createdAt", now);
+		ReflectionTestUtils.setField(user1, "updatedAt", now);
+
+		List<User> users = Arrays.asList(user1);
+		Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 10), 1);
+
+		UserSearchRequest searchRequest = new UserSearchRequest("홍", null, null);
+		Pageable pageable = PageRequest.of(0, 10);
+
+		when(userRepository.findBySearchCriteria("홍", null, null, pageable))
+				.thenReturn(userPage);
+
+		// when
+		PageResponse<UserResponse> response = userService.searchUsers(searchRequest, pageable);
+
+		// then
+		assertThat(response.getContent()).hasSize(1);
+		assertThat(response.getContent().get(0).getName()).contains("홍");
+
+		verify(userRepository, times(1)).findBySearchCriteria("홍", null, null, pageable);
+	}
+
+	@Test
+	@DisplayName("빈 결과 페이지네이션 검색 테스트")
+	void testSearchUsersEmptyResult() {
+		// given
+		Page<User> emptyPage = new PageImpl<>(Arrays.asList(), PageRequest.of(0, 10), 0);
+
+		UserSearchRequest searchRequest = new UserSearchRequest("존재하지않는사용자", null, null);
+		Pageable pageable = PageRequest.of(0, 10);
+
+		when(userRepository.findBySearchCriteria("존재하지않는사용자", null, null, pageable))
+				.thenReturn(emptyPage);
+
+		// when
+		PageResponse<UserResponse> response = userService.searchUsers(searchRequest, pageable);
+
+		// then
+		assertThat(response.getContent()).isEmpty();
+		assertThat(response.getTotalElements()).isEqualTo(0);
+		assertThat(response.getTotalPages()).isEqualTo(0);
+
+		verify(userRepository, times(1))
+				.findBySearchCriteria("존재하지않는사용자", null, null, pageable);
 	}
 }
 
