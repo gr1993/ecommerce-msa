@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:userssmcore2024miniconda3python.exe scripts/package_skill.py api-integrator)",
+      "Bash(powershell -Command \"Compress-Archive -Path ''api-integrator\\\\*'' -DestinationPath ''api-integrator.skill'' -Force\")",
+      "Bash(dir /b \"C:\\\\development\\\\study\\\\ecommerce-msa\\\\service\\\\frontend-service\\\\.claude\\\\skills\\\\api-integrator\")",
+      "Skill(api-integrator)",
+      "Bash(node fetch-swagger.js:*)"
+    ]
+  }
+}

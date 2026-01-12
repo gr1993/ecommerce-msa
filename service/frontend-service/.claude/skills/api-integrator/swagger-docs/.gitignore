@@ -1,0 +1,6 @@
+# Ignore cached Swagger documentation files
+# These are fetched dynamically from running services
+*.json
+
+# Keep the README
+!README.md
