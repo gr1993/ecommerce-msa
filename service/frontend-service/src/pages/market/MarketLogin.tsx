@@ -4,7 +4,8 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import { login } from '../../utils/authUtils'
+import { login as saveAuth } from '../../utils/authUtils'
+import { login } from '../../api/authApi'
 import './MarketLogin.css'
 
 function MarketLogin() {
@@ -12,29 +13,48 @@ function MarketLogin() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
 
+  // JWT 토큰에서 사용자 정보 추출
+  const decodeToken = (token: string) => {
+    try {
+      const payload = token.split('.')[1]
+      const decoded = JSON.parse(atob(payload))
+      return decoded
+    } catch (error) {
+      console.error('Failed to decode token:', error)
+      return null
+    }
+  }
+
   const onFinish = async (values: any) => {
     setLoading(true)
     try {
-      // TODO: API 호출로 로그인 처리
-      console.log('Login values:', values)
-      
-      // 임시 처리
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 로그인 성공 시 세션 저장
-      login(
+      // API 호출로 로그인 처리
+      const response = await login({
+        email: values.email,
+        password: values.password,
+      })
+
+      // JWT 토큰에서 사용자 정보 추출
+      const userInfo = decodeToken(response.accessToken)
+
+      // 로그인 성공 시 토큰과 사용자 정보 저장
+      saveAuth(
         {
-          userId: 'user-1',
+          userId: userInfo?.userId || userInfo?.sub || '',
           email: values.email,
-          name: '사용자'
+          name: userInfo?.name || userInfo?.username || '',
         },
-        'user-token-' + Date.now()
+        response.accessToken
       )
-      
+
+      // 리프레시 토큰 저장
+      localStorage.setItem('refreshToken', response.refreshToken)
+
       message.success('로그인되었습니다.')
       navigate('/market')
-    } catch (error) {
-      message.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+    } catch (error: any) {
+      console.error('Login error:', error)
+      message.error(error.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
     } finally {
       setLoading(false)
     }
