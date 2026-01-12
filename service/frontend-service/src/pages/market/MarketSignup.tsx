@@ -4,6 +4,7 @@ import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined } from '@ant-de
 import { useNavigate, Link } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
+import { signUp } from '../../api/userApi'
 import './MarketSignup.css'
 
 function MarketSignup() {
@@ -14,41 +15,22 @@ function MarketSignup() {
   const onFinish = async (values: any) => {
     setLoading(true)
     try {
-      // 비밀번호 확인
-      if (values.password !== values.passwordConfirm) {
-        message.error('비밀번호가 일치하지 않습니다.')
-        setLoading(false)
-        return
-      }
-
-      // API 호출로 회원가입 처리
-      const response = await fetch('http://localhost:8080/api/users/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password,
-          passwordConfirm: values.passwordConfirm,
-          name: values.name,
-          phone: values.phone || '',
-        }),
+      // API 호출로 회원가입 처리 (타입 안전성 보장)
+      const result = await signUp({
+        email: values.email,
+        password: values.password,
+        passwordConfirm: values.passwordConfirm,
+        name: values.name,
+        phone: values.phone || undefined,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || '회원가입에 실패했습니다.')
-      }
+      console.log('Signup success:', result)
 
-      const data = await response.json()
-      console.log('Signup success:', data)
-      
       message.success('회원가입이 완료되었습니다. 로그인해주세요.')
       navigate('/market/login')
     } catch (error) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : '회원가입에 실패했습니다. 다시 시도해주세요.'
       message.error(errorMessage)
     } finally {
