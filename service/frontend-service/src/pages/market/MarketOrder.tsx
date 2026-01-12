@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import type { CartItem } from '../../utils/cartUtils'
+import { useCartStore, type CartItem } from '../../stores/cartStore'
 import { requestPayment, type PaymentRequest } from '../../utils/paymentUtils'
 import './MarketOrder.css'
 
@@ -44,6 +44,8 @@ function MarketOrder() {
   const [orderItems, setOrderItems] = useState<CartItem[]>([])
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const cartItems = useCartStore((state) => state.items)
+  const removeFromCart = useCartStore((state) => state.removeFromCart)
 
   // URL 파라미터나 location state에서 주문할 상품 가져오기
   useEffect(() => {
@@ -58,25 +60,20 @@ function MarketOrder() {
       const params = new URLSearchParams(location.search)
       const itemIds = params.get('items')?.split(',')
       if (itemIds) {
-        // localStorage에서 장바구니 아이템 가져오기
-        const cartData = localStorage.getItem('cart')
-        if (cartData) {
-          try {
-            const allItems: CartItem[] = JSON.parse(cartData)
-            const selectedItems = allItems.filter(item => itemIds.includes(item.product_id))
-            setOrderItems(selectedItems)
-          } catch (error) {
-            console.error('주문 상품 로드 실패:', error)
-            message.error('주문 상품을 불러오는데 실패했습니다.')
-            navigate('/market/cart')
-          }
+        // Zustand cartStore에서 장바구니 아이템 가져오기
+        const selectedItems = cartItems.filter(item => itemIds.includes(item.product_id))
+        if (selectedItems.length > 0) {
+          setOrderItems(selectedItems)
+        } else {
+          message.error('주문 상품을 불러오는데 실패했습니다.')
+          navigate('/market/cart')
         }
       } else {
         message.warning('주문할 상품이 없습니다.')
         navigate('/market/cart')
       }
     }
-  }, [location, navigate])
+  }, [location, navigate, cartItems])
 
   // 총 주문 금액 계산
   const calculateTotal = () => {
@@ -163,17 +160,7 @@ function MarketOrder() {
 
       // 주문 성공 시 장바구니에서 선택한 상품 제거
       if (location.state?.fromCart) {
-        const cartData = localStorage.getItem('cart')
-        if (cartData) {
-          try {
-            const allItems: CartItem[] = JSON.parse(cartData)
-            const itemIds = new Set(orderItems.map(item => item.product_id))
-            const remainingItems = allItems.filter(item => !itemIds.has(item.product_id))
-            localStorage.setItem('cart', JSON.stringify(remainingItems))
-          } catch (error) {
-            console.error('장바구니 업데이트 실패:', error)
-          }
-        }
+        orderItems.forEach(item => removeFromCart(item.product_id))
       }
 
       message.success('결제가 완료되었습니다!')

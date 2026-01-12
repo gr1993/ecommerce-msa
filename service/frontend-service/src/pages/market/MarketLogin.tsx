@@ -4,7 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate, Link } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import { login as saveAuth } from '../../utils/authUtils'
+import { useAuthStore } from '../../stores/authStore'
 import { login } from '../../api/authApi'
 import './MarketLogin.css'
 
@@ -12,6 +12,7 @@ function MarketLogin() {
   const navigate = useNavigate()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const loginAction = useAuthStore((state) => state.login)
 
   // JWT 토큰에서 사용자 정보 추출
   const decodeToken = (token: string) => {
@@ -37,18 +38,16 @@ function MarketLogin() {
       // JWT 토큰에서 사용자 정보 추출
       const userInfo = decodeToken(response.accessToken)
 
-      // 로그인 성공 시 토큰과 사용자 정보 저장
-      saveAuth(
+      // Zustand store에 로그인 정보 저장 (자동으로 localStorage에 저장됨)
+      loginAction(
         {
           userId: userInfo?.userId || userInfo?.sub || '',
           email: values.email,
           name: userInfo?.name || userInfo?.username || '',
         },
-        response.accessToken
+        response.accessToken,
+        response.refreshToken
       )
-
-      // 리프레시 토큰 저장
-      localStorage.setItem('refreshToken', response.refreshToken)
 
       message.success('로그인되었습니다.')
       navigate('/market')

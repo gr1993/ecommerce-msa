@@ -21,60 +21,40 @@ import {
 } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import { getCartItems } from '../../utils/cartUtils'
-import type { CartItem } from '../../utils/cartUtils'
+import { useCartStore } from '../../stores/cartStore'
+import type { CartItem } from '../../stores/cartStore'
 import './MarketCart.css'
 
 function MarketCart() {
   const navigate = useNavigate()
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const cartItems = useCartStore((state) => state.items)
+  const updateQuantity = useCartStore((state) => state.updateQuantity)
+  const removeFromCart = useCartStore((state) => state.removeFromCart)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [isAllSelected, setIsAllSelected] = useState(false)
 
-  // localStorage에서 장바구니 데이터 로드
+  // 장바구니 데이터 로드 시 모든 아이템 선택
   useEffect(() => {
-    const loadCart = () => {
-      const items = getCartItems()
-      setCartItems(items)
-      // 모든 아이템 선택
-      if (items.length > 0) {
-        setSelectedItems(new Set(items.map((item: CartItem) => item.product_id)))
-        setIsAllSelected(true)
-      }
+    if (cartItems.length > 0) {
+      setSelectedItems(new Set(cartItems.map((item: CartItem) => item.product_id)))
+      setIsAllSelected(true)
     }
-    loadCart()
   }, [])
-
-  // 장바구니 데이터 저장
-  const saveCart = (items: CartItem[]) => {
-    localStorage.setItem('cart', JSON.stringify(items))
-    setCartItems(items)
-  }
 
   // 수량 변경
   const handleQuantityChange = (productId: string, newQuantity: number | null) => {
     if (!newQuantity || newQuantity < 1) return
-
-    const updatedItems = cartItems.map(item => {
-      if (item.product_id === productId) {
-        const quantity = Math.min(newQuantity, item.stock)
-        return { ...item, quantity }
-      }
-      return item
-    })
-    saveCart(updatedItems)
+    updateQuantity(productId, newQuantity)
   }
 
   // 아이템 삭제
   const handleRemoveItem = (productId: string) => {
-    const updatedItems = cartItems.filter(item => item.product_id !== productId)
-    saveCart(updatedItems)
+    removeFromCart(productId)
     setSelectedItems(prev => {
       const newSet = new Set(prev)
       newSet.delete(productId)
       return newSet
     })
-    message.success('장바구니에서 삭제되었습니다.')
   }
 
   // 선택된 아이템 삭제
@@ -84,8 +64,7 @@ function MarketCart() {
       return
     }
 
-    const updatedItems = cartItems.filter(item => !selectedItems.has(item.product_id))
-    saveCart(updatedItems)
+    selectedItems.forEach(productId => removeFromCart(productId))
     setSelectedItems(new Set())
     setIsAllSelected(false)
     message.success('선택한 상품이 삭제되었습니다.')

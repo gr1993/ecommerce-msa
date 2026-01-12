@@ -3,13 +3,14 @@ import { Form, Input, Button, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { adminLogin as adminLoginApi } from '../../api/authApi'
-import { adminLogin as adminLoginUtil } from '../../utils/authUtils'
+import { useAuthStore } from '../../stores/authStore'
 import './AdminLogin.css'
 
 function AdminLogin() {
   const navigate = useNavigate()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const adminLogin = useAuthStore((state) => state.adminLogin)
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true)
@@ -20,8 +21,8 @@ function AdminLogin() {
         password: values.password,
       })
 
-      // 로그인 성공 시 토큰과 사용자 정보 저장
-      adminLoginUtil(
+      // Zustand store에 로그인 정보 저장 (자동으로 localStorage에 저장됨)
+      adminLogin(
         {
           adminId: response.adminId,
           email: response.email,

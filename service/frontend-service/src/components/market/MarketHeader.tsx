@@ -1,11 +1,12 @@
 import { Button } from 'antd'
 import { ShoppingCartOutlined, UserOutlined, CustomerServiceOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { isLoggedIn } from '../../utils/authUtils'
+import { useAuthStore } from '../../stores/authStore'
 import './MarketHeader.css'
 
 function MarketHeader() {
   const navigate = useNavigate()
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
   const loggedIn = isLoggedIn()
 
   return (

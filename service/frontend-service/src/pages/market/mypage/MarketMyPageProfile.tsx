@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Form, Input, Button, Space, message, Descriptions, Divider, Modal } from 'antd'
 import { UserOutlined, LockOutlined, PhoneOutlined, MailOutlined, EditOutlined } from '@ant-design/icons'
-import { getUser } from '../../../utils/authUtils'
+import { useAuthStore } from '../../../stores/authStore'
 import './MarketMyPageProfile.css'
 
 interface UserProfile {
@@ -22,6 +22,7 @@ function MarketMyPageProfile() {
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false)
   const [profileForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
+  const user = useAuthStore((state) => state.user)
 
   useEffect(() => {
     loadProfile()
@@ -32,8 +33,6 @@ function MarketMyPageProfile() {
     try {
       // TODO: API 호출로 회원 정보 가져오기
       await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const user = getUser()
       
       // 임시 샘플 데이터
       const sampleProfile: UserProfile = {

@@ -4,7 +4,7 @@ import { Button, Card, Row, Col, InputNumber, Space, Divider, Tag, Image, messag
 import { ShoppingCartOutlined, ArrowLeftOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import type { CartItem } from '../../utils/cartUtils'
+import { useCartStore, type CartItem } from '../../stores/cartStore'
 import './MarketProductDetail.css'
 
 interface Product {
@@ -25,7 +25,8 @@ interface Product {
 function MarketProductDetail() {
   const { productId } = useParams<{ productId: string }>()
   const navigate = useNavigate()
-  
+  const addToCart = useCartStore((state) => state.addToCart)
+
   const [product, setProduct] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState<number>(1)
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
@@ -123,8 +124,27 @@ function MarketProductDetail() {
   }
 
   const handleAddToCart = () => {
-    // TODO: 장바구니 추가 API 호출
-    message.success(`${product?.product_name}을(를) 장바구니에 추가했습니다.`)
+    if (!product) return
+
+    if (product.stock === 0) {
+      message.warning('재고가 없습니다.')
+      return
+    }
+
+    if (quantity > product.stock) {
+      message.warning(`재고가 부족합니다. (최대 ${product.stock}개)`)
+      return
+    }
+
+    // Zustand store를 통해 장바구니에 추가
+    addToCart({
+      product_id: product.product_id,
+      product_name: product.product_name,
+      product_code: product.product_code,
+      base_price: product.base_price,
+      image_url: product.image_url,
+      stock: product.stock
+    }, quantity)
   }
 
   const handleBuyNow = () => {

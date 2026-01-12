@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons'
 import MarketHeader from '../../../components/market/MarketHeader'
 import MarketFooter from '../../../components/market/MarketFooter'
-import { logout } from '../../../utils/authUtils'
+import { useAuthStore } from '../../../stores/authStore'
 import { message } from 'antd'
 import './MarketMyPageLayout.css'
 
@@ -22,6 +22,7 @@ function MarketMyPageLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+  const logout = useAuthStore((state) => state.logout)
 
   const handleLogout = () => {
     logout()

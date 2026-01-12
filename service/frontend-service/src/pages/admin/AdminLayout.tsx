@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, message } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
-import { isAdminLoggedIn, adminLogout } from '../../utils/authUtils'
+import { useAuthStore } from '../../stores/authStore'
 import './AdminLayout.css'
 
 function AdminLayout() {
@@ -10,13 +10,16 @@ function AdminLayout() {
   const navigate = useNavigate()
   const [openMenus, setOpenMenus] = useState<string[]>([])
 
+  const isAdminLoggedIn = useAuthStore((state) => state.isAdminLoggedIn)
+  const adminLogout = useAuthStore((state) => state.adminLogout)
+
   // 관리자 인증 체크
   useEffect(() => {
     if (!isAdminLoggedIn()) {
       message.warning('관리자 로그인이 필요합니다.')
       navigate('/admin/login')
     }
-  }, [navigate])
+  }, [navigate, isAdminLoggedIn])
 
   const toggleMenu = (menuKey: string) => {
     setOpenMenus(prev =>

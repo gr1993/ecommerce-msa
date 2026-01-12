@@ -5,6 +5,8 @@
  * All requests go through API Gateway (http://localhost:8080)
  */
 
+import { useAuthStore } from '../stores/authStore'
+
 // ==================== Interfaces ====================
 
 /**
@@ -214,8 +216,8 @@ export const searchUsers = async (params?: SearchUsersParams): Promise<PageRespo
     const queryString = queryParams.toString()
     const url = `http://localhost:8080/api/admin/users${queryString ? `?${queryString}` : ''}`
 
-    // Get admin token from localStorage
-    const adminToken = localStorage.getItem('adminToken')
+    // Get admin token from Zustand store
+    const adminToken = useAuthStore.getState().adminToken
     if (!adminToken) {
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }

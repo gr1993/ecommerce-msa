@@ -12,6 +12,7 @@ This is the frontend service for an e-commerce MSA (Microservices Architecture) 
 - **Framework**: React 19.2.0
 - **Language**: TypeScript
 - **Routing**: react-router-dom 7.10.1
+- **State Management**: Zustand 5.0.2 with persist middleware
 - **UI Library**: Ant Design (antd 6.1.0) for tables and components
 - **Charts**: @ant-design/charts for data visualization
 - **Rich Text Editor**: react-quill-new 3.6.0 (used instead of react-quill due to React 19 removing ReactDOM.findDOMNode)
@@ -91,23 +92,39 @@ src/
 │   └── market/           # Market pages with nested subfolders
 │       ├── mypage/       # User account pages
 │       └── support/      # Customer support pages
+├── stores/               # Zustand global state stores
+│   ├── authStore.ts      # Authentication state (user & admin)
+│   └── cartStore.ts      # Shopping cart state
 └── utils/                # Shared utility functions
 ```
 
 ### State Management
 
-**LocalStorage-based**: No global state management library (Redux, MobX, etc.) is used.
+**Zustand-based**: Uses Zustand for reactive global state management with localStorage persistence.
 
-- **Authentication**: Managed via `src/utils/authUtils.ts`
-  - Market auth: `userToken`, `user` in localStorage
-  - Admin auth: `adminToken`, `adminUser` in localStorage
-  - Separate authentication flows for market vs admin
+- **Authentication Store** (`src/stores/authStore.ts`):
+  - Manages both market user and admin authentication
+  - Market auth: `userToken`, `user` state
+  - Admin auth: `adminToken`, `adminUser` state
+  - Separate authentication flows: `login()`, `logout()`, `adminLogin()`, `adminLogout()`
+  - Auto-synced to localStorage via persist middleware
+  - Usage: `const { user, login, isLoggedIn } = useAuthStore()`
 
-- **Shopping Cart**: Managed via `src/utils/cartUtils.ts`
-  - Cart data stored in localStorage as JSON
-  - CartItem interface defines product structure
+- **Shopping Cart Store** (`src/stores/cartStore.ts`):
+  - Manages shopping cart items with reactive updates
+  - Actions: `addToCart()`, `removeFromCart()`, `updateQuantity()`, `clearCart()`
+  - Computed values: `getCartItemCount()`, `getTotalPrice()`
+  - Auto-synced to localStorage via persist middleware
+  - Usage: `const { items, addToCart, removeFromCart } = useCartStore()`
 
 - **Payment**: Utilities in `src/utils/paymentUtils.ts`
+
+**Why Zustand?**
+- Lightweight (~1KB) and zero boilerplate
+- Automatic component re-rendering on state changes
+- Built-in localStorage persistence
+- Type-safe with TypeScript
+- No Context Provider wrapper needed
 
 ### Styling Approach
 
@@ -144,8 +161,8 @@ This frontend is part of a larger Spring Cloud MSA system with:
 ### When Working with Market Pages
 
 - Market pages have standalone layouts (MarketHeader + page content)
-- Use `authUtils` for checking login state: `isLoggedIn()`
-- Cart operations should use `cartUtils` helper functions
+- Use `useAuthStore()` hook for authentication: `const { isLoggedIn, user } = useAuthStore()`
+- Use `useCartStore()` hook for cart operations: `const { items, addToCart } = useCartStore()`
 - Market uses customer-facing language (Korean)
 
 ### React 19 Compatibility
