@@ -21,6 +21,22 @@ export interface RefreshTokenRequest {
   refreshToken: string
 }
 
+export interface AdminLoginRequest {
+  email: string
+  password: string
+}
+
+export interface AdminTokenResponse {
+  accessToken: string
+  refreshToken?: string
+  tokenType: string
+  expiresIn: number
+  adminId?: string
+  email: string
+  name?: string
+  role?: string
+}
+
 /**
  * Login API
  * POST /api/auth/login
@@ -96,6 +112,47 @@ export const refreshToken = async (request: RefreshTokenRequest): Promise<TokenR
     return data
   } catch (error) {
     console.error('Refresh token error:', error)
+    throw error
+  }
+}
+
+/**
+ * Admin Login API
+ * POST /api/auth/login
+ *
+ * Authenticates admin user with email and password and returns JWT tokens.
+ *
+ * @param credentials - Admin login credentials (email and password)
+ * @returns AdminTokenResponse with access token and admin user info
+ * @throws Error if login fails (401: invalid credentials, 403: not admin)
+ */
+export const adminLogin = async (credentials: AdminLoginRequest): Promise<AdminTokenResponse> => {
+  try {
+    const response = await fetch(`http://localhost:8080/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Admin login failed' }))
+
+      // Provide user-friendly error messages based on status code
+      if (response.status === 401) {
+        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.')
+      } else if (response.status === 403) {
+        throw new Error('관리자 권한이 없습니다.')
+      }
+
+      throw new Error(error.message || `관리자 로그인에 실패했습니다. (HTTP ${response.status})`)
+    }
+
+    const data: AdminTokenResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Admin login error:', error)
     throw error
   }
 }

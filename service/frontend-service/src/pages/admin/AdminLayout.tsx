@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, message } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
+import { isAdminLoggedIn, adminLogout } from '../../utils/authUtils'
 import './AdminLayout.css'
 
 function AdminLayout() {
@@ -9,9 +10,17 @@ function AdminLayout() {
   const navigate = useNavigate()
   const [openMenus, setOpenMenus] = useState<string[]>([])
 
+  // 관리자 인증 체크
+  useEffect(() => {
+    if (!isAdminLoggedIn()) {
+      message.warning('관리자 로그인이 필요합니다.')
+      navigate('/admin/login')
+    }
+  }, [navigate])
+
   const toggleMenu = (menuKey: string) => {
-    setOpenMenus(prev => 
-      prev.includes(menuKey) 
+    setOpenMenus(prev =>
+      prev.includes(menuKey)
         ? prev.filter(key => key !== menuKey)
         : [...prev, menuKey]
     )
@@ -22,8 +31,7 @@ function AdminLayout() {
   const isActiveParent = (paths: string[]) => paths.some(path => location.pathname.startsWith(path))
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('adminUser')
+    adminLogout()
     message.success('로그아웃되었습니다.')
     navigate('/admin/login')
   }

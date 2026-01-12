@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Form, Input, Button, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { adminLogin as adminLoginApi } from '../../api/authApi'
+import { adminLogin as adminLoginUtil } from '../../utils/authUtils'
 import './AdminLogin.css'
 
 function AdminLogin() {
@@ -9,23 +11,34 @@ function AdminLogin() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true)
     try {
-      // TODO: API 호출로 관리자 로그인 처리
-      console.log('Admin login values:', values)
-      
-      // 임시 처리
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 로그인 성공 시 세션 저장
-      localStorage.setItem('adminToken', 'admin-logged-in')
-      localStorage.setItem('adminUser', JSON.stringify({ email: values.email }))
-      
+      // API 호출로 관리자 로그인 처리
+      const response = await adminLoginApi({
+        email: values.email,
+        password: values.password,
+      })
+
+      // 로그인 성공 시 토큰과 사용자 정보 저장
+      adminLoginUtil(
+        {
+          adminId: response.adminId,
+          email: response.email,
+          name: response.name,
+          role: response.role,
+        },
+        response.accessToken
+      )
+
       message.success('관리자 로그인되었습니다.')
       navigate('/admin/dashboard')
     } catch (error) {
-      message.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+      }
     } finally {
       setLoading(false)
     }
