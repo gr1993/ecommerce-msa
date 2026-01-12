@@ -1,28 +1,23 @@
 import { useState, useEffect } from 'react'
-import { Table, Space, Input, Button, Select, Tag, message } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import { Table, Space, Input, Button, Select, Tag, message, Spin } from 'antd'
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
+import { searchUsers } from '../../../api/userApi'
+import type { UserResponse } from '../../../api/userApi'
 import './AdminUserManage.css'
 
 const { Option } = Select
 
-interface User {
-  user_id: string
-  email: string
-  name: string
-  phone?: string
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
-  grade: string
-  points: number
-  created_at: string
-  updated_at: string
-}
-
 function AdminUserManage() {
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<UserResponse[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
-  const [searchStatus, setSearchStatus] = useState<string | undefined>(undefined)
-  const [searchGrade, setSearchGrade] = useState<string | undefined>(undefined)
+  const [searchStatus, setSearchStatus] = useState<'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | undefined>(undefined)
+  const [searchGrade, setSearchGrade] = useState<'NORMAL' | 'VIP' | 'GOLD' | 'SILVER' | undefined>(undefined)
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
 
   const statusMap: Record<string, { label: string; color: string }> = {
     ACTIVE: { label: '활성', color: 'green' },
@@ -37,121 +32,158 @@ function AdminUserManage() {
     SILVER: '실버'
   }
 
-  // 사용자 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 사용자 데이터 로드
-    const sampleUsers: User[] = [
-      {
-        user_id: '1',
-        email: 'user1@example.com',
-        name: '홍길동',
-        phone: '010-1234-5678',
-        status: 'ACTIVE',
-        grade: 'VIP',
-        points: 5000,
-        created_at: '2024-01-01 10:00:00',
-        updated_at: '2024-01-15 10:00:00'
-      },
-      {
-        user_id: '2',
-        email: 'user2@example.com',
-        name: '김철수',
-        phone: '010-2345-6789',
-        status: 'ACTIVE',
-        grade: 'NORMAL',
-        points: 1200,
-        created_at: '2024-01-05 14:30:00',
-        updated_at: '2024-01-10 09:20:00'
-      },
-      {
-        user_id: '3',
-        email: 'user3@example.com',
-        name: '이영희',
-        phone: '010-3456-7890',
-        status: 'INACTIVE',
-        grade: 'GOLD',
-        points: 3000,
-        created_at: '2023-12-20 11:00:00',
-        updated_at: '2024-01-01 08:00:00'
-      },
-      {
-        user_id: '4',
-        email: 'user4@example.com',
-        name: '박민수',
-        phone: '010-4567-8901',
-        status: 'SUSPENDED',
-        grade: 'NORMAL',
-        points: 0,
-        created_at: '2023-11-15 16:00:00',
-        updated_at: '2024-01-10 15:30:00'
-      },
-      {
-        user_id: '5',
-        email: 'user5@example.com',
-        name: '최지영',
-        phone: '010-5678-9012',
-        status: 'ACTIVE',
-        grade: 'SILVER',
-        points: 2500,
-        created_at: '2024-01-10 09:00:00',
-        updated_at: '2024-01-12 10:15:00'
-      }
-    ]
-    setUsers(sampleUsers)
-  }, [])
+  // 사용자 데이터 로드
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      const response = await searchUsers({
+        searchText: searchText || undefined,
+        status: searchStatus,
+        grade: searchGrade,
+        page: pagination.current - 1, // API uses 0-based page numbering
+        size: pagination.pageSize,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+      })
 
-  // 필터링된 데이터
-  useEffect(() => {
-    const filtered = users.filter((user) => {
-      const textMatch = !searchText || 
-        user.email.toLowerCase().includes(searchText.toLowerCase()) ||
-        user.name.toLowerCase().includes(searchText.toLowerCase())
-      const statusMatch = !searchStatus || user.status === searchStatus
-      const gradeMatch = !searchGrade || user.grade === searchGrade
-      return textMatch && statusMatch && gradeMatch
-    })
-    setFilteredUsers(filtered)
-  }, [searchText, searchStatus, searchGrade, users])
-
-  const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+      setUsers(response.content)
+      setPagination(prev => ({
+        ...prev,
+        total: response.totalElements,
+      }))
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      message.error(error instanceof Error ? error.message : '회원 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReset = () => {
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const handleSearch = async () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    setLoading(true)
+    try {
+      const response = await searchUsers({
+        searchText: searchText || undefined,
+        status: searchStatus,
+        grade: searchGrade,
+        page: 0, // Reset to first page
+        size: pagination.pageSize,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+      })
+
+      setUsers(response.content)
+      setPagination(prev => ({
+        ...prev,
+        current: 1,
+        total: response.totalElements,
+      }))
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      message.error(error instanceof Error ? error.message : '회원 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReset = async () => {
     setSearchText('')
     setSearchStatus(undefined)
     setSearchGrade(undefined)
+    setPagination(prev => ({ ...prev, current: 1 }))
+
+    setLoading(true)
+    try {
+      const response = await searchUsers({
+        page: 0,
+        size: pagination.pageSize,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+      })
+
+      setUsers(response.content)
+      setPagination(prev => ({
+        ...prev,
+        current: 1,
+        total: response.totalElements,
+      }))
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      message.error(error instanceof Error ? error.message : '회원 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleStatusChange = (userId: string, newStatus: string) => {
+  const handleTableChange = async (newPagination: TablePaginationConfig) => {
+    const newPage = newPagination.current || 1
+    const newSize = newPagination.pageSize || 10
+
+    setPagination({
+      current: newPage,
+      pageSize: newSize,
+      total: pagination.total,
+    })
+
+    setLoading(true)
+    try {
+      const response = await searchUsers({
+        searchText: searchText || undefined,
+        status: searchStatus,
+        grade: searchGrade,
+        page: newPage - 1, // API uses 0-based page numbering
+        size: newSize,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC',
+      })
+
+      setUsers(response.content)
+      setPagination(prev => ({
+        ...prev,
+        total: response.totalElements,
+      }))
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+      message.error(error instanceof Error ? error.message : '회원 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusChange = (userId: number, newStatus: string) => {
     // TODO: API 호출로 사용자 상태 업데이트
     setUsers(prev =>
       prev.map(user =>
-        user.user_id === userId
-          ? { ...user, status: newStatus as User['status'], updated_at: new Date().toISOString() }
+        user.userId === userId
+          ? { ...user, status: newStatus as UserResponse['status'], updatedAt: new Date().toISOString() }
           : user
       )
     )
     message.success('사용자 상태가 변경되었습니다.')
   }
 
-  const handleGradeChange = (userId: string, newGrade: string) => {
+  const handleGradeChange = (userId: number, newGrade: string) => {
     // TODO: API 호출로 사용자 등급 업데이트
     setUsers(prev =>
       prev.map(user =>
-        user.user_id === userId
-          ? { ...user, grade: newGrade, updated_at: new Date().toISOString() }
+        user.userId === userId
+          ? { ...user, grade: newGrade as UserResponse['grade'], updatedAt: new Date().toISOString() }
           : user
       )
     )
     message.success('사용자 등급이 변경되었습니다.')
   }
 
-  const columns: ColumnsType<User> = [
+  const columns: ColumnsType<UserResponse> = [
     {
       title: '사용자 ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
+      dataIndex: 'userId',
+      key: 'userId',
       width: 100,
     },
     {
@@ -185,12 +217,11 @@ function AdminUserManage() {
         { text: '정지', value: 'SUSPENDED' },
       ],
       onFilter: (value, record) => record.status === value,
-      render: (status: string, record: User) => {
-        const statusInfo = statusMap[status]
+      render: (status: string, record: UserResponse) => {
         return (
           <Select
             value={status}
-            onChange={(value) => handleStatusChange(record.user_id, value)}
+            onChange={(value) => handleStatusChange(record.userId, value)}
             style={{ width: 100 }}
             size="small"
           >
@@ -213,11 +244,11 @@ function AdminUserManage() {
         { text: '실버', value: 'SILVER' },
       ],
       onFilter: (value, record) => record.grade === value,
-      render: (grade: string, record: User) => {
+      render: (grade: string, record: UserResponse) => {
         return (
           <Select
             value={grade}
-            onChange={(value) => handleGradeChange(record.user_id, value)}
+            onChange={(value) => handleGradeChange(record.userId, value)}
             style={{ width: 100 }}
             size="small"
           >
@@ -241,9 +272,9 @@ function AdminUserManage() {
     },
     {
       title: '가입 일시',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       render: (date: string) => {
         const dateObj = new Date(date)
         return dateObj.toLocaleString('ko-KR', {
@@ -258,9 +289,9 @@ function AdminUserManage() {
     },
     {
       title: '수정 일시',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
-      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      sorter: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
       render: (date: string) => {
         const dateObj = new Date(date)
         return dateObj.toLocaleString('ko-KR', {
@@ -328,17 +359,22 @@ function AdminUserManage() {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={filteredUsers}
-          rowKey="user_id"
-          scroll={{ x: 'max-content' }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `총 ${total}명`,
-          }}
-        />
+        <Spin spinning={loading}>
+          <Table
+            columns={columns}
+            dataSource={users}
+            rowKey="userId"
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              total: pagination.total,
+              showSizeChanger: true,
+              showTotal: (total) => `총 ${total}명`,
+            }}
+            onChange={handleTableChange}
+          />
+        </Spin>
       </div>
     </div>
   )
