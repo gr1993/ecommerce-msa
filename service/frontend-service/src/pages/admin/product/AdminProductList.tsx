@@ -1,18 +1,20 @@
-import { useState } from 'react'
-import { Table, Input, Select, Button, Space } from 'antd'
+import { useState, useEffect } from 'react'
+import { Table, Input, Select, Button, Space, message } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
+import { searchProducts, ProductResponse } from '../../../api/productApi'
 import './AdminProductList.css'
 
 const { Option } = Select
 
 interface Product {
-  id: string
+  id: number
   product_name: string
   product_code: string
   category: string
   base_price: number
   updated_at: string
+  status: string
 }
 
 function AdminProductList() {
@@ -20,34 +22,54 @@ function AdminProductList() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [searchName, setSearchName] = useState('')
   const [searchCategory, setSearchCategory] = useState<string | undefined>(undefined)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
 
-  // 샘플 데이터 (나중에 API로 대체)
-  const [products] = useState<Product[]>([
-    {
-      id: '1',
-      product_name: '노트북',
-      product_code: 'PRD-001',
-      category: 'electronics',
-      base_price: 1200000,
-      updated_at: '2024-01-15 10:30:00'
-    },
-    {
-      id: '2',
-      product_name: '티셔츠',
-      product_code: 'PRD-002',
-      category: 'clothing',
-      base_price: 30000,
-      updated_at: '2024-01-14 15:20:00'
-    },
-    {
-      id: '3',
-      product_name: '책',
-      product_code: 'PRD-003',
-      category: 'books',
-      base_price: 15000,
-      updated_at: '2024-01-13 09:10:00'
+  // API에서 상품 목록 조회
+  const fetchProducts = async (page: number = 0, size: number = 10) => {
+    setLoading(true)
+    try {
+      const response = await searchProducts({
+        productName: searchName || undefined,
+        page,
+        size,
+        sort: 'updatedAt,desc',
+      })
+
+      // API 응답을 컴포넌트 인터페이스에 맞게 변환
+      const mappedProducts: Product[] = response.content.map((item: ProductResponse) => ({
+        id: item.productId,
+        product_name: item.productName,
+        product_code: item.productCode || '',
+        category: 'electronics', // TODO: 카테고리 매핑 필요
+        base_price: item.basePrice,
+        updated_at: item.updatedAt,
+        status: item.status,
+      }))
+
+      setProducts(mappedProducts)
+      setPagination({
+        current: page + 1, // API는 0부터 시작, UI는 1부터 시작
+        pageSize: size,
+        total: response.totalElements,
+      })
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+      message.error(error instanceof Error ? error.message : '상품 목록 조회에 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
+
+  // 컴포넌트 마운트 시 상품 목록 조회
+  useEffect(() => {
+    fetchProducts()
+  }, [])
 
   const categoryMap: Record<string, string> = {
     electronics: '전자제품',
@@ -148,21 +170,21 @@ function AdminProductList() {
     navigate('/admin/product/register')
   }
 
-  // 필터링된 데이터
-  const filteredProducts = products.filter((product) => {
-    const nameMatch = !searchName || product.product_name.toLowerCase().includes(searchName.toLowerCase())
-    const categoryMatch = !searchCategory || product.category === searchCategory
-    return nameMatch && categoryMatch
-  })
-
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
-    // 필요시 추가 로직 구현 가능
+    // 검색 버튼 클릭 시 첫 페이지부터 다시 조회
+    fetchProducts(0, pagination.pageSize)
   }
 
   const handleReset = () => {
     setSearchName('')
     setSearchCategory(undefined)
+    // 초기화 후 다시 조회
+    fetchProducts(0, pagination.pageSize)
+  }
+
+  const handleTableChange = (newPagination: any) => {
+    // 페이지 변경 시 API 재호출
+    fetchProducts(newPagination.current - 1, newPagination.pageSize)
   }
 
   return (
@@ -231,13 +253,15 @@ function AdminProductList() {
         <Table
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={filteredProducts}
+          dataSource={products}
           rowKey="id"
+          loading={loading}
           pagination={{
-            pageSize: 10,
+            ...pagination,
             showSizeChanger: true,
             showTotal: (total) => `총 ${total}개`,
           }}
+          onChange={handleTableChange}
         />
       </div>
     </div>
