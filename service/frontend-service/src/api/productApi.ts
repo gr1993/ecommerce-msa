@@ -83,6 +83,112 @@ export interface SearchProductsParams {
   sort?: string
 }
 
+/**
+ * 옵션 값 요청 DTO
+ */
+export interface OptionValueRequest {
+  /** 프론트 임시 ID (매핑용) */
+  id: string
+  /** 옵션 값명 */
+  optionValueName: string
+  /** 정렬 순서 */
+  displayOrder?: number
+}
+
+/**
+ * 옵션 그룹 요청 DTO
+ */
+export interface OptionGroupRequest {
+  /** 프론트 임시 ID (매핑용) */
+  id: string
+  /** 옵션 그룹명 */
+  optionGroupName: string
+  /** 정렬 순서 */
+  displayOrder?: number
+  /** 옵션 값 목록 */
+  optionValues: OptionValueRequest[]
+}
+
+/**
+ * SKU 요청 DTO
+ */
+export interface SkuRequest {
+  /** 프론트 임시 ID (매핑용) */
+  id: string
+  /** SKU 코드 */
+  skuCode: string
+  /** 가격 */
+  price: number
+  /** 재고 수량 */
+  stockQty: number
+  /** 상태 (ACTIVE, SOLD_OUT, INACTIVE) */
+  status: string
+  /** 옵션 값 ID 목록 (프론트 임시 ID) */
+  optionValueIds?: string[]
+}
+
+/**
+ * 상품 이미지 요청 DTO
+ */
+export interface ProductImageRequest {
+  /** 프론트 임시 ID (매핑용) */
+  id: string
+  /** 파일 업로드 ID */
+  fileId?: number
+  /** 이미지 URL (임시 URL) */
+  imageUrl: string
+  /** 대표 이미지 여부 */
+  isPrimary?: boolean
+  /** 정렬 순서 */
+  displayOrder?: number
+}
+
+/**
+ * 상품 생성 요청 DTO
+ */
+export interface ProductCreateRequest {
+  /** 상품명 */
+  productName: string
+  /** 상품 코드 */
+  productCode?: string
+  /** 상품 상세 설명 */
+  description?: string
+  /** 기본 가격 */
+  basePrice: number
+  /** 할인 가격 */
+  salePrice?: number
+  /** 상품 상태 (ACTIVE, INACTIVE, SOLD_OUT) */
+  status: string
+  /** 진열 여부 */
+  isDisplayed?: boolean
+  /** 옵션 그룹 목록 */
+  optionGroups?: OptionGroupRequest[]
+  /** SKU 목록 */
+  skus?: SkuRequest[]
+  /** 이미지 목록 */
+  images?: ProductImageRequest[]
+}
+
+/**
+ * 파일 업로드 응답 DTO
+ */
+export interface FileUploadResponse {
+  /** 파일 ID */
+  fileId: number
+  /** 원본 파일명 */
+  originalFilename: string
+  /** 파일 URL */
+  url: string
+  /** 파일 크기 (bytes) */
+  fileSize: number
+  /** 파일 타입 */
+  contentType: string
+  /** 상태 */
+  status: string
+  /** 업로드 일시 */
+  uploadedAt: string
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -182,5 +288,145 @@ export const searchProducts = async (params?: SearchProductsParams): Promise<Pag
 
     // Network or unexpected errors
     throw new Error('상품 목록 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 파일 업로드
+ *
+ * 상품 이미지를 임시 저장합니다. 상품 등록 시 확정됩니다. (관리자 전용)
+ *
+ * @param file - 업로드할 파일
+ * @returns 업로드된 파일 정보
+ * @throws Error - 업로드 실패 시 (인증 실패, 파일 형식 오류 등)
+ *
+ * @example
+ * ```typescript
+ * const result = await uploadProductImage(file)
+ * console.log('File ID:', result.fileId)
+ * console.log('URL:', result.url)
+ * ```
+ */
+export const uploadProductImage = async (file: File): Promise<FileUploadResponse> => {
+  try {
+    // Get admin token from Zustand store
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch('http://localhost:8080/api/admin/products/files/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      // Handle specific error cases
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '잘못된 파일 형식입니다.')
+      }
+
+      throw new Error(error.message || `파일 업로드 실패 (HTTP ${response.status})`)
+    }
+
+    const data: FileUploadResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Upload file error:', error)
+
+    // Re-throw if it's already our custom error
+    if (error instanceof Error) {
+      throw error
+    }
+
+    // Network or unexpected errors
+    throw new Error('파일 업로드 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 상품 등록
+ *
+ * 옵션, SKU, 이미지를 포함한 상품을 등록합니다. (관리자 전용)
+ *
+ * @param productData - 상품 등록 요청 데이터
+ * @returns 생성된 상품 정보
+ * @throws Error - 등록 실패 시 (인증 실패, 유효성 검증 실패 등)
+ *
+ * @example
+ * ```typescript
+ * const result = await createProduct({
+ *   productName: '나이키 에어맥스',
+ *   productCode: 'NIKE-001',
+ *   basePrice: 150000,
+ *   status: 'ACTIVE',
+ *   isDisplayed: true,
+ *   optionGroups: [...],
+ *   skus: [...],
+ *   images: [...]
+ * })
+ * console.log('Created product ID:', result.productId)
+ * ```
+ */
+export const createProduct = async (productData: ProductCreateRequest): Promise<ProductResponse> => {
+  try {
+    // Get admin token from Zustand store
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch('http://localhost:8080/api/admin/products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify(productData),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      // Handle specific error cases
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '입력 정보를 확인해주세요.')
+      }
+
+      throw new Error(error.message || `상품 등록 실패 (HTTP ${response.status})`)
+    }
+
+    const data: ProductResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Create product error:', error)
+
+    // Re-throw if it's already our custom error
+    if (error instanceof Error) {
+      throw error
+    }
+
+    // Network or unexpected errors
+    throw new Error('상품 등록 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }

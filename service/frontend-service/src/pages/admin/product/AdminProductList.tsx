@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Table, Input, Select, Button, Space, message } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
-import { searchProducts, ProductResponse } from '../../../api/productApi'
+import { searchProducts, type ProductResponse } from '../../../api/productApi'
 import './AdminProductList.css'
 
 const { Option } = Select

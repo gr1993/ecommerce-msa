@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import ProductForm from './ProductForm'
+import { createProduct, uploadProductImage, type ProductCreateRequest } from '../../../api/productApi'
 import './AdminProductRegister.css'
 
 function AdminProductRegister() {
@@ -12,12 +13,66 @@ function AdminProductRegister() {
     setLoading(true)
     try {
       console.log('상품 등록:', formData)
-      // TODO: API 호출로 상품 등록 처리
-      // await productApi.createProduct(formData)
+
+      // 1. 이미지 업로드 처리
+      const uploadedImages = []
+      if (formData.images && formData.images.length > 0) {
+        for (const image of formData.images) {
+          try {
+            const uploadResult = await uploadProductImage(image.file)
+            uploadedImages.push({
+              id: image.id,
+              fileId: uploadResult.fileId,
+              imageUrl: uploadResult.url,
+              isPrimary: image.isPrimary,
+              displayOrder: image.displayOrder,
+            })
+          } catch (error) {
+            console.error('이미지 업로드 실패:', error)
+            throw new Error(`이미지 업로드 실패: ${image.file.name}`)
+          }
+        }
+      }
+
+      // 2. API 요청 데이터 포맷 변환
+      const productRequest: ProductCreateRequest = {
+        productName: formData.product_name,
+        productCode: formData.product_code,
+        description: formData.description,
+        basePrice: formData.base_price,
+        salePrice: formData.sale_price,
+        status: formData.status,
+        isDisplayed: formData.is_displayed,
+        optionGroups: formData.optionGroups?.map((group: any) => ({
+          id: group.id,
+          optionGroupName: group.optionGroupName,
+          displayOrder: group.displayOrder,
+          optionValues: group.optionValues.map((value: any) => ({
+            id: value.id,
+            optionValueName: value.optionValueName,
+            displayOrder: value.displayOrder,
+          })),
+        })),
+        skus: formData.skus?.map((sku: any) => ({
+          id: sku.id,
+          skuCode: sku.skuCode,
+          price: sku.price,
+          stockQty: sku.stockQty,
+          status: sku.status,
+          optionValueIds: sku.optionValueIds,
+        })),
+        images: uploadedImages,
+      }
+
+      // 3. 상품 등록 API 호출
+      const result = await createProduct(productRequest)
+      console.log('상품 등록 성공:', result)
+
       message.success('상품이 등록되었습니다.')
       navigate('/admin/product/list')
     } catch (error) {
-      message.error('상품 등록에 실패했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '상품 등록에 실패했습니다.'
+      message.error(errorMessage)
       console.error(error)
     } finally {
       setLoading(false)
