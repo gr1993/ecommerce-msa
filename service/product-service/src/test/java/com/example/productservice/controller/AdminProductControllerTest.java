@@ -1,9 +1,7 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.service.ProductService;
-import com.example.productservice.dto.PageResponse;
-import com.example.productservice.dto.ProductResponse;
-import com.example.productservice.dto.ProductSearchRequest;
+import com.example.productservice.dto.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +20,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -317,5 +316,145 @@ class AdminProductControllerTest {
                 .andExpect(jsonPath("$.content").isArray());
 
         verify(productService, times(1)).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("상품 등록 - 성공")
+    void createProduct_success() throws Exception {
+        // given
+        OptionValueRequest optionValue1 = OptionValueRequest.builder()
+                .id("value_1")
+                .optionValueName("Red")
+                .displayOrder(0)
+                .build();
+
+        OptionGroupRequest optionGroup = OptionGroupRequest.builder()
+                .id("group_1")
+                .optionGroupName("색상")
+                .displayOrder(0)
+                .optionValues(List.of(optionValue1))
+                .build();
+
+        SkuRequest sku = SkuRequest.builder()
+                .id("sku_1")
+                .skuCode("SKU-001-RED")
+                .price(new BigDecimal("120000"))
+                .stockQty(50)
+                .status("ACTIVE")
+                .optionValueIds(List.of("value_1"))
+                .build();
+
+        ProductImageRequest image = ProductImageRequest.builder()
+                .id("img_1")
+                .imageUrl("https://example.com/image.jpg")
+                .isPrimary(true)
+                .displayOrder(0)
+                .build();
+
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(List.of(optionGroup))
+                .skus(List.of(sku))
+                .images(List.of(image))
+                .build();
+
+        ProductResponse response = ProductResponse.builder()
+                .productId(1L)
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .totalStockQty(50)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(productService.createProduct(any(ProductCreateRequest.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.productName").value("나이키 에어맥스"))
+                .andExpect(jsonPath("$.productCode").value("NIKE-001"))
+                .andExpect(jsonPath("$.basePrice").value(150000))
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        verify(productService, times(1)).createProduct(any(ProductCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("상품 등록 - 필수값 누락")
+    void createProduct_missingRequired() throws Exception {
+        // given - productName 누락
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productCode("NIKE-001")
+                .basePrice(new BigDecimal("150000"))
+                .status("ACTIVE")
+                .build();
+
+        // when & then
+        mockMvc.perform(post("/api/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(productService, never()).createProduct(any(ProductCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("상품 등록 - 옵션 없이 등록")
+    void createProduct_withoutOptions() throws Exception {
+        // given
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(List.of())
+                .skus(List.of())
+                .images(List.of())
+                .build();
+
+        ProductResponse response = ProductResponse.builder()
+                .productId(1L)
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .basePrice(new BigDecimal("150000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .totalStockQty(0)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(productService.createProduct(any(ProductCreateRequest.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(post("/api/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.productName").value("나이키 에어맥스"));
+
+        verify(productService, times(1)).createProduct(any(ProductCreateRequest.class));
     }
 }

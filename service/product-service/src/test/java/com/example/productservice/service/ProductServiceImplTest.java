@@ -4,9 +4,7 @@ import com.example.productservice.domain.entity.Product;
 import com.example.productservice.domain.entity.ProductImage;
 import com.example.productservice.domain.entity.ProductSku;
 import com.example.productservice.domain.repository.ProductRepository;
-import com.example.productservice.dto.PageResponse;
-import com.example.productservice.dto.ProductResponse;
-import com.example.productservice.dto.ProductSearchRequest;
+import com.example.productservice.dto.*;
 import com.example.productservice.service.ProductServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -305,5 +303,135 @@ class ProductServiceImplTest {
         // then
         assertThat(response.getContent().get(0).getPrimaryImageUrl())
                 .isEqualTo("https://example.com/nike1.jpg");
+    }
+
+    @Test
+    @DisplayName("상품 등록 - 성공")
+    void createProduct_success() {
+        // given
+        OptionValueRequest optionValue1 = OptionValueRequest.builder()
+                .id("value_1")
+                .optionValueName("Red")
+                .displayOrder(0)
+                .build();
+
+        OptionValueRequest optionValue2 = OptionValueRequest.builder()
+                .id("value_2")
+                .optionValueName("Blue")
+                .displayOrder(1)
+                .build();
+
+        OptionGroupRequest optionGroup = OptionGroupRequest.builder()
+                .id("group_1")
+                .optionGroupName("색상")
+                .displayOrder(0)
+                .optionValues(List.of(optionValue1, optionValue2))
+                .build();
+
+        SkuRequest sku1 = SkuRequest.builder()
+                .id("sku_1")
+                .skuCode("SKU-001-RED")
+                .price(new BigDecimal("120000"))
+                .stockQty(50)
+                .status("ACTIVE")
+                .optionValueIds(List.of("value_1"))
+                .build();
+
+        SkuRequest sku2 = SkuRequest.builder()
+                .id("sku_2")
+                .skuCode("SKU-001-BLUE")
+                .price(new BigDecimal("120000"))
+                .stockQty(30)
+                .status("ACTIVE")
+                .optionValueIds(List.of("value_2"))
+                .build();
+
+        ProductImageRequest image = ProductImageRequest.builder()
+                .id("img_1")
+                .imageUrl("https://example.com/image.jpg")
+                .isPrimary(true)
+                .displayOrder(0)
+                .build();
+
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(List.of(optionGroup))
+                .skus(List.of(sku1, sku2))
+                .images(List.of(image))
+                .build();
+
+        Product savedProduct = Product.builder()
+                .productId(1L)
+                .productName(request.getProductName())
+                .productCode(request.getProductCode())
+                .description(request.getDescription())
+                .basePrice(request.getBasePrice())
+                .salePrice(request.getSalePrice())
+                .status(request.getStatus())
+                .isDisplayed(request.getIsDisplayed())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
+
+        // when
+        ProductResponse response = productService.createProduct(request);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getProductName()).isEqualTo("나이키 에어맥스");
+        assertThat(response.getProductCode()).isEqualTo("NIKE-001");
+        assertThat(response.getBasePrice()).isEqualByComparingTo(new BigDecimal("150000"));
+
+        verify(productRepository, times(1)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("상품 등록 - 옵션 없이 등록")
+    void createProduct_withoutOptions() {
+        // given
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        Product savedProduct = Product.builder()
+                .productId(1L)
+                .productName(request.getProductName())
+                .productCode(request.getProductCode())
+                .description(request.getDescription())
+                .basePrice(request.getBasePrice())
+                .salePrice(request.getSalePrice())
+                .status(request.getStatus())
+                .isDisplayed(request.getIsDisplayed())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
+
+        // when
+        ProductResponse response = productService.createProduct(request);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getProductName()).isEqualTo("나이키 에어맥스");
+
+        verify(productRepository, times(1)).save(any(Product.class));
     }
 }

@@ -2,8 +2,10 @@ package com.example.productservice.controller;
 
 import com.example.productservice.service.ProductService;
 import com.example.productservice.dto.PageResponse;
+import com.example.productservice.dto.ProductCreateRequest;
 import com.example.productservice.dto.ProductResponse;
 import com.example.productservice.dto.ProductSearchRequest;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -71,5 +73,32 @@ public class AdminProductController {
         PageResponse<ProductResponse> response = productService.searchProducts(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping
+    @Operation(
+            summary = "상품 등록",
+            description = "옵션, SKU, 이미지를 포함한 상품을 등록합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "등록 성공",
+                    content = @Content(schema = @Schema(implementation = ProductResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            )
+    })
+    public ResponseEntity<ProductResponse> createProduct(
+            @Valid @RequestBody ProductCreateRequest request
+    ) {
+        log.info("POST /api/admin/products - productName: {}", request.getProductName());
+
+        ProductResponse response = productService.createProduct(request);
+
+        return ResponseEntity.status(201).body(response);
     }
 }
