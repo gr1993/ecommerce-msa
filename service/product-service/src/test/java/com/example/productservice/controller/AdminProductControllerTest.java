@@ -1,5 +1,6 @@
 package com.example.productservice.controller;
 
+import com.example.productservice.service.FileStorageService;
 import com.example.productservice.service.ProductService;
 import com.example.productservice.dto.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,10 +20,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.mock.web.MockMultipartFile;
 
 @WebMvcTest(AdminProductController.class)
 @DisplayName("AdminProductController 테스트")
@@ -37,6 +38,9 @@ class AdminProductControllerTest {
 
     @MockitoBean
     private ProductService productService;
+
+    @MockitoBean
+    private FileStorageService fileStorageService;
 
     private ProductResponse productResponse1;
     private ProductResponse productResponse2;
@@ -456,5 +460,89 @@ class AdminProductControllerTest {
                 .andExpect(jsonPath("$.productName").value("나이키 에어맥스"));
 
         verify(productService, times(1)).createProduct(any(ProductCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("파일 업로드 - 성공")
+    void uploadFile_success() throws Exception {
+        // given
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test-image.jpg",
+                "image/jpeg",
+                "test image content".getBytes()
+        );
+
+        FileUploadResponse response = FileUploadResponse.builder()
+                .fileId(1L)
+                .originalFilename("test-image.jpg")
+                .url("/files/temp/2024/01/15/uuid-test.jpg")
+                .fileSize(18L)
+                .contentType("image/jpeg")
+                .status("TEMP")
+                .uploadedAt(LocalDateTime.now())
+                .build();
+
+        when(fileStorageService.uploadFile(any())).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(multipart("/api/admin/products/files/upload")
+                        .file(file))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fileId").value(1))
+                .andExpect(jsonPath("$.originalFilename").value("test-image.jpg"))
+                .andExpect(jsonPath("$.url").value("/files/temp/2024/01/15/uuid-test.jpg"))
+                .andExpect(jsonPath("$.fileSize").value(18))
+                .andExpect(jsonPath("$.contentType").value("image/jpeg"))
+                .andExpect(jsonPath("$.status").value("TEMP"));
+
+        verify(fileStorageService, times(1)).uploadFile(any());
+    }
+
+    @Test
+    @DisplayName("파일 업로드 - 빈 파일")
+    void uploadFile_emptyFile() throws Exception {
+        // given
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "empty.jpg",
+                "image/jpeg",
+                new byte[0]
+        );
+
+        when(fileStorageService.uploadFile(any()))
+                .thenThrow(new IllegalArgumentException("파일이 비어있습니다"));
+
+        // when & then
+        mockMvc.perform(multipart("/api/admin/products/files/upload")
+                        .file(file))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(fileStorageService, times(1)).uploadFile(any());
+    }
+
+    @Test
+    @DisplayName("파일 업로드 - 허용되지 않은 파일 형식")
+    void uploadFile_invalidFileType() throws Exception {
+        // given
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "test.txt",
+                "text/plain",
+                "test content".getBytes()
+        );
+
+        when(fileStorageService.uploadFile(any()))
+                .thenThrow(new IllegalArgumentException("허용되지 않은 파일 형식입니다: txt"));
+
+        // when & then
+        mockMvc.perform(multipart("/api/admin/products/files/upload")
+                        .file(file))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(fileStorageService, times(1)).uploadFile(any());
     }
 }

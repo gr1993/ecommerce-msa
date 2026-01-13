@@ -29,3 +29,9 @@ springwolf:
   scanner:
     async-api-json:
       enabled: false
+
+file:
+  upload:
+    temp-dir: uploads/temp
+    confirmed-dir: uploads/images
+    base-url: /files

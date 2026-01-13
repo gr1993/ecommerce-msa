@@ -128,8 +128,15 @@ public class AdminProductController {
     ) {
         log.info("POST /api/admin/products/files/upload - filename: {}", file.getOriginalFilename());
 
-        FileUploadResponse response = fileStorageService.uploadFile(file);
-
-        return ResponseEntity.ok(response);
+        try {
+            FileUploadResponse response = fileStorageService.uploadFile(file);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid file upload request: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("File upload failed", e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
