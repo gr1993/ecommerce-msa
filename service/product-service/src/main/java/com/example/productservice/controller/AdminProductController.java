@@ -1,11 +1,11 @@
 package com.example.productservice.controller;
 
+import com.example.productservice.service.FileStorageService;
 import com.example.productservice.service.ProductService;
-import com.example.productservice.dto.PageResponse;
-import com.example.productservice.dto.ProductCreateRequest;
-import com.example.productservice.dto.ProductResponse;
-import com.example.productservice.dto.ProductSearchRequest;
+import com.example.productservice.dto.*;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminProductController {
 
     private final ProductService productService;
+    private final FileStorageService fileStorageService;
 
     @GetMapping
     @Operation(
@@ -100,5 +101,35 @@ public class AdminProductController {
         ProductResponse response = productService.createProduct(request);
 
         return ResponseEntity.status(201).body(response);
+    }
+
+    @PostMapping(
+            value = "/files/upload",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    @Operation(
+            summary = "파일 업로드",
+            description = "상품 이미지를 임시 저장합니다. 상품 등록 시 확정됩니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "업로드 성공",
+                    content = @Content(schema = @Schema(implementation = FileUploadResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            )
+    })
+    public ResponseEntity<FileUploadResponse> uploadFile(
+            @Parameter(description = "업로드할 파일") @RequestParam(name = "file") MultipartFile file
+    ) {
+        log.info("POST /api/admin/products/files/upload - filename: {}", file.getOriginalFilename());
+
+        FileUploadResponse response = fileStorageService.uploadFile(file);
+
+        return ResponseEntity.ok(response);
     }
 }

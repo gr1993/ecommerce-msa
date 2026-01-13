@@ -86,3 +86,18 @@ CREATE TABLE product_image (
         REFERENCES product(product_id)
         ON DELETE CASCADE
 ) COMMENT='상품 이미지 정보를 저장하는 테이블';
+
+-- 파일 업로드 기록 테이블
+CREATE TABLE file_upload (
+    file_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '파일 ID',
+    original_filename VARCHAR(255) NOT NULL COMMENT '원본 파일명',
+    stored_filename VARCHAR(255) NOT NULL COMMENT '저장된 파일명',
+    file_path VARCHAR(500) NOT NULL COMMENT '파일 경로',
+    file_size BIGINT NOT NULL COMMENT '파일 크기 (bytes)',
+    content_type VARCHAR(100) COMMENT '파일 타입',
+    status VARCHAR(20) NOT NULL COMMENT '파일 상태: TEMP, CONFIRMED, DELETED',
+    url VARCHAR(500) NOT NULL COMMENT '접근 URL',
+    uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '업로드일시',
+    confirmed_at TIMESTAMP COMMENT '확정일시',
+    INDEX idx_status_uploaded (status, uploaded_at)
+) COMMENT='파일 업로드 기록 테이블';

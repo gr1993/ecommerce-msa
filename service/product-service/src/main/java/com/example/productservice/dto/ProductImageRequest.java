@@ -19,8 +19,11 @@ public class ProductImageRequest {
     @Schema(description = "프론트 임시 ID (매핑용)", example = "img_1234567890")
     private String id;
 
+    @Schema(description = "파일 업로드 ID", example = "123")
+    private Long fileId;
+
     @NotBlank(message = "이미지 URL은 필수입니다")
-    @Schema(description = "이미지 URL", example = "https://example.com/image.jpg", required = true)
+    @Schema(description = "이미지 URL (임시 URL)", example = "/files/temp/abc123.jpg", required = true)
     private String imageUrl;
 
     @Schema(description = "대표 이미지 여부", example = "true")

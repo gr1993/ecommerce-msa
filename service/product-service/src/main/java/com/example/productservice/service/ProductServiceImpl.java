@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ import java.util.Map;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final FileStorageService fileStorageService;
 
     @Override
     public PageResponse<ProductResponse> searchProducts(ProductSearchRequest request) {
@@ -112,7 +115,18 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // 4. 이미지 생성
+        // 4. 파일 확정 (임시 -> 실제)
+        List<Long> fileIds = request.getImages().stream()
+                .map(ProductImageRequest::getFileId)
+                .filter(fileId -> fileId != null)
+                .collect(Collectors.toList());
+
+        if (!fileIds.isEmpty()) {
+            fileStorageService.confirmFiles(fileIds);
+            log.info("Confirmed {} files", fileIds.size());
+        }
+
+        // 5. 이미지 생성
         for (ProductImageRequest imageRequest : request.getImages()) {
             ProductImage image = ProductImage.builder()
                     .product(product)
@@ -123,7 +137,7 @@ public class ProductServiceImpl implements ProductService {
             product.getImages().add(image);
         }
 
-        // 5. 저장
+        // 6. 저장
         Product savedProduct = productRepository.save(product);
 
         log.info("Product created successfully with ID: {}", savedProduct.getProductId());
