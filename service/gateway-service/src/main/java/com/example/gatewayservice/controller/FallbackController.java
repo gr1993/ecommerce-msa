@@ -36,4 +36,16 @@ public class FallbackController {
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
+
+    @RequestMapping("/product")
+    public ResponseEntity<Map<String, Object>> productServiceFallback() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        response.put("error", "Service Unavailable");
+        response.put("message", "Product Service is temporarily unavailable. Please try again later.");
+        response.put("service", "product-service");
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
 }
