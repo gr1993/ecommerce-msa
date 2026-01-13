@@ -60,9 +60,10 @@ CREATE TABLE product_sku (
 
 -- SKU와 옵션 값 연결 테이블
 CREATE TABLE product_sku_option (
+    sku_option_id BIGINT NOT NULL AUTO_INCREMENT COMMENT 'SKU 옵션 ID',
     sku_id BIGINT NOT NULL COMMENT 'SKU ID',
     option_value_id BIGINT NOT NULL COMMENT '옵션 값 ID',
-    PRIMARY KEY (sku_id, option_value_id),
+    PRIMARY KEY (sku_option_id),
     CONSTRAINT fk_sku_option_sku
         FOREIGN KEY (sku_id)
         REFERENCES product_sku(sku_id)
