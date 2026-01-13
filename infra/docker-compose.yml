@@ -71,6 +71,17 @@ services:
       <<: *service-common-env
     depends_on: *depends-on-infra
 
+  product-service:
+    <<: *service-common
+    container_name: product-service
+    build: ../service/product-service
+    ports:
+      - "8083:8080"
+    environment:
+      <<: *service-common-env
+    depends_on: *depends-on-infra
+
+
 networks:
   ecommerce-net:
     external: true
