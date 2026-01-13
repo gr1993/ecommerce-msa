@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Fetch and filter Swagger documentation for MSA services
+# Fetch Swagger documentation for MSA services
 # Usage: ./fetch-swagger.sh <service-name>
 # Example: ./fetch-swagger.sh user-service
 
 # This is a wrapper script that calls the Node.js fetcher
-# Node.js provides better JSON processing than bash+jq
+# Node.js provides better JSON processing than bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

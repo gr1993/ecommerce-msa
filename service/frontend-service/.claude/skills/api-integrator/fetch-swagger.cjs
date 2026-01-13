@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Fetch and filter Swagger documentation for MSA services
+ * Fetch Swagger documentation for MSA services
  *
  * Usage: node fetch-swagger.js <service-name>
  * Example: node fetch-swagger.js user-service
@@ -25,20 +25,6 @@ const SERVICE_PORTS = {
   'return-service': 8090,
 };
 
-// Service tag mapping for filtering (exact match in tags array)
-const SERVICE_TAGS = {
-  'auth-service': 'Auth',
-  'user-service': 'User',
-  'product-service': 'Product',
-  'catalog-service': 'Catalog',
-  'order-service': 'Order',
-  'payment-service': 'Payment',
-  'promotion-service': 'Promotion',
-  'delivery-service': 'Delivery',
-  'settlement-service': 'Settlement',
-  'return-service': 'Return',
-};
-
 // Parse command line arguments
 const serviceName = process.argv[2];
 
@@ -55,11 +41,9 @@ if (!SERVICE_PORTS[serviceName]) {
 }
 
 const port = SERVICE_PORTS[serviceName];
-const tag = SERVICE_TAGS[serviceName];
-const swaggerUrl = `http://localhost:${port}/api-docs`;
+const swaggerUrl = `http://localhost:${port}/api-docs/${serviceName}`;
 const swaggerDocsDir = path.join(__dirname, 'swagger-docs');
 const outputFile = path.join(swaggerDocsDir, `${serviceName}-swagger.json`);
-const filteredFile = path.join(swaggerDocsDir, `${serviceName}-filtered.json`);
 
 // Ensure swagger-docs directory exists
 if (!fs.existsSync(swaggerDocsDir)) {
@@ -86,30 +70,18 @@ https.get(swaggerUrl, (res) => {
     try {
       const swagger = JSON.parse(data);
 
-      // Save full Swagger documentation
+      // Save Swagger documentation
       fs.writeFileSync(outputFile, JSON.stringify(swagger, null, 2));
-      console.log(`✓ Successfully saved full Swagger docs to: ${outputFile}`);
-
-      // Filter endpoints by tag
-      console.log(`\nFiltering endpoints for tag: "${tag}"`);
-      const filtered = filterSwaggerByTag(swagger, tag);
-
-      // Save filtered Swagger documentation
-      fs.writeFileSync(filteredFile, JSON.stringify(filtered, null, 2));
-      console.log(`✓ Successfully created filtered Swagger docs: ${filteredFile}`);
+      console.log(`✓ Successfully saved Swagger docs to: ${outputFile}`);
 
       // Print summary
       const totalPaths = Object.keys(swagger.paths || {}).length;
-      const filteredPaths = Object.keys(filtered.paths || {}).length;
       console.log('\n=== Summary ===');
       console.log(`Service: ${serviceName}`);
       console.log(`Port: ${port}`);
-      console.log(`Filter tag: ${tag}`);
       console.log(`Total endpoints: ${totalPaths}`);
-      console.log(`Filtered endpoints: ${filteredPaths}`);
-      console.log(`Full docs: ${outputFile}`);
-      console.log(`Filtered docs: ${filteredFile}`);
-      console.log('\nYou can now reference these files in the API integration workflow.');
+      console.log(`Swagger docs: ${outputFile}`);
+      console.log('\nYou can now reference this file in the API integration workflow.');
     } catch (error) {
       console.error('Error: Failed to parse Swagger JSON:', error.message);
       process.exit(1);
@@ -121,54 +93,3 @@ https.get(swaggerUrl, (res) => {
   console.error(`\nMake sure the ${serviceName} is running on port ${port}`);
   process.exit(1);
 });
-
-/**
- * Filter Swagger spec to only include endpoints with specific tag
- *
- * @param {Object} swagger - Full Swagger/OpenAPI spec
- * @param {string} targetTag - Tag to filter by (exact match)
- * @returns {Object} Filtered Swagger spec
- */
-function filterSwaggerByTag(swagger, targetTag) {
-  const filtered = {
-    openapi: swagger.openapi,
-    info: swagger.info,
-    servers: swagger.servers,
-    tags: swagger.tags,
-    paths: {},
-    components: swagger.components,
-  };
-
-  // Filter paths based on operation tags
-  for (const [pathKey, pathItem] of Object.entries(swagger.paths || {})) {
-    const filteredPathItem = {};
-    let hasMatchingOperation = false;
-
-    // Check each HTTP method (get, post, put, delete, patch, etc.)
-    for (const [method, operation] of Object.entries(pathItem)) {
-      // Skip non-operation fields like 'parameters', 'summary', etc.
-      if (typeof operation !== 'object' || !operation.tags) {
-        continue;
-      }
-
-      // Check if operation has the target tag (exact match, case-sensitive)
-      if (Array.isArray(operation.tags) && operation.tags.includes(targetTag)) {
-        filteredPathItem[method] = operation;
-        hasMatchingOperation = true;
-      }
-    }
-
-    // Only include path if it has at least one matching operation
-    if (hasMatchingOperation) {
-      // Copy non-operation fields (like parameters)
-      for (const [key, value] of Object.entries(pathItem)) {
-        if (!filteredPathItem[key] && typeof value === 'object') {
-          filteredPathItem[key] = value;
-        }
-      }
-      filtered.paths[pathKey] = filteredPathItem;
-    }
-  }
-
-  return filtered;
-}

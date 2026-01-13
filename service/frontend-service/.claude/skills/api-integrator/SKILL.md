@@ -32,20 +32,18 @@ Generates TypeScript API integration code for the MSA ecommerce backend by fetch
 **IMPORTANT**: Since Swagger docs are served from localhost and cannot be accessed directly by LLM, we must fetch and cache them locally first.
 
 **Step 2a: Check for existing Swagger documentation**
-- Check if `swagger-docs/{service-name}-filtered.json` exists
+- Check if `swagger-docs/{service-name}-swagger.json` exists
 - If it exists and is recent, use it directly (skip to step 3)
 
 **Step 2b: Fetch Swagger documentation using bash script**
 - Run: `bash fetch-swagger.sh {service-name}`
 - Example: `bash fetch-swagger.sh user-service`
 - This script will:
-  1. Fetch the full Swagger spec from `http://localhost:{port}/api-docs`
+  1. Fetch the service-specific Swagger spec from `http://localhost:{port}/api-docs/{service-name}`
   2. Save it to `swagger-docs/{service-name}-swagger.json`
-  3. Filter endpoints relevant to the service (based on service tag)
-  4. Save filtered spec to `swagger-docs/{service-name}-filtered.json`
 
-**Step 2c: Read the filtered Swagger documentation**
-- Use the Read tool to read `swagger-docs/{service-name}-filtered.json`
+**Step 2c: Read the Swagger documentation**
+- Use the Read tool to read `swagger-docs/{service-name}-swagger.json`
 - Parse the Swagger spec to extract:
   - HTTP method (GET, POST, PUT, DELETE)
   - Endpoint path
@@ -94,9 +92,9 @@ Create the API function following patterns in [api-patterns.md](references/api-p
 
 **Process:**
 1. Identify service: user-service (handles user profiles)
-2. Check if `swagger-docs/user-service-filtered.json` exists
+2. Check if `swagger-docs/user-service-swagger.json` exists
 3. If not, run: `bash fetch-swagger.sh user-service`
-4. Read `swagger-docs/user-service-filtered.json`
+4. Read `swagger-docs/user-service-swagger.json`
 5. Find relevant endpoint (e.g., GET /users/{userId})
 6. Generate TypeScript function with:
    - Interface for User response
@@ -110,9 +108,9 @@ Create the API function following patterns in [api-patterns.md](references/api-p
 
 **Process:**
 1. Service is known: product-service
-2. Check if `swagger-docs/product-service-filtered.json` exists
+2. Check if `swagger-docs/product-service-swagger.json` exists
 3. If not, run: `bash fetch-swagger.sh product-service`
-4. Read `swagger-docs/product-service-filtered.json`
+4. Read `swagger-docs/product-service-swagger.json`
 5. Extract POST /products schema
 6. Generate function with:
    - CreateProductRequest interface
