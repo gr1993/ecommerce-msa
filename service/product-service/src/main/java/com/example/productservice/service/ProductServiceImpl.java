@@ -247,6 +247,7 @@ public class ProductServiceImpl implements ProductService {
         // 6. 새로운 이미지 생성
         for (ProductImageRequest imageRequest : request.getImages()) {
             String newImageUrl = idUrlMap.get(imageRequest.getFileId());
+            if (newImageUrl == null) continue;
 
             ProductImage image = ProductImage.builder()
                     .product(product)
