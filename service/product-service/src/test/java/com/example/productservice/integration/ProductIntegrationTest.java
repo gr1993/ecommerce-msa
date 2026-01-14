@@ -194,7 +194,6 @@ class ProductIntegrationTest {
                 .build();
 
         OptionGroupRequest group = OptionGroupRequest.builder()
-                .id("group_1768284322698")
                 .optionGroupName("색상")
                 .displayOrder(0)
                 .optionValues(List.of(value1, value2))
@@ -205,7 +204,6 @@ class ProductIntegrationTest {
 
     private List<SkuRequest> createSkus() {
         SkuRequest sku1 = SkuRequest.builder()
-                .id("sku_1768284335299_0")
                 .skuCode("SKU-1768284335299-0")
                 .price(new BigDecimal("5000"))
                 .stockQty(15)
@@ -214,7 +212,6 @@ class ProductIntegrationTest {
                 .build();
 
         SkuRequest sku2 = SkuRequest.builder()
-                .id("sku_1768284335299_1")
                 .skuCode("SKU-1768284335299-1")
                 .price(new BigDecimal("5000"))
                 .stockQty(10)
@@ -510,7 +507,6 @@ class ProductIntegrationTest {
                 .build();
 
         OptionGroupRequest colorGroup = OptionGroupRequest.builder()
-                .id("detail_group_color")
                 .optionGroupName("색상")
                 .displayOrder(0)
                 .optionValues(List.of(colorValue1, colorValue2))
@@ -529,7 +525,6 @@ class ProductIntegrationTest {
                 .build();
 
         OptionGroupRequest sizeGroup = OptionGroupRequest.builder()
-                .id("detail_group_size")
                 .optionGroupName("용량")
                 .displayOrder(1)
                 .optionValues(List.of(sizeValue1, sizeValue2))
@@ -540,7 +535,6 @@ class ProductIntegrationTest {
 
     private List<SkuRequest> createSkusForDetail() {
         SkuRequest sku1 = SkuRequest.builder()
-                .id("detail_sku_1")
                 .skuCode("SKU-DETAIL-001")
                 .price(new BigDecimal("1200000"))
                 .stockQty(10)
@@ -549,7 +543,6 @@ class ProductIntegrationTest {
                 .build();
 
         SkuRequest sku2 = SkuRequest.builder()
-                .id("detail_sku_2")
                 .skuCode("SKU-DETAIL-002")
                 .price(new BigDecimal("1300000"))
                 .stockQty(5)

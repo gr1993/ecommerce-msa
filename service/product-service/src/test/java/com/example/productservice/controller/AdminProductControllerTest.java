@@ -334,14 +334,12 @@ class AdminProductControllerTest {
                 .build();
 
         OptionGroupRequest optionGroup = OptionGroupRequest.builder()
-                .id("group_1")
                 .optionGroupName("색상")
                 .displayOrder(0)
                 .optionValues(List.of(optionValue1))
                 .build();
 
         SkuRequest sku = SkuRequest.builder()
-                .id("sku_1")
                 .skuCode("SKU-001-RED")
                 .price(new BigDecimal("120000"))
                 .stockQty(50)

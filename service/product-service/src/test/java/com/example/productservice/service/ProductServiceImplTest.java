@@ -329,14 +329,12 @@ class ProductServiceImplTest {
                 .build();
 
         OptionGroupRequest optionGroup = OptionGroupRequest.builder()
-                .id("group_1")
                 .optionGroupName("색상")
                 .displayOrder(0)
                 .optionValues(List.of(optionValue1, optionValue2))
                 .build();
 
         SkuRequest sku1 = SkuRequest.builder()
-                .id("sku_1")
                 .skuCode("SKU-001-RED")
                 .price(new BigDecimal("120000"))
                 .stockQty(50)
@@ -345,7 +343,6 @@ class ProductServiceImplTest {
                 .build();
 
         SkuRequest sku2 = SkuRequest.builder()
-                .id("sku_2")
                 .skuCode("SKU-001-BLUE")
                 .price(new BigDecimal("120000"))
                 .stockQty(30)
