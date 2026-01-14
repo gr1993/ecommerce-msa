@@ -573,6 +573,62 @@ class ProductServiceImplTest {
         verify(productRepository, times(1)).findById(2L);
     }
 
+    // ==================== 상품 수정 테스트 ====================
+
+    @Test
+    @DisplayName("상품 수정 - 성공")
+    void updateProduct_success() {
+        // given
+        Product existingProduct = createProductWithFullDetails();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existingProduct));
+        when(productRepository.save(any(Product.class))).thenReturn(existingProduct);
+
+        ProductCreateRequest updateRequest = ProductCreateRequest.builder()
+                .productName("수정된 상품명")
+                .productCode("UPDATED-001")
+                .description("수정된 설명")
+                .basePrice(new BigDecimal("200000"))
+                .salePrice(new BigDecimal("180000"))
+                .status("INACTIVE")
+                .isDisplayed(false)
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        // when
+        ProductResponse response = productService.updateProduct(1L, updateRequest);
+
+        // then
+        assertThat(response).isNotNull();
+        verify(productRepository, times(1)).findById(1L);
+        verify(productRepository, times(1)).save(any(Product.class));
+    }
+
+    @Test
+    @DisplayName("상품 수정 - 존재하지 않는 상품")
+    void updateProduct_notFound() {
+        // given
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        ProductCreateRequest updateRequest = ProductCreateRequest.builder()
+                .productName("수정된 상품명")
+                .basePrice(new BigDecimal("200000"))
+                .status("ACTIVE")
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        // when & then
+        assertThatThrownBy(() -> productService.updateProduct(999L, updateRequest))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("상품을 찾을 수 없습니다");
+
+        verify(productRepository, times(1)).findById(999L);
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
     private Product createProductWithFullDetails() {
         Product product = Product.builder()
                 .productId(1L)

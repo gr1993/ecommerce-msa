@@ -155,6 +155,107 @@ public class ProductServiceImpl implements ProductService {
         return ProductDetailResponse.from(product);
     }
 
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(Long productId, ProductCreateRequest request) {
+        log.info("Updating product: productId={}, productName={}", productId, request.getProductName());
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. productId: " + productId));
+
+        // 1. 기본 정보 업데이트
+        product.setProductName(request.getProductName());
+        product.setProductCode(request.getProductCode());
+        product.setDescription(request.getDescription());
+        product.setBasePrice(request.getBasePrice());
+        product.setSalePrice(request.getSalePrice());
+        product.setStatus(request.getStatus());
+        product.setIsDisplayed(request.getIsDisplayed());
+
+        // 2. 기존 옵션 그룹, SKU, 이미지 삭제
+        product.getOptionGroups().clear();
+        product.getSkus().clear();
+        product.getImages().clear();
+
+        // 3. 새로운 옵션 그룹 및 옵션 값 생성
+        Map<String, ProductOptionValue> optionValueMap = new HashMap<>();
+
+        for (OptionGroupRequest groupRequest : request.getOptionGroups()) {
+            ProductOptionGroup optionGroup = ProductOptionGroup.builder()
+                    .product(product)
+                    .optionGroupName(groupRequest.getOptionGroupName())
+                    .displayOrder(groupRequest.getDisplayOrder())
+                    .build();
+            product.getOptionGroups().add(optionGroup);
+
+            for (OptionValueRequest valueRequest : groupRequest.getOptionValues()) {
+                ProductOptionValue optionValue = ProductOptionValue.builder()
+                        .optionGroup(optionGroup)
+                        .optionValueName(valueRequest.getOptionValueName())
+                        .displayOrder(valueRequest.getDisplayOrder())
+                        .build();
+                optionGroup.getOptionValues().add(optionValue);
+
+                if (valueRequest.getId() != null) {
+                    optionValueMap.put(valueRequest.getId(), optionValue);
+                }
+            }
+        }
+
+        // 4. 새로운 SKU 생성
+        for (SkuRequest skuRequest : request.getSkus()) {
+            ProductSku sku = ProductSku.builder()
+                    .product(product)
+                    .skuCode(skuRequest.getSkuCode())
+                    .price(skuRequest.getPrice())
+                    .stockQty(skuRequest.getStockQty())
+                    .status(skuRequest.getStatus())
+                    .build();
+            product.getSkus().add(sku);
+
+            for (String optionValueId : skuRequest.getOptionValueIds()) {
+                ProductOptionValue optionValue = optionValueMap.get(optionValueId);
+                if (optionValue != null) {
+                    ProductSkuOption skuOption = ProductSkuOption.builder()
+                            .sku(sku)
+                            .optionValue(optionValue)
+                            .build();
+                    sku.getSkuOptions().add(skuOption);
+                    optionValue.getSkuOptions().add(skuOption);
+                }
+            }
+        }
+
+        // 5. 파일 확정
+        List<Long> fileIds = request.getImages().stream()
+                .map(ProductImageRequest::getFileId)
+                .filter(fileId -> fileId != null)
+                .collect(Collectors.toList());
+
+        if (!fileIds.isEmpty()) {
+            fileStorageService.confirmFiles(fileIds);
+            log.info("Confirmed {} files", fileIds.size());
+        }
+
+        // 6. 새로운 이미지 생성
+        for (ProductImageRequest imageRequest : request.getImages()) {
+            ProductImage image = ProductImage.builder()
+                    .product(product)
+                    .imageUrl(imageRequest.getImageUrl())
+                    .isPrimary(imageRequest.getIsPrimary())
+                    .displayOrder(imageRequest.getDisplayOrder())
+                    .build();
+            product.getImages().add(image);
+        }
+
+        // 7. 저장
+        Product savedProduct = productRepository.save(product);
+
+        log.info("Product updated successfully: productId={}", savedProduct.getProductId());
+
+        return ProductResponse.from(savedProduct);
+    }
+
     private Pageable createPageable(ProductSearchRequest request) {
         int page = request.getPage() != null ? request.getPage() : 0;
         int size = request.getSize() != null ? request.getSize() : 10;

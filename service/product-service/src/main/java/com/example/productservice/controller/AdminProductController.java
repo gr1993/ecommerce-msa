@@ -76,6 +76,43 @@ public class AdminProductController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{productId}")
+    @Operation(
+            summary = "상품 수정",
+            description = "상품 ID로 상품 정보를 수정합니다. 옵션 그룹, SKU, 이미지 정보를 포함하여 전체 교체됩니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "수정 성공",
+                    content = @Content(schema = @Schema(implementation = ProductResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "상품을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            )
+    })
+    public ResponseEntity<ProductResponse> updateProduct(
+            @Parameter(description = "상품 ID") @PathVariable("productId") Long productId,
+            @Valid @RequestBody ProductCreateRequest request
+    ) {
+        log.info("PUT /api/admin/products/{} - 상품 수정, productName: {}", productId, request.getProductName());
+
+        try {
+            ProductResponse response = productService.updateProduct(productId, request);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("상품을 찾을 수 없습니다. productId: {}", productId);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @GetMapping("/{productId}")
     @Operation(
             summary = "상품 상세 조회",

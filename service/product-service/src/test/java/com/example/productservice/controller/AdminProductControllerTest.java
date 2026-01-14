@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -544,6 +545,83 @@ class AdminProductControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(fileStorageService, times(1)).uploadFile(any());
+    }
+
+    // ==================== 상품 수정 테스트 ====================
+
+    @Test
+    @DisplayName("상품 수정 - 성공")
+    void updateProduct_success() throws Exception {
+        // given
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("수정된 상품명")
+                .productCode("UPDATED-001")
+                .description("수정된 설명")
+                .basePrice(new BigDecimal("200000"))
+                .salePrice(new BigDecimal("180000"))
+                .status("INACTIVE")
+                .isDisplayed(false)
+                .optionGroups(List.of())
+                .skus(List.of())
+                .images(List.of())
+                .build();
+
+        ProductResponse response = ProductResponse.builder()
+                .productId(1L)
+                .productName("수정된 상품명")
+                .productCode("UPDATED-001")
+                .basePrice(new BigDecimal("200000"))
+                .salePrice(new BigDecimal("180000"))
+                .status("INACTIVE")
+                .isDisplayed(false)
+                .totalStockQty(0)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(productService.updateProduct(eq(1L), any(ProductCreateRequest.class)))
+                .thenReturn(response);
+
+        // when & then
+        mockMvc.perform(put("/api/admin/products/{productId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.productName").value("수정된 상품명"))
+                .andExpect(jsonPath("$.productCode").value("UPDATED-001"))
+                .andExpect(jsonPath("$.basePrice").value(200000))
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andExpect(jsonPath("$.isDisplayed").value(false));
+
+        verify(productService, times(1)).updateProduct(eq(1L), any(ProductCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("상품 수정 - 존재하지 않는 상품")
+    void updateProduct_notFound() throws Exception {
+        // given
+        ProductCreateRequest request = ProductCreateRequest.builder()
+                .productName("수정된 상품명")
+                .basePrice(new BigDecimal("200000"))
+                .status("ACTIVE")
+                .optionGroups(List.of())
+                .skus(List.of())
+                .images(List.of())
+                .build();
+
+        when(productService.updateProduct(eq(999L), any(ProductCreateRequest.class)))
+                .thenThrow(new IllegalArgumentException("상품을 찾을 수 없습니다. productId: 999"));
+
+        // when & then
+        mockMvc.perform(put("/api/admin/products/{productId}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(productService, times(1)).updateProduct(eq(999L), any(ProductCreateRequest.class));
     }
 
     // ==================== 상품 상세 조회 테스트 ====================

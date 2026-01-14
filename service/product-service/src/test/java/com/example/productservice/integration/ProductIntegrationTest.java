@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -518,6 +519,91 @@ class ProductIntegrationTest {
                 assertThat(allOptionValueIds).contains(optionValueId);
             }
         }
+    }
+
+    // ==================== 상품 수정 통합 테스트 ====================
+
+    @Test
+    @DisplayName("상품 수정 - 성공")
+    void updateProduct_success() throws Exception {
+        // given - 상품 등록
+        ProductCreateRequest createRequest = ProductCreateRequest.builder()
+                .productName("원본 상품")
+                .productCode("ORIGINAL-001")
+                .description("원본 설명")
+                .basePrice(new BigDecimal("100000"))
+                .salePrice(new BigDecimal("90000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(createOptionGroups())
+                .skus(createSkus())
+                .images(new ArrayList<>())
+                .build();
+
+        MvcResult createResult = mockMvc.perform(post("/api/admin/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        ProductResponse createdProduct = objectMapper.readValue(
+                createResult.getResponse().getContentAsString(), ProductResponse.class);
+        Long productId = createdProduct.getProductId();
+
+        // when - 상품 수정
+        ProductCreateRequest updateRequest = ProductCreateRequest.builder()
+                .productName("수정된 상품")
+                .productCode("UPDATED-001")
+                .description("수정된 설명")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("130000"))
+                .status("INACTIVE")
+                .isDisplayed(false)
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        // then
+        mockMvc.perform(put("/api/admin/products/{productId}", productId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(productId))
+                .andExpect(jsonPath("$.productName").value("수정된 상품"))
+                .andExpect(jsonPath("$.productCode").value("UPDATED-001"))
+                .andExpect(jsonPath("$.basePrice").value(150000))
+                .andExpect(jsonPath("$.status").value("INACTIVE"))
+                .andExpect(jsonPath("$.isDisplayed").value(false));
+
+        // DB 검증
+        Product updatedProduct = productRepository.findById(productId).orElse(null);
+        assertThat(updatedProduct).isNotNull();
+        assertThat(updatedProduct.getProductName()).isEqualTo("수정된 상품");
+        assertThat(updatedProduct.getOptionGroups()).isEmpty();
+        assertThat(updatedProduct.getSkus()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품 수정 - 존재하지 않는 상품")
+    void updateProduct_notFound() throws Exception {
+        // given
+        ProductCreateRequest updateRequest = ProductCreateRequest.builder()
+                .productName("수정된 상품")
+                .basePrice(new BigDecimal("150000"))
+                .status("ACTIVE")
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        // when & then
+        mockMvc.perform(put("/api/admin/products/{productId}", 999999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
     }
 
     private List<OptionGroupRequest> createOptionGroupsForDetail() {
