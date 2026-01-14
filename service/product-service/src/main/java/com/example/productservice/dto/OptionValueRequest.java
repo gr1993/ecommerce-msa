@@ -16,7 +16,7 @@ import lombok.Setter;
 @Schema(description = "옵션 값 요청")
 public class OptionValueRequest {
 
-    @Schema(description = "프론트 임시 ID (매핑용)", example = "value_1234567890")
+    @Schema(description = "프론트 임시 ID (매핑용)", example = "value_1")
     private String id;
 
     @NotBlank(message = "옵션 값명은 필수입니다")

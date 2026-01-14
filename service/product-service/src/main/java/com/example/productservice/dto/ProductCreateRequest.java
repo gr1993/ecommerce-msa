@@ -55,7 +55,31 @@ public class ProductCreateRequest {
     private List<OptionGroupRequest> optionGroups = new ArrayList<>();
 
     @Valid
-    @Schema(description = "SKU 목록")
+    @Schema(
+            description = "SKU 목록",
+            example = """
+            [
+              {
+                "skuCode": "SKU-001",
+                "price": 120000,
+                "stockQty": 100,
+                "status": "ACTIVE",
+                "optionValueIds": [
+                  "value_1"
+                ]
+              },
+              {
+                "skuCode": "SKU-002",
+                "price": 120000,
+                "stockQty": 90,
+                "status": "ACTIVE",
+                "optionValueIds": [
+                  "value_2"
+                ]
+              }
+            ]
+            """
+    )
     @Builder.Default
     private List<SkuRequest> skus = new ArrayList<>();
 

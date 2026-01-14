@@ -21,9 +21,6 @@ import java.util.List;
 @Schema(description = "옵션 그룹 요청")
 public class OptionGroupRequest {
 
-    @Schema(description = "프론트 임시 ID (매핑용)", example = "group_1234567890")
-    private String id;
-
     @NotBlank(message = "옵션 그룹명은 필수입니다")
     @Schema(description = "옵션 그룹명", example = "색상", required = true)
     private String optionGroupName;
@@ -33,7 +30,24 @@ public class OptionGroupRequest {
 
     @NotEmpty(message = "옵션 값은 최소 1개 이상 필요합니다")
     @Valid
-    @Schema(description = "옵션 값 목록", required = true)
+    @Schema(
+            description = "옵션 값 목록",
+            required = true,
+            example = """
+            [
+              {
+                "id": "value_1",
+                "optionValueName": "Red",
+                "displayOrder": 0
+              },
+              {
+                "id": "value_2",
+                "optionValueName": "Blue",
+                "displayOrder": 1
+              }
+            ]
+            """
+    )
     @Builder.Default
     private List<OptionValueRequest> optionValues = new ArrayList<>();
 }

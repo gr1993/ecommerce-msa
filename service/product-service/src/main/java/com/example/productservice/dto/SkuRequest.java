@@ -22,9 +22,6 @@ import java.util.List;
 @Schema(description = "SKU 요청")
 public class SkuRequest {
 
-    @Schema(description = "프론트 임시 ID (매핑용)", example = "sku_1234567890")
-    private String id;
-
     @NotBlank(message = "SKU 코드는 필수입니다")
     @Schema(description = "SKU 코드", example = "SKU-001", required = true)
     private String skuCode;

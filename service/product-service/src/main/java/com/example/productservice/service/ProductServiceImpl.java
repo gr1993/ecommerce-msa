@@ -180,7 +180,16 @@ public class ProductServiceImpl implements ProductService {
         // 2. 기존 옵션 그룹, SKU, 이미지 삭제
         product.getOptionGroups().clear();
         product.getSkus().clear();
-        product.getImages().clear();
+
+        List<Long> fidList = request.getImages()
+                .stream()
+                .map(ProductImageRequest::getFileId)
+                .toList();
+        if (fidList.isEmpty()) {
+            product.getImages().clear();
+        } else {
+            product.getImages().removeIf(image -> !fidList.contains(image.getFileId()));
+        }
 
         // flush를 호출하여 삭제를 먼저 실행 (SKU 코드 unique constraint 충돌 방지)
         productRepository.flush();
@@ -247,12 +256,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // 6. 새로운 이미지 생성
-        List<ProductImage> existingImages = product.getImages();
         for (ProductImageRequest imageRequest : request.getImages()) {
-            boolean alreadyExists = existingImages.stream()
-                    .anyMatch(img -> img.getFileId().equals(imageRequest.getFileId()));
-            if (alreadyExists) continue;
-
             String newImageUrl = idUrlMap.get(imageRequest.getFileId());
             if (newImageUrl == null) continue;
 
