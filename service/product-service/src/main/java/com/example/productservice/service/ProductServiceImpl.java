@@ -145,6 +145,16 @@ public class ProductServiceImpl implements ProductService {
         return ProductResponse.from(savedProduct);
     }
 
+    @Override
+    public ProductDetailResponse getProductDetail(Long productId) {
+        log.info("Getting product detail for productId: {}", productId);
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. productId: " + productId));
+
+        return ProductDetailResponse.from(product);
+    }
+
     private Pageable createPageable(ProductSearchRequest request) {
         int page = request.getPage() != null ? request.getPage() : 0;
         int size = request.getSize() != null ? request.getSize() : 10;

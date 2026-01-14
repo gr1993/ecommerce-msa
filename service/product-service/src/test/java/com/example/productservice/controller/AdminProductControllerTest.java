@@ -545,4 +545,159 @@ class AdminProductControllerTest {
 
         verify(fileStorageService, times(1)).uploadFile(any());
     }
+
+    // ==================== 상품 상세 조회 테스트 ====================
+
+    @Test
+    @DisplayName("상품 상세 조회 - 성공")
+    void getProductDetail_success() throws Exception {
+        // given
+        ProductDetailResponse detailResponse = createProductDetailResponse();
+        when(productService.getProductDetail(1L)).thenReturn(detailResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/admin/products/{productId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.productName").value("나이키 에어맥스"))
+                .andExpect(jsonPath("$.productCode").value("NIKE-001"))
+                .andExpect(jsonPath("$.description").value("편안한 운동화"))
+                .andExpect(jsonPath("$.basePrice").value(150000))
+                .andExpect(jsonPath("$.salePrice").value(120000))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.isDisplayed").value(true))
+                // 옵션 그룹 검증
+                .andExpect(jsonPath("$.optionGroups").isArray())
+                .andExpect(jsonPath("$.optionGroups.length()").value(1))
+                .andExpect(jsonPath("$.optionGroups[0].optionGroupName").value("색상"))
+                .andExpect(jsonPath("$.optionGroups[0].optionValues.length()").value(2))
+                // SKU 검증
+                .andExpect(jsonPath("$.skus").isArray())
+                .andExpect(jsonPath("$.skus.length()").value(2))
+                .andExpect(jsonPath("$.skus[0].skuCode").value("SKU-001-RED"))
+                // 이미지 검증
+                .andExpect(jsonPath("$.images").isArray())
+                .andExpect(jsonPath("$.images.length()").value(1))
+                .andExpect(jsonPath("$.images[0].imageUrl").value("https://example.com/nike1.jpg"));
+
+        verify(productService, times(1)).getProductDetail(1L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 존재하지 않는 상품")
+    void getProductDetail_notFound() throws Exception {
+        // given
+        when(productService.getProductDetail(999L))
+                .thenThrow(new IllegalArgumentException("상품을 찾을 수 없습니다. productId: 999"));
+
+        // when & then
+        mockMvc.perform(get("/api/admin/products/{productId}", 999L)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(productService, times(1)).getProductDetail(999L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 옵션 없는 상품")
+    void getProductDetail_withoutOptions() throws Exception {
+        // given
+        ProductDetailResponse detailResponse = ProductDetailResponse.builder()
+                .productId(2L)
+                .productName("옵션 없는 상품")
+                .productCode("NO-OPT-001")
+                .description("옵션이 없는 단순 상품")
+                .basePrice(new BigDecimal("50000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(List.of())
+                .skus(List.of())
+                .images(List.of())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(productService.getProductDetail(2L)).thenReturn(detailResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/admin/products/{productId}", 2L)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(2))
+                .andExpect(jsonPath("$.productName").value("옵션 없는 상품"))
+                .andExpect(jsonPath("$.optionGroups").isArray())
+                .andExpect(jsonPath("$.optionGroups.length()").value(0))
+                .andExpect(jsonPath("$.skus").isArray())
+                .andExpect(jsonPath("$.skus.length()").value(0))
+                .andExpect(jsonPath("$.images").isArray())
+                .andExpect(jsonPath("$.images.length()").value(0));
+
+        verify(productService, times(1)).getProductDetail(2L);
+    }
+
+    private ProductDetailResponse createProductDetailResponse() {
+        ProductDetailResponse.OptionValueResponse optionValue1 = ProductDetailResponse.OptionValueResponse.builder()
+                .id(1L)
+                .optionValueName("Red")
+                .displayOrder(0)
+                .build();
+
+        ProductDetailResponse.OptionValueResponse optionValue2 = ProductDetailResponse.OptionValueResponse.builder()
+                .id(2L)
+                .optionValueName("Blue")
+                .displayOrder(1)
+                .build();
+
+        ProductDetailResponse.OptionGroupResponse optionGroup = ProductDetailResponse.OptionGroupResponse.builder()
+                .id(1L)
+                .optionGroupName("색상")
+                .displayOrder(0)
+                .optionValues(List.of(optionValue1, optionValue2))
+                .build();
+
+        ProductDetailResponse.SkuResponse sku1 = ProductDetailResponse.SkuResponse.builder()
+                .id(1L)
+                .skuCode("SKU-001-RED")
+                .price(new BigDecimal("120000"))
+                .stockQty(50)
+                .status("ACTIVE")
+                .optionValueIds(List.of(1L))
+                .build();
+
+        ProductDetailResponse.SkuResponse sku2 = ProductDetailResponse.SkuResponse.builder()
+                .id(2L)
+                .skuCode("SKU-001-BLUE")
+                .price(new BigDecimal("120000"))
+                .stockQty(30)
+                .status("ACTIVE")
+                .optionValueIds(List.of(2L))
+                .build();
+
+        ProductDetailResponse.ImageResponse image = ProductDetailResponse.ImageResponse.builder()
+                .id(1L)
+                .imageUrl("https://example.com/nike1.jpg")
+                .isPrimary(true)
+                .displayOrder(0)
+                .build();
+
+        return ProductDetailResponse.builder()
+                .productId(1L)
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(List.of(optionGroup))
+                .skus(List.of(sku1, sku2))
+                .images(List.of(image))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
 }

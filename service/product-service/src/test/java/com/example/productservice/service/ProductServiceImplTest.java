@@ -2,7 +2,10 @@ package com.example.productservice.service;
 
 import com.example.productservice.domain.entity.Product;
 import com.example.productservice.domain.entity.ProductImage;
+import com.example.productservice.domain.entity.ProductOptionGroup;
+import com.example.productservice.domain.entity.ProductOptionValue;
 import com.example.productservice.domain.entity.ProductSku;
+import com.example.productservice.domain.entity.ProductSkuOption;
 import com.example.productservice.domain.repository.ProductRepository;
 import com.example.productservice.dto.*;
 import com.example.productservice.service.ProductServiceImpl;
@@ -23,8 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+
+import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProductService 테스트")
@@ -433,5 +439,232 @@ class ProductServiceImplTest {
         assertThat(response.getProductName()).isEqualTo("나이키 에어맥스");
 
         verify(productRepository, times(1)).save(any(Product.class));
+    }
+
+    // ==================== 상품 상세 조회 테스트 ====================
+
+    @Test
+    @DisplayName("상품 상세 조회 - 성공")
+    void getProductDetail_success() {
+        // given
+        Product product = createProductWithFullDetails();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        // when
+        ProductDetailResponse response = productService.getProductDetail(1L);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getProductId()).isEqualTo(1L);
+        assertThat(response.getProductName()).isEqualTo("나이키 에어맥스");
+        assertThat(response.getProductCode()).isEqualTo("NIKE-001");
+        assertThat(response.getDescription()).isEqualTo("편안한 운동화");
+        assertThat(response.getBasePrice()).isEqualByComparingTo(new BigDecimal("150000"));
+        assertThat(response.getSalePrice()).isEqualByComparingTo(new BigDecimal("120000"));
+        assertThat(response.getStatus()).isEqualTo("ACTIVE");
+        assertThat(response.getIsDisplayed()).isTrue();
+
+        verify(productRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 옵션 그룹 포함")
+    void getProductDetail_withOptionGroups() {
+        // given
+        Product product = createProductWithFullDetails();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        // when
+        ProductDetailResponse response = productService.getProductDetail(1L);
+
+        // then
+        assertThat(response.getOptionGroups()).hasSize(1);
+        assertThat(response.getOptionGroups().get(0).getOptionGroupName()).isEqualTo("색상");
+        assertThat(response.getOptionGroups().get(0).getDisplayOrder()).isEqualTo(0);
+        assertThat(response.getOptionGroups().get(0).getOptionValues()).hasSize(2);
+        assertThat(response.getOptionGroups().get(0).getOptionValues().get(0).getOptionValueName()).isEqualTo("Red");
+        assertThat(response.getOptionGroups().get(0).getOptionValues().get(1).getOptionValueName()).isEqualTo("Blue");
+
+        verify(productRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - SKU 포함")
+    void getProductDetail_withSkus() {
+        // given
+        Product product = createProductWithFullDetails();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        // when
+        ProductDetailResponse response = productService.getProductDetail(1L);
+
+        // then
+        assertThat(response.getSkus()).hasSize(2);
+        assertThat(response.getSkus().get(0).getSkuCode()).isEqualTo("SKU-001-RED");
+        assertThat(response.getSkus().get(0).getPrice()).isEqualByComparingTo(new BigDecimal("120000"));
+        assertThat(response.getSkus().get(0).getStockQty()).isEqualTo(50);
+        assertThat(response.getSkus().get(0).getStatus()).isEqualTo("ACTIVE");
+
+        verify(productRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 이미지 포함")
+    void getProductDetail_withImages() {
+        // given
+        Product product = createProductWithFullDetails();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        // when
+        ProductDetailResponse response = productService.getProductDetail(1L);
+
+        // then
+        assertThat(response.getImages()).hasSize(1);
+        assertThat(response.getImages().get(0).getImageUrl()).isEqualTo("https://example.com/nike1.jpg");
+        assertThat(response.getImages().get(0).getIsPrimary()).isTrue();
+        assertThat(response.getImages().get(0).getDisplayOrder()).isEqualTo(0);
+
+        verify(productRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 존재하지 않는 상품")
+    void getProductDetail_notFound() {
+        // given
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProductDetail(999L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("상품을 찾을 수 없습니다");
+
+        verify(productRepository, times(1)).findById(999L);
+    }
+
+    @Test
+    @DisplayName("상품 상세 조회 - 옵션 없는 상품")
+    void getProductDetail_withoutOptions() {
+        // given
+        Product product = Product.builder()
+                .productId(2L)
+                .productName("옵션 없는 상품")
+                .productCode("NO-OPT-001")
+                .description("옵션이 없는 단순 상품")
+                .basePrice(new BigDecimal("50000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        when(productRepository.findById(2L)).thenReturn(Optional.of(product));
+
+        // when
+        ProductDetailResponse response = productService.getProductDetail(2L);
+
+        // then
+        assertThat(response.getProductId()).isEqualTo(2L);
+        assertThat(response.getProductName()).isEqualTo("옵션 없는 상품");
+        assertThat(response.getOptionGroups()).isEmpty();
+        assertThat(response.getSkus()).isEmpty();
+        assertThat(response.getImages()).isEmpty();
+
+        verify(productRepository, times(1)).findById(2L);
+    }
+
+    private Product createProductWithFullDetails() {
+        Product product = Product.builder()
+                .productId(1L)
+                .productName("나이키 에어맥스")
+                .productCode("NIKE-001")
+                .description("편안한 운동화")
+                .basePrice(new BigDecimal("150000"))
+                .salePrice(new BigDecimal("120000"))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .optionGroups(new ArrayList<>())
+                .skus(new ArrayList<>())
+                .images(new ArrayList<>())
+                .build();
+
+        // 옵션 그룹 추가
+        ProductOptionGroup optionGroup = ProductOptionGroup.builder()
+                .optionGroupId(1L)
+                .product(product)
+                .optionGroupName("색상")
+                .displayOrder(0)
+                .optionValues(new ArrayList<>())
+                .build();
+        product.getOptionGroups().add(optionGroup);
+
+        // 옵션 값 추가
+        ProductOptionValue optionValue1 = ProductOptionValue.builder()
+                .optionValueId(1L)
+                .optionGroup(optionGroup)
+                .optionValueName("Red")
+                .displayOrder(0)
+                .skuOptions(new ArrayList<>())
+                .build();
+        optionGroup.getOptionValues().add(optionValue1);
+
+        ProductOptionValue optionValue2 = ProductOptionValue.builder()
+                .optionValueId(2L)
+                .optionGroup(optionGroup)
+                .optionValueName("Blue")
+                .displayOrder(1)
+                .skuOptions(new ArrayList<>())
+                .build();
+        optionGroup.getOptionValues().add(optionValue2);
+
+        // SKU 추가
+        ProductSku sku1 = ProductSku.builder()
+                .skuId(1L)
+                .product(product)
+                .skuCode("SKU-001-RED")
+                .price(new BigDecimal("120000"))
+                .stockQty(50)
+                .status("ACTIVE")
+                .skuOptions(new ArrayList<>())
+                .build();
+        product.getSkus().add(sku1);
+
+        ProductSku sku2 = ProductSku.builder()
+                .skuId(2L)
+                .product(product)
+                .skuCode("SKU-001-BLUE")
+                .price(new BigDecimal("120000"))
+                .stockQty(30)
+                .status("ACTIVE")
+                .skuOptions(new ArrayList<>())
+                .build();
+        product.getSkus().add(sku2);
+
+        // SKU-옵션 연결
+        ProductSkuOption skuOption1 = ProductSkuOption.builder()
+                .skuOptionId(1L)
+                .sku(sku1)
+                .optionValue(optionValue1)
+                .build();
+        sku1.getSkuOptions().add(skuOption1);
+
+        ProductSkuOption skuOption2 = ProductSkuOption.builder()
+                .skuOptionId(2L)
+                .sku(sku2)
+                .optionValue(optionValue2)
+                .build();
+        sku2.getSkuOptions().add(skuOption2);
+
+        // 이미지 추가
+        ProductImage image = ProductImage.builder()
+                .imageId(1L)
+                .product(product)
+                .imageUrl("https://example.com/nike1.jpg")
+                .isPrimary(true)
+                .displayOrder(0)
+                .build();
+        product.getImages().add(image);
+
+        return product;
     }
 }

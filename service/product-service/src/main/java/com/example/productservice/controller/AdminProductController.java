@@ -76,6 +76,37 @@ public class AdminProductController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{productId}")
+    @Operation(
+            summary = "상품 상세 조회",
+            description = "상품 ID로 상품의 상세 정보를 조회합니다. 옵션 그룹, SKU, 이미지 정보를 포함합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = ProductDetailResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "상품을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            )
+    })
+    public ResponseEntity<ProductDetailResponse> getProductDetail(
+            @Parameter(description = "상품 ID") @PathVariable("productId") Long productId
+    ) {
+        log.info("GET /api/admin/products/{} - 상품 상세 조회", productId);
+
+        try {
+            ProductDetailResponse response = productService.getProductDetail(productId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("상품을 찾을 수 없습니다. productId: {}", productId);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping
     @Operation(
             summary = "상품 등록",
