@@ -341,7 +341,8 @@ class ProductIntegrationTest {
                 .andExpect(jsonPath("$.productId").value(productId))
                 .andExpect(jsonPath("$.productName").value("이미지 포함 상품"))
                 .andExpect(jsonPath("$.images").isArray())
-                .andExpect(jsonPath("$.images.length()").value(1));
+                .andExpect(jsonPath("$.images.length()").value(1))
+                .andExpect(jsonPath("$.images[0].fileId").value(fileUploadResponse.getFileId()));
     }
 
     @Test

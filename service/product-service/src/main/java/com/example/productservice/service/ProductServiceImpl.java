@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -133,6 +134,7 @@ public class ProductServiceImpl implements ProductService {
 
             ProductImage image = ProductImage.builder()
                     .product(product)
+                    .fileId(imageRequest.getFileId())
                     .imageUrl(newImageUrl)
                     .isPrimary(imageRequest.getIsPrimary())
                     .displayOrder(imageRequest.getDisplayOrder())
@@ -245,12 +247,18 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // 6. 새로운 이미지 생성
+        List<ProductImage> existingImages = product.getImages();
         for (ProductImageRequest imageRequest : request.getImages()) {
+            boolean alreadyExists = existingImages.stream()
+                    .anyMatch(img -> img.getFileId().equals(imageRequest.getFileId()));
+            if (alreadyExists) continue;
+
             String newImageUrl = idUrlMap.get(imageRequest.getFileId());
             if (newImageUrl == null) continue;
 
             ProductImage image = ProductImage.builder()
                     .product(product)
+                    .fileId(imageRequest.getFileId())
                     .imageUrl(newImageUrl)
                     .isPrimary(imageRequest.getIsPrimary())
                     .displayOrder(imageRequest.getDisplayOrder())

@@ -189,6 +189,9 @@ public class ProductDetailResponse {
         @Schema(description = "이미지 ID", example = "1")
         private Long id;
 
+        @Schema(description = "파일 ID", example = "123")
+        private Long fileId;
+
         @Schema(description = "이미지 URL", example = "/files/images/product.jpg")
         private String imageUrl;
 
@@ -201,6 +204,7 @@ public class ProductDetailResponse {
         public static ImageResponse from(ProductImage image) {
             return ImageResponse.builder()
                     .id(image.getImageId())
+                    .fileId(image.getFileId())
                     .imageUrl(image.getImageUrl())
                     .isPrimary(image.getIsPrimary())
                     .displayOrder(image.getDisplayOrder())

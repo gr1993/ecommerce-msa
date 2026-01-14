@@ -78,6 +78,7 @@ CREATE TABLE product_sku_option (
 CREATE TABLE product_image (
     image_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '이미지 ID',
     product_id BIGINT NOT NULL COMMENT '상품 ID',
+    file_id BIGINT NOT NULL COMMENT '파일 ID',
     image_url TEXT NOT NULL COMMENT '이미지 URL',
     is_primary TINYINT(1) NOT NULL DEFAULT 0 COMMENT '대표 이미지 여부',
     display_order INT NOT NULL DEFAULT 0 COMMENT '정렬 순서',
@@ -85,7 +86,11 @@ CREATE TABLE product_image (
     CONSTRAINT fk_image_product
         FOREIGN KEY (product_id)
         REFERENCES product(product_id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_image_file
+            FOREIGN KEY (file_id)
+            REFERENCES file_upload(file_id)
+            ON DELETE CASCADE
 ) COMMENT='상품 이미지 정보를 저장하는 테이블';
 
 -- 파일 업로드 기록 테이블

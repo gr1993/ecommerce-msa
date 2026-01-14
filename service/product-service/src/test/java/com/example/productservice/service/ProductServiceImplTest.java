@@ -73,6 +73,7 @@ class ProductServiceImplTest {
         ProductImage image1 = ProductImage.builder()
                 .imageId(1L)
                 .product(product1)
+                .fileId(100L)
                 .imageUrl("https://example.com/nike1.jpg")
                 .isPrimary(true)
                 .displayOrder(1)
@@ -524,6 +525,7 @@ class ProductServiceImplTest {
 
         // then
         assertThat(response.getImages()).hasSize(1);
+        assertThat(response.getImages().get(0).getFileId()).isEqualTo(100L);
         assertThat(response.getImages().get(0).getImageUrl()).isEqualTo("https://example.com/nike1.jpg");
         assertThat(response.getImages().get(0).getIsPrimary()).isTrue();
         assertThat(response.getImages().get(0).getDisplayOrder()).isEqualTo(0);
@@ -719,6 +721,7 @@ class ProductServiceImplTest {
         ProductImage image = ProductImage.builder()
                 .imageId(1L)
                 .product(product)
+                .fileId(100L)
                 .imageUrl("https://example.com/nike1.jpg")
                 .isPrimary(true)
                 .displayOrder(0)

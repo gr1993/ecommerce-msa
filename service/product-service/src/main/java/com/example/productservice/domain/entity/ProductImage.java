@@ -24,6 +24,9 @@ public class ProductImage {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    @Column(name = "file_id")
+    private Long fileId;
+
     @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
