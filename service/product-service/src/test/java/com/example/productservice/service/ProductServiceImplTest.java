@@ -22,15 +22,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-
-import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProductService 테스트")
@@ -38,6 +35,9 @@ class ProductServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @InjectMocks
     private ProductServiceImpl productService;
@@ -353,8 +353,7 @@ class ProductServiceImplTest {
                 .build();
 
         ProductImageRequest image = ProductImageRequest.builder()
-                .id("img_1")
-                .imageUrl("https://example.com/image.jpg")
+                .fileId(1L)
                 .isPrimary(true)
                 .displayOrder(0)
                 .build();
@@ -385,7 +384,11 @@ class ProductServiceImplTest {
                 .images(new ArrayList<>())
                 .build();
 
+        Map<Long, String> idUrlMap = new HashMap<>();
+        idUrlMap.put(1L, "");
+
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
+        when(fileStorageService.confirmFiles(any(List.class))).thenReturn(idUrlMap);
 
         // when
         ProductResponse response = productService.createProduct(request);
@@ -397,6 +400,7 @@ class ProductServiceImplTest {
         assertThat(response.getBasePrice()).isEqualByComparingTo(new BigDecimal("150000"));
 
         verify(productRepository, times(1)).save(any(Product.class));
+        verify(fileStorageService, times(1)).confirmFiles(any(List.class));
     }
 
     @Test

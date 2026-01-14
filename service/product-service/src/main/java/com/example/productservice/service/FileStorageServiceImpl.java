@@ -17,7 +17,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -96,9 +98,10 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     @Transactional
-    public void confirmFiles(List<Long> fileIds) {
+    public Map<Long, String> confirmFiles(List<Long> fileIds) {
+        Map<Long, String> idUrlMap = new HashMap<>();
         if (fileIds == null || fileIds.isEmpty()) {
-            return;
+            return idUrlMap;
         }
 
         List<FileUpload> files = fileUploadRepository.findAllById(fileIds);
@@ -131,12 +134,14 @@ public class FileStorageServiceImpl implements FileStorageService {
                 file.setUrl(newUrl);
 
                 log.info("File confirmed: {} -> {}", file.getFileId(), newUrl);
+                idUrlMap.put(file.getFileId(), newUrl);
 
             } catch (IOException e) {
                 log.error("Failed to move file: {}", file.getFileId(), e);
                 // 이동 실패해도 계속 진행 (일부 파일만 실패할 수 있음)
             }
         }
+        return idUrlMap;
     }
 
     @Override

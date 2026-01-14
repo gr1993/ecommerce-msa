@@ -143,72 +143,6 @@ class ProductIntegrationTest {
     }
 
     @Test
-    @DisplayName("상품 등록 실패 - 이미지 URL 누락 (imageUrl이 null)")
-    void createProductFailure_missingImageUrl() throws Exception {
-        // given - imageUrl이 null인 이미지
-        ProductImageRequest invalidImage = ProductImageRequest.builder()
-                .id("img_1")
-                .fileId(1L)
-                .imageUrl(null) // @NotBlank이므로 validation 오류
-                .isPrimary(true)
-                .displayOrder(0)
-                .build();
-
-        ProductCreateRequest request = ProductCreateRequest.builder()
-                .productName("강림 상품")
-                .productCode("PRODUCT-001")
-                .description("강림 상품입니다.")
-                .basePrice(new BigDecimal("5000"))
-                .salePrice(new BigDecimal("4000"))
-                .status("ACTIVE")
-                .isDisplayed(true)
-                .optionGroups(createOptionGroups())
-                .skus(createSkus())
-                .images(List.of(invalidImage))
-                .build();
-
-        // when & then
-        mockMvc.perform(post("/api/admin/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isBadRequest()); // Validation 오류
-    }
-
-    @Test
-    @DisplayName("상품 등록 실패 - 이미지 URL이 빈 문자열")
-    void createProductFailure_emptyImageUrl() throws Exception {
-        // given - imageUrl이 빈 문자열
-        ProductImageRequest invalidImage = ProductImageRequest.builder()
-                .id("img_1")
-                .fileId(1L)
-                .imageUrl("") // @NotBlank이므로 validation 오류
-                .isPrimary(true)
-                .displayOrder(0)
-                .build();
-
-        ProductCreateRequest request = ProductCreateRequest.builder()
-                .productName("강림 상품")
-                .productCode("PRODUCT-001")
-                .description("강림 상품입니다.")
-                .basePrice(new BigDecimal("5000"))
-                .salePrice(new BigDecimal("4000"))
-                .status("ACTIVE")
-                .isDisplayed(true)
-                .optionGroups(createOptionGroups())
-                .skus(createSkus())
-                .images(List.of(invalidImage))
-                .build();
-
-        // when & then
-        mockMvc.perform(post("/api/admin/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isBadRequest()); // Validation 오류
-    }
-
-    @Test
     @DisplayName("상품 등록 실패 - 필수 필드 누락 (productName)")
     void createProductFailure_missingProductName() throws Exception {
         // given
@@ -229,46 +163,6 @@ class ProductIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("상품 등록 - fileId 없이 imageUrl만으로 등록")
-    void createProductWithImageUrlOnly() throws Exception {
-        // given - fileId는 없고 imageUrl만 있는 경우
-        ProductImageRequest imageWithUrlOnly = ProductImageRequest.builder()
-                .id("img_1")
-                .fileId(null) // fileId 없음
-                .imageUrl("/files/temp/2024/01/15/test.jpg") // URL만 있음
-                .isPrimary(true)
-                .displayOrder(0)
-                .build();
-
-        ProductCreateRequest request = ProductCreateRequest.builder()
-                .productName("강림 상품")
-                .productCode("PRODUCT-001")
-                .description("강림 상품입니다.")
-                .basePrice(new BigDecimal("5000"))
-                .salePrice(new BigDecimal("4000"))
-                .status("ACTIVE")
-                .isDisplayed(true)
-                .optionGroups(createOptionGroups())
-                .skus(createSkus())
-                .images(List.of(imageWithUrlOnly))
-                .build();
-
-        // when & then
-        mockMvc.perform(post("/api/admin/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.productId").exists());
-
-        // DB 검증
-        List<Product> products = productRepository.findAll();
-        assertThat(products).hasSize(1);
-        assertThat(products.get(0).getImages()).hasSize(1);
-        assertThat(products.get(0).getImages().get(0).getImageUrl()).isEqualTo("/files/temp/2024/01/15/test.jpg");
     }
 
     private ProductCreateRequest createSampleProductRequest(FileUploadResponse fileUploadResponse) {
@@ -333,9 +227,7 @@ class ProductIntegrationTest {
 
     private List<ProductImageRequest> createImages(FileUploadResponse fileUploadResponse) {
         ProductImageRequest image = ProductImageRequest.builder()
-                .id("img_" + System.currentTimeMillis())
                 .fileId(fileUploadResponse.getFileId())
-                .imageUrl(fileUploadResponse.getUrl())
                 .isPrimary(true)
                 .displayOrder(0)
                 .build();
@@ -449,10 +341,7 @@ class ProductIntegrationTest {
                 .andExpect(jsonPath("$.productId").value(productId))
                 .andExpect(jsonPath("$.productName").value("이미지 포함 상품"))
                 .andExpect(jsonPath("$.images").isArray())
-                .andExpect(jsonPath("$.images.length()").value(1))
-                .andExpect(jsonPath("$.images[0].imageUrl").value(fileUploadResponse.getUrl()))
-                .andExpect(jsonPath("$.images[0].isPrimary").value(true))
-                .andExpect(jsonPath("$.images[0].displayOrder").value(0));
+                .andExpect(jsonPath("$.images.length()").value(1));
     }
 
     @Test

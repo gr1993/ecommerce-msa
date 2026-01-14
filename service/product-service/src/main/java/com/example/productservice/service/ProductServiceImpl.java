@@ -121,16 +121,19 @@ public class ProductServiceImpl implements ProductService {
                 .filter(fileId -> fileId != null)
                 .collect(Collectors.toList());
 
+        Map<Long, String> idUrlMap = new HashMap<>();
         if (!fileIds.isEmpty()) {
-            fileStorageService.confirmFiles(fileIds);
+            idUrlMap = fileStorageService.confirmFiles(fileIds);
             log.info("Confirmed {} files", fileIds.size());
         }
 
         // 5. 이미지 생성
         for (ProductImageRequest imageRequest : request.getImages()) {
+            String newImageUrl = idUrlMap.get(imageRequest.getFileId());
+
             ProductImage image = ProductImage.builder()
                     .product(product)
-                    .imageUrl(imageRequest.getImageUrl())
+                    .imageUrl(newImageUrl)
                     .isPrimary(imageRequest.getIsPrimary())
                     .displayOrder(imageRequest.getDisplayOrder())
                     .build();
@@ -235,16 +238,19 @@ public class ProductServiceImpl implements ProductService {
                 .filter(fileId -> fileId != null)
                 .collect(Collectors.toList());
 
+        Map<Long, String> idUrlMap = new HashMap<>();
         if (!fileIds.isEmpty()) {
-            fileStorageService.confirmFiles(fileIds);
+            idUrlMap = fileStorageService.confirmFiles(fileIds);
             log.info("Confirmed {} files", fileIds.size());
         }
 
         // 6. 새로운 이미지 생성
         for (ProductImageRequest imageRequest : request.getImages()) {
+            String newImageUrl = idUrlMap.get(imageRequest.getFileId());
+
             ProductImage image = ProductImage.builder()
                     .product(product)
-                    .imageUrl(imageRequest.getImageUrl())
+                    .imageUrl(newImageUrl)
                     .isPrimary(imageRequest.getIsPrimary())
                     .displayOrder(imageRequest.getDisplayOrder())
                     .build();

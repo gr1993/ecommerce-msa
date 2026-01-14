@@ -350,8 +350,7 @@ class AdminProductControllerTest {
                 .build();
 
         ProductImageRequest image = ProductImageRequest.builder()
-                .id("img_1")
-                .imageUrl("https://example.com/image.jpg")
+                .fileId(1L)
                 .isPrimary(true)
                 .displayOrder(0)
                 .build();
