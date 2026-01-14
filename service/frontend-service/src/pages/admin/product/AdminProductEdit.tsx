@@ -3,6 +3,7 @@ import { message, Spin } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import ProductForm from './ProductForm'
 import type { OptionGroup, SKU, ProductImage } from './ProductForm'
+import { getProductDetail, updateProduct, type ProductCreateRequest } from '../../../api/productApi'
 import './AdminProductRegister.css'
 
 function AdminProductEdit() {
@@ -23,54 +24,47 @@ function AdminProductEdit() {
 
       try {
         setInitialLoading(true)
-        // TODO: API 호출로 상품 데이터 로드
-        // const product = await productApi.getProduct(id)
-        
-        // 샘플 데이터 (실제로는 API에서 가져옴)
-        const sampleData = {
-          product_name: '노트북',
-          product_code: 'PRD-001',
-          description: '고성능 노트북입니다.',
-          base_price: 1200000,
-          sale_price: 1000000,
-          status: 'ACTIVE',
-          is_displayed: true,
-          optionGroups: [
-            {
-              id: 'group_1',
-              optionGroupName: '색상',
-              displayOrder: 0,
-              optionValues: [
-                { id: 'value_1', optionValueName: 'Black', displayOrder: 0 },
-                { id: 'value_2', optionValueName: 'White', displayOrder: 1 }
-              ]
-            },
-            {
-              id: 'group_2',
-              optionGroupName: '용량',
-              displayOrder: 1,
-              optionValues: [
-                { id: 'value_3', optionValueName: '256GB', displayOrder: 0 },
-                { id: 'value_4', optionValueName: '512GB', displayOrder: 1 }
-              ]
-            }
-          ] as OptionGroup[],
-          skus: [
-            {
-              id: 'sku_1',
-              skuCode: 'SKU-001',
-              price: 1200000,
-              stockQty: 10,
-              status: 'ACTIVE',
-              optionValueIds: ['value_1', 'value_3']
-            }
-          ] as SKU[],
-          images: [] as ProductImage[]
+        const product = await getProductDetail(Number(id))
+
+        // API 응답을 ProductForm initialData 형식으로 변환
+        const formData = {
+          product_name: product.productName,
+          product_code: product.productCode,
+          description: product.description,
+          base_price: product.basePrice,
+          sale_price: product.salePrice,
+          status: product.status,
+          is_displayed: product.isDisplayed,
+          optionGroups: product.optionGroups.map(group => ({
+            id: String(group.id),
+            optionGroupName: group.optionGroupName,
+            displayOrder: group.displayOrder,
+            optionValues: group.optionValues.map(value => ({
+              id: String(value.id),
+              optionValueName: value.optionValueName,
+              displayOrder: value.displayOrder
+            }))
+          })) as OptionGroup[],
+          skus: product.skus.map(sku => ({
+            id: String(sku.id),
+            skuCode: sku.skuCode,
+            price: sku.price,
+            stockQty: sku.stockQty,
+            status: sku.status,
+            optionValueIds: sku.optionValueIds.map(String)
+          })) as SKU[],
+          images: product.images.map(img => ({
+            id: String(img.id),
+            url: img.imageUrl,
+            isPrimary: img.isPrimary,
+            displayOrder: img.displayOrder
+          })) as ProductImage[]
         }
 
-        setInitialData(sampleData)
+        setInitialData(formData)
       } catch (error) {
-        message.error('상품 정보를 불러오는데 실패했습니다.')
+        const errorMessage = error instanceof Error ? error.message : '상품 정보를 불러오는데 실패했습니다.'
+        message.error(errorMessage)
         console.error(error)
         navigate('/admin/product/list')
       } finally {
@@ -86,13 +80,48 @@ function AdminProductEdit() {
 
     setLoading(true)
     try {
-      console.log('상품 수정:', { id, ...formData })
-      // TODO: API 호출로 상품 수정 처리
-      // await productApi.updateProduct(id, formData)
+      // ProductForm 데이터를 API 요청 형식으로 변환
+      const requestData: ProductCreateRequest = {
+        productName: formData.product_name,
+        productCode: formData.product_code,
+        description: formData.description,
+        basePrice: formData.base_price,
+        salePrice: formData.sale_price,
+        status: formData.status,
+        isDisplayed: formData.is_displayed,
+        optionGroups: formData.optionGroups?.map((group: OptionGroup) => ({
+          id: group.id,
+          optionGroupName: group.optionGroupName,
+          displayOrder: group.displayOrder,
+          optionValues: group.optionValues.map(value => ({
+            id: value.id,
+            optionValueName: value.optionValueName,
+            displayOrder: value.displayOrder
+          }))
+        })),
+        skus: formData.skus?.map((sku: SKU) => ({
+          id: sku.id,
+          skuCode: sku.skuCode,
+          price: sku.price,
+          stockQty: sku.stockQty,
+          status: sku.status,
+          optionValueIds: sku.optionValueIds
+        })),
+        images: formData.images?.map((img: ProductImage & { fileId?: number }) => ({
+          id: img.id,
+          fileId: img.fileId,
+          imageUrl: img.url || '',
+          isPrimary: img.isPrimary,
+          displayOrder: img.displayOrder
+        }))
+      }
+
+      await updateProduct(Number(id), requestData)
       message.success('상품이 수정되었습니다.')
       navigate('/admin/product/list')
     } catch (error) {
-      message.error('상품 수정에 실패했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '상품 수정에 실패했습니다.'
+      message.error(errorMessage)
       console.error(error)
     } finally {
       setLoading(false)

@@ -170,6 +170,96 @@ export interface ProductCreateRequest {
 }
 
 /**
+ * 옵션 값 응답 DTO
+ */
+export interface OptionValueResponse {
+  /** 옵션 값 ID */
+  id: number
+  /** 옵션 값명 */
+  optionValueName: string
+  /** 표시 순서 */
+  displayOrder: number
+}
+
+/**
+ * 옵션 그룹 응답 DTO
+ */
+export interface OptionGroupResponse {
+  /** 옵션 그룹 ID */
+  id: number
+  /** 옵션 그룹명 */
+  optionGroupName: string
+  /** 표시 순서 */
+  displayOrder: number
+  /** 옵션 값 목록 */
+  optionValues: OptionValueResponse[]
+}
+
+/**
+ * SKU 응답 DTO
+ */
+export interface SkuResponse {
+  /** SKU ID */
+  id: number
+  /** SKU 코드 */
+  skuCode: string
+  /** 가격 */
+  price: number
+  /** 재고 수량 */
+  stockQty: number
+  /** 상태 */
+  status: string
+  /** 옵션 값 ID 목록 */
+  optionValueIds: number[]
+}
+
+/**
+ * 이미지 응답 DTO
+ */
+export interface ImageResponse {
+  /** 이미지 ID */
+  id: number
+  /** 이미지 URL */
+  imageUrl: string
+  /** 대표 이미지 여부 */
+  isPrimary: boolean
+  /** 표시 순서 */
+  displayOrder: number
+}
+
+/**
+ * 상품 상세 응답 DTO
+ */
+export interface ProductDetailResponse {
+  /** 상품 ID */
+  productId: number
+  /** 상품명 */
+  productName: string
+  /** 상품 코드 */
+  productCode?: string
+  /** 상품 설명 */
+  description?: string
+  /** 기본 가격 */
+  basePrice: number
+  /** 할인 가격 */
+  salePrice?: number
+  /** 상품 상태 */
+  status: string
+  /** 진열 여부 */
+  isDisplayed: boolean
+  /** 옵션 그룹 목록 */
+  optionGroups: OptionGroupResponse[]
+  /** SKU 목록 */
+  skus: SkuResponse[]
+  /** 이미지 목록 */
+  images: ImageResponse[]
+  /** 생성일시 */
+  createdAt: string
+  /** 수정일시 */
+  updatedAt: string
+}
+
+/**
  * 파일 업로드 응답 DTO
  */
 export interface FileUploadResponse {
@@ -428,5 +518,139 @@ export const createProduct = async (productData: ProductCreateRequest): Promise<
 
     // Network or unexpected errors
     throw new Error('상품 등록 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 상품 상세 조회
+ *
+ * 상품 ID로 상품의 상세 정보를 조회합니다. 옵션 그룹, SKU, 이미지 정보를 포함합니다. (관리자 전용)
+ *
+ * @param productId - 상품 ID
+ * @returns 상품 상세 정보
+ * @throws Error - 조회 실패 시 (인증 실패, 상품 없음 등)
+ *
+ * @example
+ * ```typescript
+ * const product = await getProductDetail(1)
+ * console.log('Product:', product.productName)
+ * console.log('Options:', product.optionGroups)
+ * console.log('SKUs:', product.skus)
+ * ```
+ */
+export const getProductDetail = async (productId: number): Promise<ProductDetailResponse> => {
+  try {
+    // Get admin token from Zustand store
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`http://localhost:8080/api/admin/products/${productId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '상품을 찾을 수 없습니다.')
+      }
+
+      throw new Error(error.message || `상품 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: ProductDetailResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get product detail error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('상품 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 상품 수정
+ *
+ * 상품 ID로 상품 정보를 수정합니다. 옵션 그룹, SKU, 이미지 정보를 포함하여 전체 교체됩니다. (관리자 전용)
+ *
+ * @param productId - 상품 ID
+ * @param productData - 상품 수정 요청 데이터
+ * @returns 수정된 상품 정보
+ * @throws Error - 수정 실패 시 (인증 실패, 유효성 검증 실패, 상품 없음 등)
+ *
+ * @example
+ * ```typescript
+ * const result = await updateProduct(1, {
+ *   productName: '수정된 상품명',
+ *   basePrice: 200000,
+ *   status: 'ACTIVE',
+ *   optionGroups: [...],
+ *   skus: [...],
+ *   images: [...]
+ * })
+ * console.log('Updated product ID:', result.productId)
+ * ```
+ */
+export const updateProduct = async (productId: number, productData: ProductCreateRequest): Promise<ProductResponse> => {
+  try {
+    // Get admin token from Zustand store
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`http://localhost:8080/api/admin/products/${productId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify(productData),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '상품을 찾을 수 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '입력 정보를 확인해주세요.')
+      }
+
+      throw new Error(error.message || `상품 수정 실패 (HTTP ${response.status})`)
+    }
+
+    const data: ProductResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Update product error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('상품 수정 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }
