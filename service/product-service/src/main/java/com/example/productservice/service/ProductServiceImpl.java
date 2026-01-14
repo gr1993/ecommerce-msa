@@ -177,6 +177,9 @@ public class ProductServiceImpl implements ProductService {
         product.getSkus().clear();
         product.getImages().clear();
 
+        // flush를 호출하여 삭제를 먼저 실행 (SKU 코드 unique constraint 충돌 방지)
+        productRepository.flush();
+
         // 3. 새로운 옵션 그룹 및 옵션 값 생성
         Map<String, ProductOptionValue> optionValueMap = new HashMap<>();
 
