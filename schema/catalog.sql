@@ -1,5 +1,5 @@
 -- 카테고리 테이블: 상품 전시용 카테고리 정보 관리
-CREATE TABLE catalog_category (
+CREATE TABLE category (
     category_id      BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '카테고리 ID',
     parent_id        BIGINT DEFAULT NULL COMMENT '상위 카테고리 ID (최상위인 경우 NULL)',
     category_name    VARCHAR(100) NOT NULL COMMENT '카테고리명',
