@@ -44,24 +44,26 @@ function AdminProductRegister() {
         status: formData.status,
         isDisplayed: formData.is_displayed,
         optionGroups: formData.optionGroups?.map((group: any) => ({
-          id: group.id,
           optionGroupName: group.optionGroupName,
           displayOrder: group.displayOrder,
           optionValues: group.optionValues.map((value: any) => ({
-            id: value.id,
+            id: value.id, // SKU 옵션값 매핑용 프론트 임시 ID
             optionValueName: value.optionValueName,
             displayOrder: value.displayOrder,
           })),
         })),
         skus: formData.skus?.map((sku: any) => ({
-          id: sku.id,
           skuCode: sku.skuCode,
           price: sku.price,
           stockQty: sku.stockQty,
           status: sku.status,
           optionValueIds: sku.optionValueIds,
         })),
-        images: uploadedImages,
+        images: uploadedImages.map((img: any) => ({
+          fileId: img.fileId,
+          isPrimary: img.isPrimary,
+          displayOrder: img.displayOrder,
+        })),
       }
 
       // 3. 상품 등록 API 호출

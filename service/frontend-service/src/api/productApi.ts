@@ -87,8 +87,8 @@ export interface SearchProductsParams {
  * 옵션 값 요청 DTO
  */
 export interface OptionValueRequest {
-  /** 프론트 임시 ID (매핑용) */
-  id: string
+  /** 프론트 임시 ID (SKU 옵션값 매핑용) */
+  id?: string
   /** 옵션 값명 */
   optionValueName: string
   /** 정렬 순서 */
@@ -99,8 +99,6 @@ export interface OptionValueRequest {
  * 옵션 그룹 요청 DTO
  */
 export interface OptionGroupRequest {
-  /** 프론트 임시 ID (매핑용) */
-  id: string
   /** 옵션 그룹명 */
   optionGroupName: string
   /** 정렬 순서 */
@@ -113,8 +111,6 @@ export interface OptionGroupRequest {
  * SKU 요청 DTO
  */
 export interface SkuRequest {
-  /** 프론트 임시 ID (매핑용) */
-  id: string
   /** SKU 코드 */
   skuCode: string
   /** 가격 */
@@ -131,12 +127,8 @@ export interface SkuRequest {
  * 상품 이미지 요청 DTO
  */
 export interface ProductImageRequest {
-  /** 프론트 임시 ID (매핑용) */
-  id: string
   /** 파일 업로드 ID */
   fileId?: number
-  /** 이미지 URL (임시 URL) */
-  imageUrl: string
   /** 대표 이미지 여부 */
   isPrimary?: boolean
   /** 정렬 순서 */
