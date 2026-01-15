@@ -34,10 +34,7 @@
 - 상품 상태 관리
     - 판매중 / 품절 / 판매중지
 
----
-
-## 3 카탈로그 관리 (Catalog-Service)
-
+### 2-3. 상품 관련 다른 메뉴
 - 카테고리 관리
     - 카테고리 트리 관리
 - 전시 상품 관리
@@ -50,7 +47,7 @@
 
 ---
 
-## 4 주문 관리 (Order-Service)
+## 3 주문 관리 (Order-Service)
 
 - 주문 목록 조회
 - 주문 상세 조회
@@ -62,7 +59,7 @@
 
 ---
 
-## 5 결제 관리 (Payment-Service)
+## 4 결제 관리 (Payment-Service)
 
 - 결제 내역 조회
 - 결제 상태 확인
@@ -72,7 +69,7 @@
 
 ---
 
-## 6 배송 관리 (Delivery-Service)
+## 5 배송 관리 (Delivery-Service)
 
 - 배송 목록 조회
 - 배송 상세
@@ -82,7 +79,7 @@
 
 ---
 
-## 7 반품 / 환불 관리 (Return-Service)
+## 6 반품 / 환불 관리 (Return-Service)
 
 - 반품 요청 목록
 - 반품 상세
@@ -99,7 +96,7 @@
 
 ---
 
-## 8 할인 / 프로모션 관리 (Promotion-Service)
+## 7 할인 / 프로모션 관리 (Promotion-Service)
 
 - 쿠폰 목록
 - 쿠폰 생성
@@ -111,7 +108,7 @@
 
 ---
 
-## 9 정산 관리 (Settlement-Service)
+## 8 정산 관리 (Settlement-Service)
 
 - 정산 대시보드
 - 기간별 매출 조회
@@ -121,7 +118,7 @@
 
 ---
 
-## 10 운영 관리 (Operation-Service)
+## 9 운영 관리 (Operation-Service)
 
 - 공지사항
 

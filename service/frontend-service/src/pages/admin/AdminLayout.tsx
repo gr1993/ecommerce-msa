@@ -90,8 +90,8 @@ function AdminLayout() {
 
             {/* 상품 관리 */}
             <div className="nav-menu-item">
-              <div 
-                className={`nav-parent ${isActiveParent(['/admin/product']) ? 'active-parent' : ''}`}
+              <div
+                className={`nav-parent ${isActiveParent(['/admin/product', '/admin/catalog']) ? 'active-parent' : ''}`}
                 onClick={() => toggleMenu('product')}
               >
                 <span>상품 관리</span>
@@ -99,41 +99,26 @@ function AdminLayout() {
               </div>
               {isMenuOpen('product') && (
                 <div className="nav-submenu">
-                  <Link 
-                    to="/admin/product/list" 
+                  <Link
+                    to="/admin/product/list"
                     className={`nav-link submenu-link ${isActive('/admin/product/list') || isActive('/admin/product/register') ? 'active' : ''}`}
                   >
                     상품 관리
                   </Link>
-                </div>
-              )}
-            </div>
-
-            {/* 카탈로그 관리 */}
-            <div className="nav-menu-item">
-              <div 
-                className={`nav-parent ${isActiveParent(['/admin/catalog']) ? 'active-parent' : ''}`}
-                onClick={() => toggleMenu('catalog')}
-              >
-                <span>카탈로그 관리</span>
-                <span className={`nav-arrow ${isMenuOpen('catalog') ? 'open' : ''}`}>▼</span>
-              </div>
-              {isMenuOpen('catalog') && (
-                <div className="nav-submenu">
-                  <Link 
-                    to="/admin/catalog/category" 
+                  <Link
+                    to="/admin/catalog/category"
                     className={`nav-link submenu-link ${isActive('/admin/catalog/category') ? 'active' : ''}`}
                   >
                     카테고리 관리
                   </Link>
-                  <Link 
-                    to="/admin/catalog/display" 
+                  <Link
+                    to="/admin/catalog/display"
                     className={`nav-link submenu-link ${isActive('/admin/catalog/display') ? 'active' : ''}`}
                   >
                     전시 상품 관리
                   </Link>
-                  <Link 
-                    to="/admin/catalog/search" 
+                  <Link
+                    to="/admin/catalog/search"
                     className={`nav-link submenu-link ${isActive('/admin/catalog/search') ? 'active' : ''}`}
                   >
                     검색 키워드 관리
