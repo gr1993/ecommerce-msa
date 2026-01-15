@@ -83,6 +83,31 @@ services:
     networks:
       - ecommerce-net
 
+  elasticsearch:
+    image: elasticsearch:9.2.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - ecommerce-net
+
+  kibana:
+    image: kibana:9.2.3
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - ecommerce-net
+
+
 networks:
   ecommerce-net:
     name: ecommerce-net
