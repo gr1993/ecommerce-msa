@@ -211,6 +211,8 @@ export interface SkuResponse {
 export interface ImageResponse {
   /** 이미지 ID */
   id: number
+  /** 파일 ID */
+  fileId: number
   /** 이미지 URL */
   imageUrl: string
   /** 대표 이미지 여부 */

@@ -3,7 +3,7 @@ import { message, Spin } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import ProductForm from './ProductForm'
 import type { OptionGroup, SKU, ProductImage } from './ProductForm'
-import { getProductDetail, updateProduct, type ProductCreateRequest } from '../../../api/productApi'
+import { getProductDetail, updateProduct, uploadProductImage, type ProductCreateRequest } from '../../../api/productApi'
 import './AdminProductRegister.css'
 
 function AdminProductEdit() {
@@ -55,7 +55,8 @@ function AdminProductEdit() {
           })) as SKU[],
           images: product.images.map(img => ({
             id: String(img.id),
-            url: img.imageUrl,
+            fileId: img.fileId, // 기존 이미지의 fileId 보존
+            url: `http://localhost:8080/product${img.imageUrl}`, // 정적 리소스 경로
             isPrimary: img.isPrimary,
             displayOrder: img.displayOrder
           })) as ProductImage[]
@@ -80,7 +81,35 @@ function AdminProductEdit() {
 
     setLoading(true)
     try {
-      // ProductForm 데이터를 API 요청 형식으로 변환
+      // 1. 이미지 처리: 새 이미지는 업로드, 기존 이미지는 fileId 유지
+      const processedImages = []
+      if (formData.images && formData.images.length > 0) {
+        for (const image of formData.images as ProductImage[]) {
+          if (image.fileId) {
+            // 기존 이미지: fileId 유지
+            processedImages.push({
+              fileId: image.fileId,
+              isPrimary: image.isPrimary,
+              displayOrder: image.displayOrder,
+            })
+          } else if (image.file && image.file instanceof File) {
+            // 새 이미지: 임시 업로드 후 fileId 획득
+            try {
+              const uploadResult = await uploadProductImage(image.file)
+              processedImages.push({
+                fileId: uploadResult.fileId,
+                isPrimary: image.isPrimary,
+                displayOrder: image.displayOrder,
+              })
+            } catch (error) {
+              console.error('이미지 업로드 실패:', error)
+              throw new Error(`이미지 업로드 실패: ${image.file.name}`)
+            }
+          }
+        }
+      }
+
+      // 2. ProductForm 데이터를 API 요청 형식으로 변환
       const requestData: ProductCreateRequest = {
         productName: formData.product_name,
         productCode: formData.product_code,
@@ -105,11 +134,7 @@ function AdminProductEdit() {
           status: sku.status,
           optionValueIds: sku.optionValueIds
         })),
-        images: formData.images?.map((img: ProductImage & { fileId?: number }) => ({
-          fileId: img.fileId,
-          isPrimary: img.isPrimary,
-          displayOrder: img.displayOrder
-        }))
+        images: processedImages,
       }
 
       await updateProduct(Number(id), requestData)

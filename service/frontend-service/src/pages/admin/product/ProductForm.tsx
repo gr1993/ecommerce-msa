@@ -45,6 +45,7 @@ export interface SKU {
 export interface ProductImage {
   id: string
   file: File
+  fileId?: number // 기존 이미지의 파일 ID (수정 시 사용)
   isPrimary: boolean
   displayOrder: number
   url?: string // 수정 시 기존 이미지 URL
@@ -232,10 +233,12 @@ function ProductForm({ mode, initialData, onSubmit, onCancel, loading = false }:
     const newImages: ProductImage[] = info.fileList.map((file: UploadFile, index: number) => {
       // 기존 이미지인 경우 (수정 모드)
       if (file.url && !file.originFileObj) {
+        const existingImage = images.find(img => img.id === file.uid)
         return {
           id: file.uid,
           file: file as any,
-          isPrimary: images.find(img => img.id === file.uid)?.isPrimary || false,
+          fileId: existingImage?.fileId, // 기존 이미지의 fileId 보존
+          isPrimary: existingImage?.isPrimary || false,
           displayOrder: index,
           url: file.url
         }
