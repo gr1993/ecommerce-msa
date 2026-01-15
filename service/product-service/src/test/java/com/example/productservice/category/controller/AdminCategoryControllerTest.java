@@ -2,6 +2,7 @@ package com.example.productservice.category.controller;
 
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
+import com.example.productservice.category.dto.CategoryTreeResponse;
 import com.example.productservice.category.service.CategoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,9 +16,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -240,5 +246,164 @@ class AdminCategoryControllerTest {
                 .andExpect(jsonPath("$.displayOrder").value(99));
 
         verify(categoryService, times(1)).createCategory(any(CategoryCreateRequest.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 트리 조회 - 성공")
+    void getCategoryTree_success() throws Exception {
+        // given
+        CategoryTreeResponse child = CategoryTreeResponse.builder()
+                .categoryId(2L)
+                .parentId(1L)
+                .categoryName("상의")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .depth(2)
+                .children(null)
+                .build();
+
+        CategoryTreeResponse root = CategoryTreeResponse.builder()
+                .categoryId(1L)
+                .parentId(null)
+                .categoryName("의류")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .depth(1)
+                .children(Collections.singletonList(child))
+                .build();
+
+        when(categoryService.getCategoryTree()).thenReturn(Collections.singletonList(root));
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].categoryId").value(1L))
+                .andExpect(jsonPath("$[0].categoryName").value("의류"))
+                .andExpect(jsonPath("$[0].depth").value(1))
+                .andExpect(jsonPath("$[0].children").isArray())
+                .andExpect(jsonPath("$[0].children.length()").value(1))
+                .andExpect(jsonPath("$[0].children[0].categoryId").value(2L))
+                .andExpect(jsonPath("$[0].children[0].categoryName").value("상의"))
+                .andExpect(jsonPath("$[0].children[0].depth").value(2));
+
+        verify(categoryService, times(1)).getCategoryTree();
+    }
+
+    @Test
+    @DisplayName("카테고리 트리 조회 - 빈 목록")
+    void getCategoryTree_empty() throws Exception {
+        // given
+        when(categoryService.getCategoryTree()).thenReturn(Collections.emptyList());
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(categoryService, times(1)).getCategoryTree();
+    }
+
+    @Test
+    @DisplayName("카테고리 트리 조회 - 다중 최상위 카테고리")
+    void getCategoryTree_multipleRoots() throws Exception {
+        // given
+        CategoryTreeResponse root1 = CategoryTreeResponse.builder()
+                .categoryId(1L)
+                .categoryName("의류")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .depth(1)
+                .build();
+
+        CategoryTreeResponse root2 = CategoryTreeResponse.builder()
+                .categoryId(2L)
+                .categoryName("신발")
+                .displayOrder(2)
+                .isDisplayed(true)
+                .depth(1)
+                .build();
+
+        when(categoryService.getCategoryTree()).thenReturn(Arrays.asList(root1, root2));
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].categoryName").value("의류"))
+                .andExpect(jsonPath("$[1].categoryName").value("신발"));
+
+        verify(categoryService, times(1)).getCategoryTree();
+    }
+
+    @Test
+    @DisplayName("카테고리 상세 조회 - 성공")
+    void getCategory_success() throws Exception {
+        // given
+        when(categoryService.getCategory(1L)).thenReturn(categoryResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(1L))
+                .andExpect(jsonPath("$.categoryName").value("의류"))
+                .andExpect(jsonPath("$.displayOrder").value(1))
+                .andExpect(jsonPath("$.isDisplayed").value(true));
+
+        verify(categoryService, times(1)).getCategory(1L);
+    }
+
+    @Test
+    @DisplayName("카테고리 상세 조회 - 하위 카테고리")
+    void getCategory_childCategory() throws Exception {
+        // given
+        CategoryResponse childResponse = CategoryResponse.builder()
+                .categoryId(2L)
+                .parentId(1L)
+                .categoryName("상의")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(categoryService.getCategory(2L)).thenReturn(childResponse);
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories/2")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(2L))
+                .andExpect(jsonPath("$.parentId").value(1L))
+                .andExpect(jsonPath("$.categoryName").value("상의"));
+
+        verify(categoryService, times(1)).getCategory(2L);
+    }
+
+    @Test
+    @DisplayName("카테고리 상세 조회 - 존재하지 않는 카테고리")
+    void getCategory_notFound() throws Exception {
+        // given
+        when(categoryService.getCategory(999L))
+                .thenThrow(new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: 999"));
+
+        // when & then
+        mockMvc.perform(get("/api/admin/categories/999")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(categoryService, times(1)).getCategory(999L);
     }
 }

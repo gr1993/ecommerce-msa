@@ -3,11 +3,15 @@ package com.example.productservice.category.service;
 import com.example.productservice.category.domain.Category;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
+import com.example.productservice.category.dto.CategoryTreeResponse;
 import com.example.productservice.category.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,5 +43,30 @@ public class CategoryServiceImpl implements CategoryService {
         log.info("카테고리 등록 완료 - categoryId: {}", savedCategory.getCategoryId());
 
         return CategoryResponse.from(savedCategory);
+    }
+
+    @Override
+    public List<CategoryTreeResponse> getCategoryTree() {
+        log.info("카테고리 트리 조회");
+
+        List<Category> rootCategories = categoryRepository.findByParentIsNullOrderByDisplayOrderAsc();
+
+        List<CategoryTreeResponse> tree = rootCategories.stream()
+                .map(category -> CategoryTreeResponse.from(category, 1))
+                .collect(Collectors.toList());
+
+        log.info("카테고리 트리 조회 완료 - 최상위 카테고리 수: {}", tree.size());
+        return tree;
+    }
+
+    @Override
+    public CategoryResponse getCategory(Long categoryId) {
+        log.info("카테고리 상세 조회 - categoryId: {}", categoryId);
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: " + categoryId));
+
+        log.info("카테고리 상세 조회 완료 - categoryName: {}", category.getCategoryName());
+        return CategoryResponse.from(category);
     }
 }

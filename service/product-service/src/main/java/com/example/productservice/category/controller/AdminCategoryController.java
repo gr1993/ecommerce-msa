@@ -2,7 +2,10 @@ package com.example.productservice.category.controller;
 
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
+import com.example.productservice.category.dto.CategoryTreeResponse;
 import com.example.productservice.category.service.CategoryService;
+
+import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,6 +26,54 @@ import org.springframework.web.bind.annotation.*;
 public class AdminCategoryController {
 
     private final CategoryService categoryService;
+
+    @GetMapping
+    @Operation(
+            summary = "카테고리 트리 조회",
+            description = "모든 카테고리를 계층 구조(트리)로 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = CategoryTreeResponse.class))
+            )
+    })
+    public ResponseEntity<List<CategoryTreeResponse>> getCategoryTree() {
+        log.info("GET /api/admin/categories");
+
+        List<CategoryTreeResponse> tree = categoryService.getCategoryTree();
+        return ResponseEntity.ok(tree);
+    }
+
+    @GetMapping("/{categoryId}")
+    @Operation(
+            summary = "카테고리 상세 조회",
+            description = "특정 카테고리의 상세 정보를 조회합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = CategoryResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "카테고리를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = String.class))
+            )
+    })
+    public ResponseEntity<CategoryResponse> getCategory(@PathVariable(name = "categoryId") Long categoryId) {
+        log.info("GET /api/admin/categories/{}", categoryId);
+
+        try {
+            CategoryResponse response = categoryService.getCategory(categoryId);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("카테고리 조회 실패: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
 
     @PostMapping
     @Operation(
