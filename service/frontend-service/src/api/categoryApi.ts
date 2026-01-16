@@ -63,6 +63,18 @@ export interface CategoryCreateRequest {
   isDisplayed?: boolean
 }
 
+/**
+ * 카테고리 수정 요청 DTO
+ */
+export interface CategoryUpdateRequest {
+  /** 카테고리명 */
+  categoryName: string
+  /** 전시 순서 */
+  displayOrder?: number
+  /** 전시 여부 */
+  isDisplayed?: boolean
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -221,5 +233,115 @@ export const createCategory = async (request: CategoryCreateRequest): Promise<Ca
     }
 
     throw new Error('카테고리 등록 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 카테고리 수정
+ *
+ * 특정 카테고리의 정보를 수정합니다. (관리자 전용)
+ *
+ * @param categoryId - 카테고리 ID
+ * @param request - 카테고리 수정 요청 데이터
+ * @returns 수정된 카테고리 정보
+ * @throws Error - 수정 실패 시 (인증 실패, 유효성 검증 실패, 카테고리 없음 등)
+ */
+export const updateCategory = async (categoryId: number, request: CategoryUpdateRequest): Promise<CategoryResponse> => {
+  try {
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`http://localhost:8080/api/admin/categories/${categoryId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '입력 정보를 확인해주세요.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '카테고리를 찾을 수 없습니다.')
+      }
+
+      throw new Error(error.message || `카테고리 수정 실패 (HTTP ${response.status})`)
+    }
+
+    const data: CategoryResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Update category error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('카테고리 수정 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 카테고리 삭제
+ *
+ * 특정 카테고리를 삭제합니다. 하위 카테고리가 존재하면 삭제할 수 없습니다. (관리자 전용)
+ *
+ * @param categoryId - 카테고리 ID
+ * @throws Error - 삭제 실패 시 (인증 실패, 하위 카테고리 존재, 카테고리 없음 등)
+ */
+export const deleteCategory = async (categoryId: number): Promise<void> => {
+  try {
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`http://localhost:8080/api/admin/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '하위 카테고리가 존재하여 삭제할 수 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '카테고리를 찾을 수 없습니다.')
+      }
+
+      throw new Error(error.message || `카테고리 삭제 실패 (HTTP ${response.status})`)
+    }
+  } catch (error) {
+    console.error('Delete category error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('카테고리 삭제 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }

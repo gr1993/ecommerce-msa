@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Tree, Form, Input, InputNumber, Button, Space, message, Card, Switch, Spin } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
-import { getCategoryTree, getCategory, createCategory, type CategoryTreeResponse } from '../../../api/categoryApi'
+import { getCategoryTree, getCategory, createCategory, updateCategory, deleteCategory, type CategoryTreeResponse } from '../../../api/categoryApi'
 import './AdminCategoryManage.css'
 
 const ROOT_KEY = 'root'
@@ -218,14 +218,37 @@ function AdminCategoryManage() {
     }
 
     if (isEditing && selectedKey && selectedKey !== ROOT_KEY) {
-      // 수정 - 현재 API 미구현으로 로컬만 업데이트
-      const key: string = selectedKey
-      setTreeData(updateNode(treeData, key, {
-        title: values.category_name,
-        displayOrder: values.display_order || 0,
-        isDisplayed: values.is_displayed !== undefined ? values.is_displayed : true
-      }))
-      message.success('카테고리가 수정되었습니다.')
+      // 수정 - API 호출
+      const node = findNode(treeData, selectedKey)
+      if (!node || !node.categoryId) {
+        message.error('카테고리를 찾을 수 없습니다.')
+        return
+      }
+
+      setSaving(true)
+      try {
+        await updateCategory(node.categoryId, {
+          categoryName: values.category_name,
+          displayOrder: values.display_order || 0,
+          isDisplayed: values.is_displayed !== undefined ? values.is_displayed : true
+        })
+
+        message.success('카테고리가 수정되었습니다.')
+
+        // 트리 새로고침
+        await fetchCategoryTree()
+        setSelectedKey(ROOT_KEY)
+        setIsEditing(false)
+        form.resetFields()
+        form.setFieldsValue({
+          display_order: 0,
+          is_displayed: true
+        })
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '카테고리 수정 실패')
+      } finally {
+        setSaving(false)
+      }
     } else {
       // 추가 - API 호출
       setSaving(true)
@@ -288,23 +311,43 @@ function AdminCategoryManage() {
   }
 
   // 카테고리 삭제
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedKey || selectedKey === ROOT_KEY) {
       message.warning('삭제할 카테고리를 선택하세요.')
       return
     }
 
     const node = findNode(treeData, selectedKey)
-    if (node && node.children && node.children.length > 0) {
+    if (!node || !node.categoryId) {
+      message.error('카테고리를 찾을 수 없습니다.')
+      return
+    }
+
+    if (node.children && node.children.length > 0) {
       message.error('하위 카테고리가 있는 경우 삭제할 수 없습니다.')
       return
     }
 
-    setTreeData(removeNode(treeData, selectedKey))
-    setSelectedKey(ROOT_KEY)
-    setIsEditing(false)
-    form.resetFields()
-    message.success('카테고리가 삭제되었습니다.')
+    setSaving(true)
+    try {
+      await deleteCategory(node.categoryId)
+
+      message.success('카테고리가 삭제되었습니다.')
+
+      // 트리 새로고침
+      await fetchCategoryTree()
+      setSelectedKey(ROOT_KEY)
+      setIsEditing(false)
+      form.resetFields()
+      form.setFieldsValue({
+        display_order: 0,
+        is_displayed: true
+      })
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '카테고리 삭제 실패')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -438,10 +481,11 @@ function AdminCategoryManage() {
                       {isEditing ? '수정하기' : '추가하기'}
                     </Button>
                     {isEditing && (
-                      <Button 
-                        danger 
+                      <Button
+                        danger
                         icon={<DeleteOutlined />}
                         onClick={handleDelete}
+                        loading={saving}
                       >
                         삭제
                       </Button>
