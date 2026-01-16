@@ -4,6 +4,7 @@ import com.example.productservice.category.domain.Category;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
+import com.example.productservice.category.dto.CategoryUpdateRequest;
 import com.example.productservice.category.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -472,5 +473,158 @@ class CategoryServiceImplTest {
                 .hasMessageContaining("카테고리를 찾을 수 없습니다");
 
         verify(categoryRepository, times(1)).findById(999L);
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 성공")
+    void updateCategory_success() {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .categoryName("의류(수정)")
+                .displayOrder(10)
+                .isDisplayed(false)
+                .build();
+
+        Category updatedCategory = Category.builder()
+                .categoryId(1L)
+                .categoryName("의류(수정)")
+                .displayOrder(10)
+                .isDisplayed(false)
+                .children(new ArrayList<>())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(parentCategory));
+        when(categoryRepository.save(any(Category.class))).thenReturn(updatedCategory);
+
+        // when
+        CategoryResponse response = categoryService.updateCategory(1L, request);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getCategoryName()).isEqualTo("의류(수정)");
+        assertThat(response.getDisplayOrder()).isEqualTo(10);
+        assertThat(response.getIsDisplayed()).isFalse();
+        verify(categoryRepository, times(1)).findById(1L);
+        verify(categoryRepository, times(1)).save(any(Category.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 카테고리명만 수정")
+    void updateCategory_onlyName() {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .categoryName("패션의류")
+                .build();
+
+        Category updatedCategory = Category.builder()
+                .categoryId(1L)
+                .categoryName("패션의류")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .children(new ArrayList<>())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(parentCategory));
+        when(categoryRepository.save(any(Category.class))).thenReturn(updatedCategory);
+
+        // when
+        CategoryResponse response = categoryService.updateCategory(1L, request);
+
+        // then
+        assertThat(response.getCategoryName()).isEqualTo("패션의류");
+        assertThat(response.getDisplayOrder()).isEqualTo(1);
+        assertThat(response.getIsDisplayed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 존재하지 않는 카테고리")
+    void updateCategory_notFound() {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .categoryName("수정")
+                .build();
+
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> categoryService.updateCategory(999L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카테고리를 찾을 수 없습니다");
+
+        verify(categoryRepository, times(1)).findById(999L);
+        verify(categoryRepository, never()).save(any(Category.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 성공")
+    void deleteCategory_success() {
+        // given
+        Category categoryToDelete = Category.builder()
+                .categoryId(1L)
+                .categoryName("삭제대상")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .children(new ArrayList<>())
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryToDelete));
+        doNothing().when(categoryRepository).delete(any(Category.class));
+
+        // when
+        categoryService.deleteCategory(1L);
+
+        // then
+        verify(categoryRepository, times(1)).findById(1L);
+        verify(categoryRepository, times(1)).delete(categoryToDelete);
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 존재하지 않는 카테고리")
+    void deleteCategory_notFound() {
+        // given
+        when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> categoryService.deleteCategory(999L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("카테고리를 찾을 수 없습니다");
+
+        verify(categoryRepository, times(1)).findById(999L);
+        verify(categoryRepository, never()).delete(any(Category.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 하위 카테고리 존재")
+    void deleteCategory_hasChildren() {
+        // given
+        Category child = Category.builder()
+                .categoryId(2L)
+                .categoryName("상의")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .children(new ArrayList<>())
+                .build();
+
+        Category parentWithChild = Category.builder()
+                .categoryId(1L)
+                .categoryName("의류")
+                .displayOrder(1)
+                .isDisplayed(true)
+                .children(Collections.singletonList(child))
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(parentWithChild));
+
+        // when & then
+        assertThatThrownBy(() -> categoryService.deleteCategory(1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("하위 카테고리가 존재하여 삭제할 수 없습니다");
+
+        verify(categoryRepository, times(1)).findById(1L);
+        verify(categoryRepository, never()).delete(any(Category.class));
     }
 }

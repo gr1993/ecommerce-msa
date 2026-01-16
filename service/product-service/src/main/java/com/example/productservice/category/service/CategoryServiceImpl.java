@@ -4,6 +4,7 @@ import com.example.productservice.category.domain.Category;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
+import com.example.productservice.category.dto.CategoryUpdateRequest;
 import com.example.productservice.category.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,5 +69,45 @@ public class CategoryServiceImpl implements CategoryService {
 
         log.info("카테고리 상세 조회 완료 - categoryName: {}", category.getCategoryName());
         return CategoryResponse.from(category);
+    }
+
+    @Override
+    @Transactional
+    public CategoryResponse updateCategory(Long categoryId, CategoryUpdateRequest request) {
+        log.info("카테고리 수정 - categoryId: {}, categoryName: {}", categoryId, request.getCategoryName());
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: " + categoryId));
+
+        category.setCategoryName(request.getCategoryName());
+
+        if (request.getDisplayOrder() != null) {
+            category.setDisplayOrder(request.getDisplayOrder());
+        }
+
+        if (request.getIsDisplayed() != null) {
+            category.setIsDisplayed(request.getIsDisplayed());
+        }
+
+        Category updatedCategory = categoryRepository.save(category);
+        log.info("카테고리 수정 완료 - categoryId: {}", updatedCategory.getCategoryId());
+
+        return CategoryResponse.from(updatedCategory);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCategory(Long categoryId) {
+        log.info("카테고리 삭제 - categoryId: {}", categoryId);
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: " + categoryId));
+
+        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            throw new IllegalStateException("하위 카테고리가 존재하여 삭제할 수 없습니다. categoryId: " + categoryId);
+        }
+
+        categoryRepository.delete(category);
+        log.info("카테고리 삭제 완료 - categoryId: {}", categoryId);
     }
 }

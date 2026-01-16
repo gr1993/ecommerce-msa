@@ -3,6 +3,7 @@ package com.example.productservice.category.controller;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
+import com.example.productservice.category.dto.CategoryUpdateRequest;
 import com.example.productservice.category.service.CategoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,9 +23,12 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -405,5 +409,128 @@ class AdminCategoryControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(categoryService, times(1)).getCategory(999L);
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 성공")
+    void updateCategory_success() throws Exception {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .categoryName("의류(수정)")
+                .displayOrder(10)
+                .isDisplayed(false)
+                .build();
+
+        CategoryResponse updatedResponse = CategoryResponse.builder()
+                .categoryId(1L)
+                .categoryName("의류(수정)")
+                .displayOrder(10)
+                .isDisplayed(false)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(categoryService.updateCategory(eq(1L), any(CategoryUpdateRequest.class)))
+                .thenReturn(updatedResponse);
+
+        // when & then
+        mockMvc.perform(put("/api/admin/categories/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(1L))
+                .andExpect(jsonPath("$.categoryName").value("의류(수정)"))
+                .andExpect(jsonPath("$.displayOrder").value(10))
+                .andExpect(jsonPath("$.isDisplayed").value(false));
+
+        verify(categoryService, times(1)).updateCategory(eq(1L), any(CategoryUpdateRequest.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 카테고리명 누락")
+    void updateCategory_missingCategoryName() throws Exception {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .displayOrder(10)
+                .isDisplayed(true)
+                .build();
+
+        // when & then
+        mockMvc.perform(put("/api/admin/categories/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(categoryService, never()).updateCategory(anyLong(), any(CategoryUpdateRequest.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 수정 - 존재하지 않는 카테고리")
+    void updateCategory_notFound() throws Exception {
+        // given
+        CategoryUpdateRequest request = CategoryUpdateRequest.builder()
+                .categoryName("수정된 카테고리")
+                .build();
+
+        when(categoryService.updateCategory(eq(999L), any(CategoryUpdateRequest.class)))
+                .thenThrow(new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: 999"));
+
+        // when & then
+        mockMvc.perform(put("/api/admin/categories/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(categoryService, times(1)).updateCategory(eq(999L), any(CategoryUpdateRequest.class));
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 성공")
+    void deleteCategory_success() throws Exception {
+        // given
+        doNothing().when(categoryService).deleteCategory(1L);
+
+        // when & then
+        mockMvc.perform(delete("/api/admin/categories/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNoContent());
+
+        verify(categoryService, times(1)).deleteCategory(1L);
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 존재하지 않는 카테고리")
+    void deleteCategory_notFound() throws Exception {
+        // given
+        doThrow(new IllegalArgumentException("카테고리를 찾을 수 없습니다. categoryId: 999"))
+                .when(categoryService).deleteCategory(999L);
+
+        // when & then
+        mockMvc.perform(delete("/api/admin/categories/999")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(categoryService, times(1)).deleteCategory(999L);
+    }
+
+    @Test
+    @DisplayName("카테고리 삭제 - 하위 카테고리 존재")
+    void deleteCategory_hasChildren() throws Exception {
+        // given
+        doThrow(new IllegalStateException("하위 카테고리가 존재하여 삭제할 수 없습니다. categoryId: 1"))
+                .when(categoryService).deleteCategory(1L);
+
+        // when & then
+        mockMvc.perform(delete("/api/admin/categories/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(categoryService, times(1)).deleteCategory(1L);
     }
 }
