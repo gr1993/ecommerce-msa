@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Tree, Form, Input, InputNumber, Button, Space, message, Card, Switch } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { Tree, Form, Input, InputNumber, Button, Space, message, Card, Switch, Spin } from 'antd'
 import type { DataNode } from 'antd/es/tree'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
+import { getCategoryTree, getCategory, createCategory, type CategoryTreeResponse } from '../../../api/categoryApi'
 import './AdminCategoryManage.css'
 
 const ROOT_KEY = 'root'
@@ -13,6 +14,7 @@ interface CategoryNode {
   isDisplayed: boolean
   children?: CategoryNode[]
   depth: number
+  categoryId?: number
 }
 
 function AdminCategoryManage() {
@@ -20,6 +22,40 @@ function AdminCategoryManage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(ROOT_KEY)
   const [treeData, setTreeData] = useState<CategoryNode[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // API 응답을 CategoryNode로 변환
+  const convertApiResponseToNode = (apiNode: CategoryTreeResponse): CategoryNode => {
+    return {
+      key: `cat_${apiNode.categoryId}`,
+      categoryId: apiNode.categoryId,
+      title: apiNode.categoryName,
+      displayOrder: apiNode.displayOrder,
+      isDisplayed: apiNode.isDisplayed,
+      depth: apiNode.depth,
+      children: apiNode.children?.map(convertApiResponseToNode) || []
+    }
+  }
+
+  // 카테고리 트리 조회
+  const fetchCategoryTree = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getCategoryTree()
+      const converted = data.map(convertApiResponseToNode)
+      setTreeData(converted)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '카테고리 트리 조회 실패')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // 초기 로드
+  useEffect(() => {
+    fetchCategoryTree()
+  }, [fetchCategoryTree])
 
   // 카테고리 노드를 DataNode로 변환 (재귀, display_order로 정렬)
   const convertNodeToDataNode = (node: CategoryNode): DataNode => {
@@ -114,7 +150,7 @@ function AdminCategoryManage() {
   }
 
   // 트리 노드 선택
-  const handleSelect = (selectedKeys: React.Key[]) => {
+  const handleSelect = async (selectedKeys: React.Key[]) => {
     if (selectedKeys.length === 0) {
       setSelectedKey(ROOT_KEY)
       setIsEditing(false)
@@ -124,7 +160,7 @@ function AdminCategoryManage() {
 
     const key = selectedKeys[0] as string
     setSelectedKey(key)
-    
+
     if (key === ROOT_KEY) {
       // 최상위 선택 시 추가 모드
       setIsEditing(false)
@@ -134,15 +170,30 @@ function AdminCategoryManage() {
         is_displayed: true
       })
     } else {
-      // 카테고리 선택 시 수정 모드
+      // 카테고리 선택 시 수정 모드 - API로 상세 조회
       const node = findNode(treeData, key)
-      if (node) {
-        form.setFieldsValue({
-          category_name: node.title,
-          display_order: node.displayOrder,
-          is_displayed: node.isDisplayed
-        })
-        setIsEditing(true)
+      if (node && node.categoryId) {
+        setLoading(true)
+        try {
+          const categoryDetail = await getCategory(node.categoryId)
+          form.setFieldsValue({
+            category_name: categoryDetail.categoryName,
+            display_order: categoryDetail.displayOrder,
+            is_displayed: categoryDetail.isDisplayed
+          })
+          setIsEditing(true)
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '카테고리 상세 조회 실패')
+          // 실패 시 로컬 데이터로 폴백
+          form.setFieldsValue({
+            category_name: node.title,
+            display_order: node.displayOrder,
+            is_displayed: node.isDisplayed
+          })
+          setIsEditing(true)
+        } finally {
+          setLoading(false)
+        }
       }
     }
   }
@@ -160,14 +211,14 @@ function AdminCategoryManage() {
   }
 
   // 카테고리 저장
-  const handleSave = (values: { category_name: string; display_order: number; is_displayed: boolean }) => {
+  const handleSave = async (values: { category_name: string; display_order: number; is_displayed: boolean }) => {
     if (!values.category_name.trim()) {
       message.error('카테고리명을 입력하세요.')
       return
     }
 
     if (isEditing && selectedKey && selectedKey !== ROOT_KEY) {
-      // 수정
+      // 수정 - 현재 API 미구현으로 로컬만 업데이트
       const key: string = selectedKey
       setTreeData(updateNode(treeData, key, {
         title: values.category_name,
@@ -176,46 +227,49 @@ function AdminCategoryManage() {
       }))
       message.success('카테고리가 수정되었습니다.')
     } else {
-      // 추가
-      if (!selectedKey || selectedKey === ROOT_KEY) {
-        // 최상위에 1단계 카테고리 추가
-        const newNode: CategoryNode = {
-          key: `cat_${Date.now()}`,
-          title: values.category_name,
-          displayOrder: values.display_order || 0,
-          isDisplayed: values.is_displayed !== undefined ? values.is_displayed : true,
-          depth: 1,
-          children: []
+      // 추가 - API 호출
+      setSaving(true)
+      try {
+        let parentId: number | null = null
+
+        if (selectedKey && selectedKey !== ROOT_KEY) {
+          // 선택된 카테고리의 자식으로 추가
+          const parentNode = findNode(treeData, selectedKey)
+          if (!parentNode) {
+            message.error('부모 카테고리를 찾을 수 없습니다.')
+            setSaving(false)
+            return
+          }
+
+          if (parentNode.depth >= 3) {
+            message.error('최대 3단계까지만 생성할 수 있습니다.')
+            setSaving(false)
+            return
+          }
+
+          parentId = parentNode.categoryId || null
         }
-        setTreeData([...treeData, newNode])
+
+        await createCategory({
+          parentId,
+          categoryName: values.category_name,
+          displayOrder: values.display_order || 0,
+          isDisplayed: values.is_displayed !== undefined ? values.is_displayed : true
+        })
+
         message.success('카테고리가 추가되었습니다.')
         form.resetFields()
-      } else {
-        // 선택된 카테고리의 자식으로 추가
-        const parentNode = findNode(treeData, selectedKey)
-        if (!parentNode) {
-          message.error('부모 카테고리를 찾을 수 없습니다.')
-          return
-        }
+        form.setFieldsValue({
+          display_order: 0,
+          is_displayed: true
+        })
 
-        if (parentNode.depth >= 3) {
-          message.error('최대 3단계까지만 생성할 수 있습니다.')
-          return
-        }
-
-        const depth = parentNode.depth + 1
-        const newNode: CategoryNode = {
-          key: `cat_${Date.now()}`,
-          title: values.category_name,
-          displayOrder: values.display_order || 0,
-          isDisplayed: values.is_displayed !== undefined ? values.is_displayed : true,
-          depth,
-          children: []
-        }
-
-        setTreeData(addNode(treeData, selectedKey, newNode))
-        message.success('카테고리가 추가되었습니다.')
-        form.resetFields()
+        // 트리 새로고침
+        await fetchCategoryTree()
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '카테고리 등록 실패')
+      } finally {
+        setSaving(false)
       }
     }
   }
@@ -260,26 +314,38 @@ function AdminCategoryManage() {
         <div className="category-manage-content">
           {/* 왼쪽: 카테고리 트리 */}
           <div className="category-tree-section">
-            <Card 
-              title="카테고리 트리" 
+            <Card
+              title="카테고리 트리"
               extra={
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />} 
-                  size="small"
-                  onClick={handleAdd}
-                >
-                  새 카테고리
-                </Button>
+                <Space>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    size="small"
+                    onClick={fetchCategoryTree}
+                    loading={loading}
+                  >
+                    새로고침
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    size="small"
+                    onClick={handleAdd}
+                  >
+                    새 카테고리
+                  </Button>
+                </Space>
               }
             >
-              <Tree
-                treeData={convertToTreeData(treeData)}
-                selectedKeys={selectedKey ? [selectedKey] : [ROOT_KEY]}
-                onSelect={handleSelect}
-                defaultExpandAll
-                showLine
-              />
+              <Spin spinning={loading}>
+                <Tree
+                  treeData={convertToTreeData(treeData)}
+                  selectedKeys={selectedKey ? [selectedKey] : [ROOT_KEY]}
+                  onSelect={handleSelect}
+                  defaultExpandAll
+                  showLine
+                />
+              </Spin>
             </Card>
           </div>
 
@@ -363,9 +429,10 @@ function AdminCategoryManage() {
 
                 <Form.Item>
                   <Space>
-                    <Button 
-                      type="primary" 
+                    <Button
+                      type="primary"
                       htmlType="submit"
+                      loading={saving}
                       style={{ backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }}
                     >
                       {isEditing ? '수정하기' : '추가하기'}
