@@ -107,6 +107,23 @@ services:
     networks:
       - ecommerce-net
 
+  filebeat:
+    image: elastic/filebeat:9.2.3
+    container_name: filebeat
+    user: root
+    # command 부분을 추가하여 권한 체크를 무시합니다.
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - ecommerce-net
+
 
 networks:
   ecommerce-net:
