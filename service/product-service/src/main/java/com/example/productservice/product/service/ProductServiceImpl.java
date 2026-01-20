@@ -151,6 +151,7 @@ public class ProductServiceImpl implements ProductService {
         // 6. 카테고리 설정
         if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
             Set<Category> categories = new HashSet<>(categoryRepository.findAllById(request.getCategoryIds()));
+            validateCategoryDepth(categories);
             product.setCategories(categories);
             log.info("Set {} categories for product", categories.size());
         }
@@ -287,6 +288,7 @@ public class ProductServiceImpl implements ProductService {
         product.getCategories().clear();
         if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
             Set<Category> categories = new HashSet<>(categoryRepository.findAllById(request.getCategoryIds()));
+            validateCategoryDepth(categories);
             product.setCategories(categories);
             log.info("Updated {} categories for product", categories.size());
         }
@@ -318,5 +320,26 @@ public class ProductServiceImpl implements ProductService {
 
         // 기본 정렬: 생성일 내림차순
         return PageRequest.of(page, size, Sort.by("createdAt").descending());
+    }
+
+    private void validateCategoryDepth(Set<Category> categories) {
+        for (Category category : categories) {
+            int depth = getCategoryDepth(category);
+            if (depth != 3) {
+                throw new IllegalArgumentException(
+                        String.format("카테고리 '%s'(ID: %d)는 3단계 카테고리가 아닙니다. (현재 %d단계)",
+                                category.getCategoryName(), category.getCategoryId(), depth));
+            }
+        }
+    }
+
+    private int getCategoryDepth(Category category) {
+        int depth = 1;
+        Category current = category;
+        while (current.getParent() != null) {
+            depth++;
+            current = current.getParent();
+        }
+        return depth;
     }
 }

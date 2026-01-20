@@ -3,6 +3,7 @@ package com.example.productservice.product.controller;
 import com.example.productservice.file.dto.FileUploadResponse;
 import com.example.productservice.file.service.FileStorageService;
 import com.example.productservice.global.common.dto.PageResponse;
+import com.example.productservice.global.exception.ErrorResponse;
 import com.example.productservice.product.dto.*;
 import com.example.productservice.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -44,7 +45,7 @@ public class AdminProductController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<PageResponse<ProductResponse>> searchProducts(
@@ -52,20 +53,22 @@ public class AdminProductController {
             @Parameter(description = "상품 코드") @RequestParam(name = "productCode", required = false) String productCode,
             @Parameter(description = "상품 상태 (ACTIVE, INACTIVE, SOLD_OUT)") @RequestParam(name = "status", required = false) String status,
             @Parameter(description = "진열 여부") @RequestParam(name = "isDisplayed", required = false) Boolean isDisplayed,
+            @Parameter(description = "카테고리 ID") @RequestParam(name = "categoryId", required = false) Long categoryId,
             @Parameter(description = "최소 가격") @RequestParam(name = "minPrice", required = false) Double minPrice,
             @Parameter(description = "최대 가격") @RequestParam(name = "maxPrice", required = false) Double maxPrice,
             @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
             @Parameter(description = "페이지 크기") @RequestParam(name = "size", required = false, defaultValue = "10") Integer size,
             @Parameter(description = "정렬 기준 (예: createdAt,desc)") @RequestParam(name = "sort", required = false) String sort
     ) {
-        log.info("GET /api/admin/products - productName: {}, productCode: {}, status: {}, isDisplayed: {}, page: {}, size: {}",
-                productName, productCode, status, isDisplayed, page, size);
+        log.info("GET /api/admin/products - productName: {}, productCode: {}, status: {}, isDisplayed: {}, categoryId: {}, page: {}, size: {}",
+                productName, productCode, status, isDisplayed, categoryId, page, size);
 
         ProductSearchRequest request = ProductSearchRequest.builder()
                 .productName(productName)
                 .productCode(productCode)
                 .status(status)
                 .isDisplayed(isDisplayed)
+                .categoryId(categoryId)
                 .minPrice(minPrice)
                 .maxPrice(maxPrice)
                 .page(page)
@@ -92,12 +95,12 @@ public class AdminProductController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "상품을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<ProductResponse> updateProduct(
@@ -129,7 +132,7 @@ public class AdminProductController {
             @ApiResponse(
                     responseCode = "404",
                     description = "상품을 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<ProductDetailResponse> getProductDetail(
@@ -160,7 +163,7 @@ public class AdminProductController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<ProductResponse> createProduct(
@@ -190,7 +193,7 @@ public class AdminProductController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<FileUploadResponse> uploadFile(

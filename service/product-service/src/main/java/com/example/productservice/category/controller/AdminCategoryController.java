@@ -7,6 +7,8 @@ import com.example.productservice.category.dto.CategoryUpdateRequest;
 import com.example.productservice.category.service.CategoryService;
 
 import java.util.List;
+
+import com.example.productservice.global.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -61,7 +63,7 @@ public class AdminCategoryController {
             @ApiResponse(
                     responseCode = "404",
                     description = "카테고리를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<CategoryResponse> getCategory(@PathVariable(name = "categoryId") Long categoryId) {
@@ -90,12 +92,12 @@ public class AdminCategoryController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "상위 카테고리를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<CategoryResponse> createCategory(
@@ -127,12 +129,12 @@ public class AdminCategoryController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "카테고리를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<CategoryResponse> updateCategory(
@@ -163,12 +165,12 @@ public class AdminCategoryController {
             @ApiResponse(
                     responseCode = "400",
                     description = "하위 카테고리가 존재하여 삭제 불가",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
                     responseCode = "404",
                     description = "카테고리를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = String.class))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<Void> deleteCategory(@PathVariable(name = "categoryId") Long categoryId) {

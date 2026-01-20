@@ -15,8 +15,9 @@ com.example.productservice/
 ├── ProductServiceApplication.java
 ├── global/                          # 전역 설정, 공통 모듈
 │   ├── config/
-│   └── common/
-│       └── dto/
+│   ├── common/
+│   │    └── dto/
+│   └── exception/
 ├── product/                         # 상품 도메인
 │   ├── controller/
 │   ├── service/
