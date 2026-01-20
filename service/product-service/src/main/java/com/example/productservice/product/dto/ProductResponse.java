@@ -1,5 +1,6 @@
 package com.example.productservice.product.dto;
 
+import com.example.productservice.category.domain.Category;
 import com.example.productservice.product.domain.Product;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
@@ -49,6 +52,9 @@ public class ProductResponse {
     @Schema(description = "총 재고 수량", example = "100")
     private Integer totalStockQty;
 
+    @Schema(description = "카테고리 목록")
+    private List<CategoryInfo> categories;
+
     @Schema(description = "생성일시", example = "2024-01-01T10:00:00")
     private LocalDateTime createdAt;
 
@@ -66,6 +72,10 @@ public class ProductResponse {
                 .map(image -> image.getImageUrl())
                 .orElse(null);
 
+        List<CategoryInfo> categoryInfos = product.getCategories().stream()
+                .map(CategoryInfo::from)
+                .collect(Collectors.toList());
+
         return ProductResponse.builder()
                 .productId(product.getProductId())
                 .productName(product.getProductName())
@@ -77,8 +87,30 @@ public class ProductResponse {
                 .isDisplayed(product.getIsDisplayed())
                 .primaryImageUrl(primaryImage)
                 .totalStockQty(totalStock)
+                .categories(categoryInfos)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "카테고리 정보")
+    public static class CategoryInfo {
+
+        @Schema(description = "카테고리 ID", example = "1")
+        private Long categoryId;
+
+        @Schema(description = "카테고리명", example = "의류")
+        private String categoryName;
+
+        public static CategoryInfo from(Category category) {
+            return CategoryInfo.builder()
+                    .categoryId(category.getCategoryId())
+                    .categoryName(category.getCategoryName())
+                    .build();
+        }
     }
 }

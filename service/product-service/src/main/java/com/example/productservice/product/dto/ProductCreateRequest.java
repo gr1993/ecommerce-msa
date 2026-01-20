@@ -13,7 +13,9 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -48,6 +50,10 @@ public class ProductCreateRequest {
 
     @Schema(description = "진열 여부", example = "true")
     private Boolean isDisplayed = true;
+
+    @Schema(description = "카테고리 ID 목록", example = "[1, 2, 3]")
+    @Builder.Default
+    private Set<Long> categoryIds = new HashSet<>();
 
     @Valid
     @Schema(description = "옵션 그룹 목록")

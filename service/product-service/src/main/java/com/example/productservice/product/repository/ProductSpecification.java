@@ -1,7 +1,9 @@
 package com.example.productservice.product.repository;
 
+import com.example.productservice.category.domain.Category;
 import com.example.productservice.product.domain.Product;
 import com.example.productservice.product.dto.ProductSearchRequest;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -60,6 +62,15 @@ public class ProductSpecification {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(
                         root.get("basePrice"),
                         BigDecimal.valueOf(request.getMaxPrice())
+                ));
+            }
+
+            // 카테고리 검색
+            if (request.getCategoryId() != null) {
+                Join<Product, Category> categoryJoin = root.join("categories");
+                predicates.add(criteriaBuilder.equal(
+                        categoryJoin.get("categoryId"),
+                        request.getCategoryId()
                 ));
             }
 

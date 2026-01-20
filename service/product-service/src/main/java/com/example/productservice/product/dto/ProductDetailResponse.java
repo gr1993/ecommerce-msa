@@ -1,5 +1,6 @@
 package com.example.productservice.product.dto;
 
+import com.example.productservice.category.domain.Category;
 import com.example.productservice.product.domain.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -52,6 +53,9 @@ public class ProductDetailResponse {
     @Schema(description = "이미지 목록")
     private List<ImageResponse> images;
 
+    @Schema(description = "카테고리 목록")
+    private List<CategoryResponse> categories;
+
     @Schema(description = "생성일시")
     private LocalDateTime createdAt;
 
@@ -76,6 +80,9 @@ public class ProductDetailResponse {
                         .collect(Collectors.toList()))
                 .images(product.getImages().stream()
                         .map(ImageResponse::from)
+                        .collect(Collectors.toList()))
+                .categories(product.getCategories().stream()
+                        .map(CategoryResponse::from)
                         .collect(Collectors.toList()))
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
@@ -208,6 +215,31 @@ public class ProductDetailResponse {
                     .imageUrl(image.getImageUrl())
                     .isPrimary(image.getIsPrimary())
                     .displayOrder(image.getDisplayOrder())
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "카테고리 응답")
+    public static class CategoryResponse {
+
+        @Schema(description = "카테고리 ID", example = "1")
+        private Long categoryId;
+
+        @Schema(description = "카테고리명", example = "의류")
+        private String categoryName;
+
+        @Schema(description = "전시 순서", example = "0")
+        private Integer displayOrder;
+
+        public static CategoryResponse from(Category category) {
+            return CategoryResponse.builder()
+                    .categoryId(category.getCategoryId())
+                    .categoryName(category.getCategoryName())
+                    .displayOrder(category.getDisplayOrder())
                     .build();
         }
     }

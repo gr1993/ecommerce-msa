@@ -1,5 +1,7 @@
 package com.example.productservice.product.service;
 
+import com.example.productservice.category.domain.Category;
+import com.example.productservice.category.repository.CategoryRepository;
 import com.example.productservice.file.service.FileStorageService;
 import com.example.productservice.global.common.dto.PageResponse;
 import com.example.productservice.product.domain.*;
@@ -16,8 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +31,7 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
     private final FileStorageService fileStorageService;
 
     @Override
@@ -143,7 +148,14 @@ public class ProductServiceImpl implements ProductService {
             product.getImages().add(image);
         }
 
-        // 6. 저장
+        // 6. 카테고리 설정
+        if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
+            Set<Category> categories = new HashSet<>(categoryRepository.findAllById(request.getCategoryIds()));
+            product.setCategories(categories);
+            log.info("Set {} categories for product", categories.size());
+        }
+
+        // 7. 저장
         Product savedProduct = productRepository.save(product);
 
         log.info("Product created successfully with ID: {}", savedProduct.getProductId());
@@ -271,7 +283,15 @@ public class ProductServiceImpl implements ProductService {
             product.getImages().add(image);
         }
 
-        // 7. 저장
+        // 7. 카테고리 업데이트
+        product.getCategories().clear();
+        if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
+            Set<Category> categories = new HashSet<>(categoryRepository.findAllById(request.getCategoryIds()));
+            product.setCategories(categories);
+            log.info("Updated {} categories for product", categories.size());
+        }
+
+        // 8. 저장
         Product savedProduct = productRepository.save(product);
 
         log.info("Product updated successfully: productId={}", savedProduct.getProductId());

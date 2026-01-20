@@ -129,6 +129,18 @@ FOREIGN KEY (parent_id) REFERENCES category(category_id)
 ON DELETE SET NULL;
 
 
+-- 상품과 카테고리 매핑 테이블
+CREATE TABLE product_category (
+    product_id BIGINT NOT NULL,
+    category_id BIGINT NOT NULL,
+    PRIMARY KEY (product_id, category_id),
+    CONSTRAINT fk_pc_product FOREIGN KEY (product_id)
+        REFERENCES product(product_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pc_category FOREIGN KEY (category_id)
+        REFERENCES category(category_id) ON DELETE CASCADE
+) COMMENT='상품과 카테고리를 연결하는 매핑 테이블';
+
+
 -- 상품 전시 영역 매핑 테이블
 CREATE TABLE product_display_mapping (
     mapping_id      BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '매핑 테이블 PK',

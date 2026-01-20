@@ -27,6 +27,9 @@ public class ProductSearchRequest {
     @Schema(description = "진열 여부", example = "true")
     private Boolean isDisplayed;
 
+    @Schema(description = "카테고리 ID", example = "1")
+    private Long categoryId;
+
     @Schema(description = "최소 가격", example = "10000")
     private Double minPrice;
 
