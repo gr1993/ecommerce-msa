@@ -1,5 +1,16 @@
 # catalog-service
 
+catalog-service는 사용자에게 상품 정보를 제공하는 검색 전용 서비스이며, **읽기 전용 모델**로 동작한다.  
+주 저장소는 Elasticsearch를 사용하며, 이 서비스는 다음과 같은 기능을 제공할 예정이다.
+* Elasticsearch
+  * 자동완성 기능: Edge N-gram 사용 (부분 매칭용 n-gram은 사용하지 않을 예정)
+  * 효율적인 한글 검색: nori 분석기 적용
+  * 정렬, 집계, 페이지네이션 등 다양한 검색 편의 기능
+  * 상품 목록 정렬: 판매량 순과 같은 정보는 실시간성보다 정합성이 중요하므로 ES에 저장하고, 하루 단위 배치로 갱신
+* Redis
+  * 재고 관리: 실시간성이 중요한 데이터는 상세 조회에서 주로 사용하며, ES에는 저장하지 않고 Redis를 통해 관리
+  * 카테고리 캐싱: 카테고리 관련 정보도 Redis에 캐싱하여, product-service API 호출 없이 빠르게 조회
+
 
 ### Full Sync API
 Full Sync API는 catalog-service 프로젝트가 처음 생성될 때, 초기 데이터 이관용으로 사용된다.  
@@ -17,6 +28,7 @@ Full Sync API 구현 시에는 멱등성을 확보하여 같은 데이터를 여
 * Spring Boot 3.5.9
 * Spring Cloud Config : 외부 설정 서버 연동
 * Spring Cloud Netflix Eureka Client : 서비스 디스커버리 등록
+* Spring Data Elasticsearch 5.5.7
 * Spring Kafka : 이벤트 메시징
 * Springwolf 1.20.0 : AsyncAPI 문서 자동 생성
 * springdoc-openapi 2.8.9 : OpenAPI 문서 자동 생성

@@ -1,0 +1,26 @@
+{
+  "properties": {
+    "productId": { "type": "keyword" },
+    "productName": {
+      "type": "text",
+      "analyzer": "korean_analyzer",
+      "fields": {
+        "autocomplete": {
+          "type": "text",
+          "analyzer": "autocomplete_analyzer",
+          "search_analyzer": "standard"
+        }
+      }
+    },
+    "description": {
+      "type": "text",
+      "analyzer": "korean_analyzer"
+    },
+    "basePrice": { "type": "long" },
+    "salePrice": { "type": "long" },
+    "status": { "type": "keyword" },
+    "primaryImageUrl": { "type": "keyword", "index": false },
+    "createdAt": { "type": "date", "format": "strict_date_optional_time||epoch_millis" },
+    "updatedAt": { "type": "date", "format": "strict_date_optional_time||epoch_millis" }
+  }
+}
