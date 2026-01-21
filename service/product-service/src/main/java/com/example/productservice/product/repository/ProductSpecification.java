@@ -10,10 +10,11 @@ import org.springframework.data.jpa.domain.Specification;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class ProductSpecification {
 
-    public static Specification<Product> searchWith(ProductSearchRequest request) {
+    public static Specification<Product> searchWith(ProductSearchRequest request, Set<Long> categoryIds) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -65,13 +66,10 @@ public class ProductSpecification {
                 ));
             }
 
-            // 카테고리 검색
-            if (request.getCategoryId() != null) {
+            // 카테고리 검색 (상위 카테고리 선택 시 하위 카테고리 포함)
+            if (categoryIds != null && !categoryIds.isEmpty()) {
                 Join<Product, Category> categoryJoin = root.join("categories");
-                predicates.add(criteriaBuilder.equal(
-                        categoryJoin.get("categoryId"),
-                        request.getCategoryId()
-                ));
+                predicates.add(categoryJoin.get("categoryId").in(categoryIds));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

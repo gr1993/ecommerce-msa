@@ -41,9 +41,17 @@ public class ProductServiceImpl implements ProductService {
         // 페이지네이션 설정
         Pageable pageable = createPageable(request);
 
+        // 카테고리 ID가 있으면 해당 카테고리 + 모든 하위 카테고리 ID 수집
+        Set<Long> categoryIds = null;
+        if (request.getCategoryId() != null) {
+            categoryIds = collectCategoryIdsWithDescendants(request.getCategoryId());
+            log.info("Category {} expanded to {} categories (including descendants)",
+                    request.getCategoryId(), categoryIds.size());
+        }
+
         // 검색 조건으로 상품 조회
         Page<Product> productPage = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, categoryIds),
                 pageable
         );
 
@@ -341,5 +349,25 @@ public class ProductServiceImpl implements ProductService {
             current = current.getParent();
         }
         return depth;
+    }
+
+    /**
+     * 주어진 카테고리 ID와 그 모든 하위 카테고리 ID를 수집합니다.
+     * 상위 카테고리로 검색 시 하위 카테고리에 속한 상품도 함께 검색하기 위함입니다.
+     */
+    private Set<Long> collectCategoryIdsWithDescendants(Long categoryId) {
+        Set<Long> categoryIds = new HashSet<>();
+        Category category = categoryRepository.findById(categoryId).orElse(null);
+        if (category != null) {
+            collectDescendantIds(category, categoryIds);
+        }
+        return categoryIds;
+    }
+
+    private void collectDescendantIds(Category category, Set<Long> categoryIds) {
+        categoryIds.add(category.getCategoryId());
+        for (Category child : category.getChildren()) {
+            collectDescendantIds(child, categoryIds);
+        }
     }
 }

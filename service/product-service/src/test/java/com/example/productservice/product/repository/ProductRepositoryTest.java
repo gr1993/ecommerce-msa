@@ -118,7 +118,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -138,7 +138,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -159,7 +159,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -181,7 +181,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -208,7 +208,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -226,7 +226,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
@@ -247,7 +247,7 @@ class ProductRepositoryTest {
 
         // when
         Page<Product> result = productRepository.findAll(
-                ProductSpecification.searchWith(request),
+                ProductSpecification.searchWith(request, null),
                 pageable
         );
 
