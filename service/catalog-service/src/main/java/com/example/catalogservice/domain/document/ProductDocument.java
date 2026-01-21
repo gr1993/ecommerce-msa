@@ -11,7 +11,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Document(indexName = "products")
+// indexName은 '별칭(Alias)'으로 사용할 이름을 적고,
+// createIndex = false를 통해 자동 생성을 막습니다. (ElasticsearchIndexInitializer 클래스에서 생성 로직 구현)
+@Document(indexName = "products", createIndex = false)
 @Setting(settingPath = "elasticsearch/settings.json")
 public class ProductDocument {
 
