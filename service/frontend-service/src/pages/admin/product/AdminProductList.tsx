@@ -3,6 +3,7 @@ import { Table, Input, Select, Button, Space, message } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { searchProducts, type ProductResponse } from '../../../api/productApi'
+import { getCategoryTree, type CategoryTreeResponse } from '../../../api/categoryApi'
 import './AdminProductList.css'
 
 const { Option } = Select
@@ -11,7 +12,6 @@ interface Product {
   id: number
   product_name: string
   product_code: string
-  category: string
   base_price: number
   updated_at: string
   status: string
@@ -21,7 +21,6 @@ function AdminProductList() {
   const navigate = useNavigate()
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [searchName, setSearchName] = useState('')
-  const [searchCategory, setSearchCategory] = useState<string | undefined>(undefined)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({
@@ -30,12 +29,46 @@ function AdminProductList() {
     total: 0,
   })
 
+  // 카테고리 관련 state
+  const [categoryTree, setCategoryTree] = useState<CategoryTreeResponse[]>([])
+  const [selectedCategory1, setSelectedCategory1] = useState<number | undefined>(undefined) // 대카테고리
+  const [selectedCategory2, setSelectedCategory2] = useState<number | undefined>(undefined) // 중카테고리
+  const [selectedCategory3, setSelectedCategory3] = useState<number | undefined>(undefined) // 소카테고리
+
+  // 중/소 카테고리 목록 계산
+  const category2List = selectedCategory1
+    ? categoryTree.find(c => c.categoryId === selectedCategory1)?.children || []
+    : []
+  const category3List = selectedCategory2
+    ? category2List.find(c => c.categoryId === selectedCategory2)?.children || []
+    : []
+
+  // 검색에 사용할 최종 카테고리 ID (가장 하위 선택된 카테고리)
+  const getSelectedCategoryId = (): number | undefined => {
+    if (selectedCategory3) return selectedCategory3
+    if (selectedCategory2) return selectedCategory2
+    if (selectedCategory1) return selectedCategory1
+    return undefined
+  }
+
+  // 카테고리 트리 조회
+  const fetchCategoryTree = async () => {
+    try {
+      const tree = await getCategoryTree()
+      setCategoryTree(tree)
+    } catch (error) {
+      console.error('Failed to fetch category tree:', error)
+      message.error('카테고리 목록 조회에 실패했습니다.')
+    }
+  }
+
   // API에서 상품 목록 조회
-  const fetchProducts = async (page: number = 0, size: number = 10) => {
+  const fetchProducts = async (page: number = 0, size: number = 10, categoryId?: number) => {
     setLoading(true)
     try {
       const response = await searchProducts({
         productName: searchName || undefined,
+        categoryId: categoryId,
         page,
         size,
         sort: 'updatedAt,desc',
@@ -46,7 +79,6 @@ function AdminProductList() {
         id: item.productId,
         product_name: item.productName,
         product_code: item.productCode || '',
-        category: 'electronics', // TODO: 카테고리 매핑 필요
         base_price: item.basePrice,
         updated_at: item.updatedAt,
         status: item.status,
@@ -66,37 +98,13 @@ function AdminProductList() {
     }
   }
 
-  // 컴포넌트 마운트 시 상품 목록 조회
+  // 컴포넌트 마운트 시 상품 목록 및 카테고리 트리 조회
   useEffect(() => {
     fetchProducts()
+    fetchCategoryTree()
   }, [])
 
-  const categoryMap: Record<string, string> = {
-    electronics: '전자제품',
-    clothing: '의류',
-    food: '식품',
-    books: '도서',
-    sports: '스포츠',
-    beauty: '뷰티'
-  }
-
   const columns: ColumnsType<Product> = [
-    {
-      title: '카테고리',
-      dataIndex: 'category',
-      key: 'category',
-      render: (category: string) => categoryMap[category] || category,
-      filters: [
-        { text: '전자제품', value: 'electronics' },
-        { text: '의류', value: 'clothing' },
-        { text: '식품', value: 'food' },
-        { text: '도서', value: 'books' },
-        { text: '스포츠', value: 'sports' },
-        { text: '뷰티', value: 'beauty' },
-      ],
-      onFilter: (value, record) => record.category === value,
-      sorter: (a, b) => (categoryMap[a.category] || a.category).localeCompare(categoryMap[b.category] || b.category),
-    },
     {
       title: '상품명',
       dataIndex: 'product_name',
@@ -172,19 +180,34 @@ function AdminProductList() {
 
   const handleSearch = () => {
     // 검색 버튼 클릭 시 첫 페이지부터 다시 조회
-    fetchProducts(0, pagination.pageSize)
+    fetchProducts(0, pagination.pageSize, getSelectedCategoryId())
   }
 
   const handleReset = () => {
     setSearchName('')
-    setSearchCategory(undefined)
+    setSelectedCategory1(undefined)
+    setSelectedCategory2(undefined)
+    setSelectedCategory3(undefined)
     // 초기화 후 다시 조회
-    fetchProducts(0, pagination.pageSize)
+    fetchProducts(0, pagination.pageSize, undefined)
   }
 
   const handleTableChange = (newPagination: any) => {
     // 페이지 변경 시 API 재호출
-    fetchProducts(newPagination.current - 1, newPagination.pageSize)
+    fetchProducts(newPagination.current - 1, newPagination.pageSize, getSelectedCategoryId())
+  }
+
+  // 대카테고리 변경 시 중/소카테고리 초기화
+  const handleCategory1Change = (value: number | undefined) => {
+    setSelectedCategory1(value)
+    setSelectedCategory2(undefined)
+    setSelectedCategory3(undefined)
+  }
+
+  // 중카테고리 변경 시 소카테고리 초기화
+  const handleCategory2Change = (value: number | undefined) => {
+    setSelectedCategory2(value)
+    setSelectedCategory3(undefined)
   }
 
   return (
@@ -196,7 +219,7 @@ function AdminProductList() {
 
         <div className="product-list-filters">
           <div className="filter-inputs">
-            <Space size="middle">
+            <Space size="middle" wrap>
               <Input
                 placeholder="상품명 검색"
                 allowClear
@@ -206,18 +229,45 @@ function AdminProductList() {
                 onPressEnter={handleSearch}
               />
               <Select
-                placeholder="카테고리 선택"
+                placeholder="대카테고리"
                 allowClear
                 style={{ width: 150 }}
-                value={searchCategory}
-                onChange={(value) => setSearchCategory(value)}
+                value={selectedCategory1}
+                onChange={handleCategory1Change}
               >
-                <Option value="electronics">전자제품</Option>
-                <Option value="clothing">의류</Option>
-                <Option value="food">식품</Option>
-                <Option value="books">도서</Option>
-                <Option value="sports">스포츠</Option>
-                <Option value="beauty">뷰티</Option>
+                {categoryTree.map((cat) => (
+                  <Option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
+                  </Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="중카테고리"
+                allowClear
+                style={{ width: 150 }}
+                value={selectedCategory2}
+                onChange={handleCategory2Change}
+                disabled={!selectedCategory1 || category2List.length === 0}
+              >
+                {category2List.map((cat) => (
+                  <Option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
+                  </Option>
+                ))}
+              </Select>
+              <Select
+                placeholder="소카테고리"
+                allowClear
+                style={{ width: 150 }}
+                value={selectedCategory3}
+                onChange={setSelectedCategory3}
+                disabled={!selectedCategory2 || category3List.length === 0}
+              >
+                {category3List.map((cat) => (
+                  <Option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
+                  </Option>
+                ))}
               </Select>
             </Space>
           </div>

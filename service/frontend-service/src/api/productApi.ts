@@ -75,6 +75,8 @@ export interface SearchProductsParams {
   minPrice?: number
   /** 최대 가격 */
   maxPrice?: number
+  /** 카테고리 ID (해당 카테고리 및 하위 카테고리 상품 조회) */
+  categoryId?: number
   /** 페이지 번호 (0부터 시작) */
   page?: number
   /** 페이지 크기 */
@@ -318,6 +320,9 @@ export const searchProducts = async (params?: SearchProductsParams): Promise<Pag
     }
     if (params?.maxPrice !== undefined) {
       queryParams.append('maxPrice', params.maxPrice.toString())
+    }
+    if (params?.categoryId !== undefined) {
+      queryParams.append('categoryId', params.categoryId.toString())
     }
     if (params?.page !== undefined) {
       queryParams.append('page', params.page.toString())
