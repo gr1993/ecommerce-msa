@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.IndexOperations;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,11 @@ class ProductSearchRepositoryIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // 다른 테스트에서 인덱스를 삭제했을 수 있으므로, 인덱스가 없으면 생성
+        IndexOperations indexOps = elasticsearchOperations.indexOps(ProductDocument.class);
+        if (!indexOps.exists()) {
+            indexOps.createWithMapping();
+        }
         productSearchRepository.deleteAll();
     }
 
