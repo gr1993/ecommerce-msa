@@ -43,6 +43,7 @@ function AdminProductRegister() {
         salePrice: formData.sale_price,
         status: formData.status,
         isDisplayed: formData.is_displayed,
+        categoryIds: formData.categories?.map((cat: any) => cat.categoryId),
         optionGroups: formData.optionGroups?.map((group: any) => ({
           optionGroupName: group.optionGroupName,
           displayOrder: group.displayOrder,

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { message, Spin } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
 import ProductForm from './ProductForm'
-import type { OptionGroup, SKU, ProductImage } from './ProductForm'
+import type { OptionGroup, SKU, ProductImage, SelectedCategory } from './ProductForm'
 import { getProductDetail, updateProduct, uploadProductImage, type ProductCreateRequest } from '../../../api/productApi'
 import './AdminProductRegister.css'
 
@@ -35,6 +35,11 @@ function AdminProductEdit() {
           sale_price: product.salePrice,
           status: product.status,
           is_displayed: product.isDisplayed,
+          categories: product.categories?.map(cat => ({
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            fullPath: cat.categoryName // 서버에서 fullPath를 제공하지 않으면 categoryName만 표시
+          })) as SelectedCategory[] || [],
           optionGroups: product.optionGroups.map(group => ({
             id: String(group.id),
             optionGroupName: group.optionGroupName,
@@ -118,6 +123,7 @@ function AdminProductEdit() {
         salePrice: formData.sale_price,
         status: formData.status,
         isDisplayed: formData.is_displayed,
+        categoryIds: formData.categories?.map((cat: SelectedCategory) => cat.categoryId),
         optionGroups: formData.optionGroups?.map((group: OptionGroup) => ({
           optionGroupName: group.optionGroupName,
           displayOrder: group.displayOrder,

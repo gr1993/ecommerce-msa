@@ -155,6 +155,8 @@ export interface ProductCreateRequest {
   status: string
   /** 진열 여부 */
   isDisplayed?: boolean
+  /** 카테고리 ID 목록 (3단계 카테고리만 등록 가능) */
+  categoryIds?: number[]
   /** 옵션 그룹 목록 */
   optionGroups?: OptionGroupRequest[]
   /** SKU 목록 */
@@ -224,6 +226,16 @@ export interface ImageResponse {
 }
 
 /**
+ * 카테고리 응답 DTO (상품 상세 조회용)
+ */
+export interface ProductCategoryResponse {
+  /** 카테고리 ID */
+  categoryId: number
+  /** 카테고리명 */
+  categoryName: string
+}
+
+/**
  * 상품 상세 응답 DTO
  */
 export interface ProductDetailResponse {
@@ -243,6 +255,8 @@ export interface ProductDetailResponse {
   status: string
   /** 진열 여부 */
   isDisplayed: boolean
+  /** 카테고리 목록 */
+  categories: ProductCategoryResponse[]
   /** 옵션 그룹 목록 */
   optionGroups: OptionGroupResponse[]
   /** SKU 목록 */

@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react'
-import { 
-  Form, 
-  Input, 
-  InputNumber, 
-  Select, 
-  Button, 
-  Upload, 
-  Space, 
-  message, 
+import {
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Button,
+  Upload,
+  Space,
+  message,
   Card,
   Switch,
   Table,
-  Popconfirm
+  Popconfirm,
+  Tag
 } from 'antd'
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import type { RcFile, UploadFile } from 'antd/es/upload/interface'
+import { getCategoryTree, type CategoryTreeResponse } from '../../../api/categoryApi'
 import './AdminProductRegister.css'
 
 const { TextArea } = Input
@@ -51,6 +53,12 @@ export interface ProductImage {
   url?: string // 수정 시 기존 이미지 URL
 }
 
+export interface SelectedCategory {
+  categoryId: number
+  categoryName: string
+  fullPath: string // 대 > 중 > 소 형태의 경로
+}
+
 interface ProductFormProps {
   mode: 'create' | 'edit'
   initialData?: {
@@ -61,6 +69,7 @@ interface ProductFormProps {
     sale_price?: number
     status?: string
     is_displayed?: boolean
+    categories?: SelectedCategory[]
     optionGroups?: OptionGroup[]
     skus?: SKU[]
     images?: ProductImage[]
@@ -76,6 +85,35 @@ function ProductForm({ mode, initialData, onSubmit, onCancel, loading = false }:
   const [skus, setSkus] = useState<SKU[]>([])
   const [images, setImages] = useState<ProductImage[]>([])
 
+  // 카테고리 관련 state
+  const [categoryTree, setCategoryTree] = useState<CategoryTreeResponse[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<SelectedCategory[]>([])
+  const [selectedCategory1, setSelectedCategory1] = useState<number | undefined>(undefined)
+  const [selectedCategory2, setSelectedCategory2] = useState<number | undefined>(undefined)
+  const [selectedCategory3, setSelectedCategory3] = useState<number | undefined>(undefined)
+
+  // 중/소 카테고리 목록 계산
+  const category2List = selectedCategory1
+    ? categoryTree.find(c => c.categoryId === selectedCategory1)?.children || []
+    : []
+  const category3List = selectedCategory2
+    ? category2List.find(c => c.categoryId === selectedCategory2)?.children || []
+    : []
+
+  // 카테고리 트리 로드
+  useEffect(() => {
+    const fetchCategoryTree = async () => {
+      try {
+        const tree = await getCategoryTree()
+        setCategoryTree(tree)
+      } catch (error) {
+        console.error('Failed to fetch category tree:', error)
+        message.error('카테고리 목록 조회에 실패했습니다.')
+      }
+    }
+    fetchCategoryTree()
+  }, [])
+
   // 초기 데이터 로드 (수정 모드)
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -89,6 +127,9 @@ function ProductForm({ mode, initialData, onSubmit, onCancel, loading = false }:
         is_displayed: initialData.is_displayed !== undefined ? initialData.is_displayed : true,
       })
 
+      if (initialData.categories) {
+        setSelectedCategories(initialData.categories)
+      }
       if (initialData.optionGroups) {
         setOptionGroups(initialData.optionGroups)
       }
@@ -104,11 +145,63 @@ function ProductForm({ mode, initialData, onSubmit, onCancel, loading = false }:
   const handleSubmit = (values: any) => {
     const formData = {
       ...values,
+      categories: selectedCategories,
       optionGroups,
       skus,
       images
     }
     onSubmit(formData)
+  }
+
+  // 카테고리 추가
+  const addCategory = () => {
+    if (!selectedCategory3) {
+      message.warning('소카테고리(3단계)까지 선택해주세요.')
+      return
+    }
+
+    // 이미 추가된 카테고리인지 확인
+    if (selectedCategories.some(c => c.categoryId === selectedCategory3)) {
+      message.warning('이미 추가된 카테고리입니다.')
+      return
+    }
+
+    // 카테고리 경로 생성
+    const cat1 = categoryTree.find(c => c.categoryId === selectedCategory1)
+    const cat2 = category2List.find(c => c.categoryId === selectedCategory2)
+    const cat3 = category3List.find(c => c.categoryId === selectedCategory3)
+
+    if (cat1 && cat2 && cat3) {
+      const newCategory: SelectedCategory = {
+        categoryId: selectedCategory3,
+        categoryName: cat3.categoryName,
+        fullPath: `${cat1.categoryName} > ${cat2.categoryName} > ${cat3.categoryName}`
+      }
+      setSelectedCategories([...selectedCategories, newCategory])
+
+      // 선택 초기화
+      setSelectedCategory1(undefined)
+      setSelectedCategory2(undefined)
+      setSelectedCategory3(undefined)
+    }
+  }
+
+  // 카테고리 제거
+  const removeCategory = (categoryId: number) => {
+    setSelectedCategories(selectedCategories.filter(c => c.categoryId !== categoryId))
+  }
+
+  // 대카테고리 변경 시 중/소카테고리 초기화
+  const handleCategory1Change = (value: number | undefined) => {
+    setSelectedCategory1(value)
+    setSelectedCategory2(undefined)
+    setSelectedCategory3(undefined)
+  }
+
+  // 중카테고리 변경 시 소카테고리 초기화
+  const handleCategory2Change = (value: number | undefined) => {
+    setSelectedCategory2(value)
+    setSelectedCategory3(undefined)
   }
 
   // 옵션 그룹 관리
@@ -378,9 +471,84 @@ function ProductForm({ mode, initialData, onSubmit, onCancel, loading = false }:
         </div>
       </Card>
 
+      {/* 카테고리 섹션 */}
+      <Card title="카테고리" className="form-section">
+        <div className="category-selector">
+          <Space size="middle" wrap style={{ marginBottom: 16 }}>
+            <Select
+              placeholder="대카테고리"
+              allowClear
+              style={{ width: 150 }}
+              value={selectedCategory1}
+              onChange={handleCategory1Change}
+            >
+              {categoryTree.map((cat) => (
+                <Option key={cat.categoryId} value={cat.categoryId}>
+                  {cat.categoryName}
+                </Option>
+              ))}
+            </Select>
+            <Select
+              placeholder="중카테고리"
+              allowClear
+              style={{ width: 150 }}
+              value={selectedCategory2}
+              onChange={handleCategory2Change}
+              disabled={!selectedCategory1 || category2List.length === 0}
+            >
+              {category2List.map((cat) => (
+                <Option key={cat.categoryId} value={cat.categoryId}>
+                  {cat.categoryName}
+                </Option>
+              ))}
+            </Select>
+            <Select
+              placeholder="소카테고리"
+              allowClear
+              style={{ width: 150 }}
+              value={selectedCategory3}
+              onChange={setSelectedCategory3}
+              disabled={!selectedCategory2 || category3List.length === 0}
+            >
+              {category3List.map((cat) => (
+                <Option key={cat.categoryId} value={cat.categoryId}>
+                  {cat.categoryName}
+                </Option>
+              ))}
+            </Select>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={addCategory}
+              disabled={!selectedCategory3}
+            >
+              추가
+            </Button>
+          </Space>
+        </div>
+        <div className="selected-categories">
+          {selectedCategories.length === 0 ? (
+            <div className="empty-state">카테고리를 선택하세요 (3단계 카테고리만 등록 가능)</div>
+          ) : (
+            <Space wrap>
+              {selectedCategories.map((cat) => (
+                <Tag
+                  key={cat.categoryId}
+                  closable
+                  onClose={() => removeCategory(cat.categoryId)}
+                  style={{ padding: '4px 8px', fontSize: '13px' }}
+                >
+                  {cat.fullPath}
+                </Tag>
+              ))}
+            </Space>
+          )}
+        </div>
+      </Card>
+
       {/* 옵션 그룹 섹션 */}
-      <Card 
-        title="옵션 그룹" 
+      <Card
+        title="옵션 그룹"
         className="form-section"
         extra={
           <Button type="dashed" icon={<PlusOutlined />} onClick={addOptionGroup}>
