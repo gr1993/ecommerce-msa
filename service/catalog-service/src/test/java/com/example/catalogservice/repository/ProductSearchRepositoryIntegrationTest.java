@@ -155,6 +155,7 @@ class ProductSearchRepositoryIntegrationTest {
                 .salePrice(900000L)
                 .status("ON_SALE")
                 .primaryImageUrl("https://example.com/image.jpg")
+                .categoryIds(List.of(1L, 2L))
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

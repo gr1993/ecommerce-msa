@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -43,6 +44,12 @@ public class ProductDocument {
 
     @Field(type = FieldType.Keyword, index = false) // 검색하지 않는 필드
     private String primaryImageUrl;
+
+    /**
+     * Leaf 카테고리 ID 배열
+     */
+    @Field(type = FieldType.Long)
+    private List<Long> categoryIds;
 
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second_millis)
     private LocalDateTime createdAt;
