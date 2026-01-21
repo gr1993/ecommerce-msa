@@ -124,6 +124,24 @@ services:
     networks:
       - ecommerce-net
 
+  redis:
+    image: redis:8
+    container_name: redis
+    ports:
+      - 6379:6379
+    networks:
+      - ecommerce-net
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - 5540:5540
+    depends_on:
+      - redis
+    networks:
+      - ecommerce-net
+
 
 networks:
   ecommerce-net:
