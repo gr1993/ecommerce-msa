@@ -6,6 +6,7 @@ import com.example.productservice.file.service.FileStorageService;
 import com.example.productservice.global.common.dto.PageResponse;
 import com.example.productservice.product.domain.*;
 import com.example.productservice.product.dto.*;
+import org.springframework.data.jpa.domain.Specification;
 import com.example.productservice.product.repository.ProductRepository;
 import com.example.productservice.product.repository.ProductSpecification;
 import lombok.RequiredArgsConstructor;
@@ -307,6 +308,34 @@ public class ProductServiceImpl implements ProductService {
         log.info("Product updated successfully: productId={}", savedProduct.getProductId());
 
         return ProductResponse.from(savedProduct);
+    }
+
+    @Override
+    public PageResponse<CatalogSyncProductResponse> getProductsForCatalogSync(CatalogSyncRequest request) {
+        log.info("Getting products for catalog sync - page: {}, size: {}",
+                request.getPageOrDefault(), request.getSizeOrDefault());
+
+        Pageable pageable = PageRequest.of(
+                request.getPageOrDefault(),
+                request.getSizeOrDefault(),
+                Sort.by("productId").ascending()
+        );
+
+        // ACTIVE 상태이고 진열 중인 상품만 조회
+        Specification<Product> spec = (root, query, cb) -> cb.and(
+                cb.equal(root.get("status"), "ACTIVE"),
+                cb.equal(root.get("isDisplayed"), true)
+        );
+
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+        Page<CatalogSyncProductResponse> responsePage = productPage.map(CatalogSyncProductResponse::from);
+
+        log.info("Found {} products for catalog sync (page {}/{})",
+                responsePage.getNumberOfElements(),
+                responsePage.getNumber() + 1,
+                responsePage.getTotalPages());
+
+        return PageResponse.from(responsePage);
     }
 
     private Pageable createPageable(ProductSearchRequest request) {
