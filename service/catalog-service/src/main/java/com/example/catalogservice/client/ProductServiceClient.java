@@ -2,42 +2,16 @@ package com.example.catalogservice.client;
 
 import com.example.catalogservice.client.dto.CatalogSyncProductResponse;
 import com.example.catalogservice.client.dto.PageResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class ProductServiceClient {
+@FeignClient(name = "product-service")
+public interface ProductServiceClient {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${service.product.url}")
-    private String productServiceUrl;
-
-    public PageResponse<CatalogSyncProductResponse> getProductsForSync(int page, int size) {
-        String url = UriComponentsBuilder.fromHttpUrl(productServiceUrl)
-                .path("/api/internal/products/sync")
-                .queryParam("page", page)
-                .queryParam("size", size)
-                .toUriString();
-
-        log.debug("Fetching products for sync: page={}, size={}, url={}", page, size, url);
-
-        ResponseEntity<PageResponse<CatalogSyncProductResponse>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
-        );
-
-        return response.getBody();
-    }
+    @GetMapping("/api/internal/products/sync")
+    PageResponse<CatalogSyncProductResponse> getProductsForSync(
+            @RequestParam("page") int page,
+            @RequestParam("size") int size
+    );
 }
