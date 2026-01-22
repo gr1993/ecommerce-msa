@@ -36,8 +36,11 @@ import MarketMyPagePoints from './pages/market/mypage/MarketMyPagePoints'
 import MarketMyPageProfile from './pages/market/mypage/MarketMyPageProfile'
 import MarketLogin from './pages/market/MarketLogin'
 import MarketSignup from './pages/market/MarketSignup'
+import { usePageTitle } from "./hooks/usePageTitle";
 
 function App() {
+  usePageTitle();
+
   return (
     <BrowserRouter>
       <Routes>
