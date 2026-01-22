@@ -1,6 +1,8 @@
 package com.example.catalogservice.controller;
 
+import com.example.catalogservice.controller.dto.PageResponse;
 import com.example.catalogservice.controller.dto.ProductResponse;
+import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
 import com.example.catalogservice.service.ProductSearchService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,8 +10,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,14 +24,32 @@ public class ProductController {
 
     private final ProductSearchService productSearchService;
 
-    @Operation(summary = "상품 목록 조회", description = "상품 목록을 조회합니다. 카테고리 ID로 필터링할 수 있습니다.")
+    @Operation(summary = "상품 목록 조회", description = "검색 필터와 페이지네이션을 적용하여 상품 목록을 조회합니다.")
     @GetMapping
-    public ResponseEntity<Page<ProductResponse>> getProducts(
-            @Parameter(description = "카테고리 ID (선택)") @RequestParam(value = "categoryId", required = false) Long categoryId,
-            @PageableDefault(size = 20) Pageable pageable
+    public ResponseEntity<PageResponse<ProductResponse>> getProducts(
+            @Parameter(description = "상품명 (부분 검색)") @RequestParam(name = "productName", required = false) String productName,
+            @Parameter(description = "카테고리 ID") @RequestParam(name = "categoryId", required = false) Long categoryId,
+            @Parameter(description = "상품 상태 (ACTIVE, INACTIVE, SOLD_OUT)") @RequestParam(name = "status", required = false) String status,
+            @Parameter(description = "최소 가격") @RequestParam(name = "minPrice", required = false) Long minPrice,
+            @Parameter(description = "최대 가격") @RequestParam(name = "maxPrice", required = false) Long maxPrice,
+            @Parameter(description = "페이지 번호 (0부터 시작)") @RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
+            @Parameter(description = "페이지 크기") @RequestParam(name = "size", required = false, defaultValue = "20") Integer size,
+            @Parameter(description = "정렬 기준 (예: createdAt,desc)") @RequestParam(name = "sort", required = false) String sort
     ) {
-        Page<ProductDocument> products = productSearchService.searchProducts(categoryId, pageable);
-        Page<ProductResponse> response = products.map(ProductResponse::from);
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName(productName)
+                .categoryId(categoryId)
+                .status(status)
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .page(page)
+                .size(size)
+                .sort(sort)
+                .build();
+
+        Page<ProductDocument> products = productSearchService.searchProducts(request);
+        PageResponse<ProductResponse> response = PageResponse.from(products, ProductResponse::from);
+
         return ResponseEntity.ok(response);
     }
 }

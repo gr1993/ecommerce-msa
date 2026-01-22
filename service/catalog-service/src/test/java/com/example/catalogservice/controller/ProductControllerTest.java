@@ -1,363 +1,376 @@
 package com.example.catalogservice.controller;
 
-import com.example.catalogservice.controller.dto.ProductResponse;
+import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
 import com.example.catalogservice.service.ProductSearchService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.domain.Page;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = ProductController.class)
-@ContextConfiguration(classes = {ProductController.class, ProductControllerTest.TestConfig.class})
-@DisplayName("ProductController 단위 테스트")
+@WebMvcTest(ProductController.class)
 class ProductControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
+    @MockBean
     private ProductSearchService productSearchService;
 
-    @BeforeEach
-    void setUp() {
-        Mockito.reset(productSearchService);
-    }
-
-    @Configuration
-    static class TestConfig {
-        @Bean
-        public ProductSearchService productSearchService() {
-            return Mockito.mock(ProductSearchService.class);
-        }
-    }
-
     @Test
-    @DisplayName("GET /api/catalog/products - 상품 목록 조회 성공")
-    void getProducts_Success() throws Exception {
-        // Given
-        Long categoryId = 100L;
-        Pageable pageable = PageRequest.of(0, 20);
-
-        List<ProductDocument> documents = List.of(
-                createProductDocument("1", "노트북", List.of(100L, 200L)),
-                createProductDocument("2", "마우스", List.of(100L, 300L)),
-                createProductDocument("3", "키보드", List.of(100L, 400L))
+    @DisplayName("GET /api/catalog/products - 조건 없이 전체 조회")
+    void getProducts_withoutConditions() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로", 3300000L),
+                createProduct("2", "갤럭시 S24", 1400000L)
         );
-        Page<ProductDocument> productsPage = new PageImpl<>(documents, pageable, documents.size());
-
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(productsPage);
-
-        // When & Then
-        mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .param("page", "0")
-                        .param("size", "20")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(3)))
-                .andExpect(jsonPath("$.content[0].productId", is("1")))
-                .andExpect(jsonPath("$.content[0].productName", is("노트북")))
-                .andExpect(jsonPath("$.content[0].basePrice", is(10000)))
-                .andExpect(jsonPath("$.content[0].salePrice", is(8000)))
-                .andExpect(jsonPath("$.content[0].status", is("ACTIVE")))
-                .andExpect(jsonPath("$.content[0].categoryIds", hasSize(2)))
-                .andExpect(jsonPath("$.content[1].productId", is("2")))
-                .andExpect(jsonPath("$.content[1].productName", is("마우스")))
-                .andExpect(jsonPath("$.content[2].productId", is("3")))
-                .andExpect(jsonPath("$.content[2].productName", is("키보드")))
-                .andExpect(jsonPath("$.totalElements", is(3)))
-                .andExpect(jsonPath("$.totalPages", is(1)))
-                .andExpect(jsonPath("$.size", is(20)))
-                .andExpect(jsonPath("$.number", is(0)));
-
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
-    }
-
-    @Test
-    @DisplayName("GET /api/catalog/products - 빈 결과 반환")
-    void getProducts_EmptyResult() throws Exception {
-        // Given
-        Long categoryId = 999L;
-        Pageable pageable = PageRequest.of(0, 20);
-        Page<ProductDocument> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(emptyPage);
-
-        // When & Then
-        mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .param("page", "0")
-                        .param("size", "20")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(0)))
-                .andExpect(jsonPath("$.totalElements", is(0)))
-                .andExpect(jsonPath("$.totalPages", is(0)));
-
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
-    }
-
-    @Test
-    @DisplayName("GET /api/catalog/products - 페이지네이션 파라미터 적용")
-    void getProducts_WithPagination() throws Exception {
-        // Given
-        Long categoryId = 100L;
-        Pageable pageable = PageRequest.of(2, 5);
-
-        List<ProductDocument> documents = List.of(
-                createProductDocument("11", "상품11", List.of(100L)),
-                createProductDocument("12", "상품12", List.of(100L)),
-                createProductDocument("13", "상품13", List.of(100L))
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
         );
-        Page<ProductDocument> productsPage = new PageImpl<>(documents, pageable, 13);
 
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(productsPage);
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
 
-        // When & Then
-        mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .param("page", "2")
-                        .param("size", "5")
-                        .contentType(MediaType.APPLICATION_JSON))
+        // when & then
+        mockMvc.perform(get("/api/catalog/products"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(3)))
-                .andExpect(jsonPath("$.totalElements", is(13)))
-                .andExpect(jsonPath("$.totalPages", is(3)))
-                .andExpect(jsonPath("$.size", is(5)))
-                .andExpect(jsonPath("$.number", is(2)));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].productId").value("1"))
+                .andExpect(jsonPath("$.content[0].productName").value("맥북 프로"))
+                .andExpect(jsonPath("$.content[1].productId").value("2"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
 
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
     }
 
     @Test
-    @DisplayName("GET /api/catalog/products - 기본 페이지 크기 20 적용")
-    void getProducts_DefaultPageSize() throws Exception {
-        // Given
-        Long categoryId = 100L;
-        Pageable pageable = PageRequest.of(0, 20);
-
-        Page<ProductDocument> productsPage = new PageImpl<>(List.of(), pageable, 0);
-
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(productsPage);
-
-        // When & Then
-        mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size", is(20)))
-                .andExpect(jsonPath("$.number", is(0)));
-
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
-    }
-
-    @Test
-    @DisplayName("GET /api/catalog/products - categoryId 누락 시 전체 상품 조회 (null 전달)")
-    void getProducts_MissingCategoryId_AllProducts() throws Exception {
-        // Given
-        Pageable pageable = PageRequest.of(0, 20);
-
-        List<ProductDocument> documents = List.of(
-                createProductDocument("1", "노트북", List.of(100L)),
-                createProductDocument("2", "마우스", List.of(200L)),
-                createProductDocument("3", "키보드", List.of(300L)),
-                createProductDocument("4", "모니터", List.of(400L))
+    @DisplayName("GET /api/catalog/products?productName=맥북 - 상품명으로 검색")
+    void getProducts_byProductName() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로 16인치", 3300000L),
+                createProduct("7", "맥북 에어 M2", 1400000L)
         );
-        Page<ProductDocument> productsPage = new PageImpl<>(documents, pageable, documents.size());
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
+        );
 
-        when(productSearchService.searchProducts(eq(null), any(Pageable.class)))
-                .thenReturn(productsPage);
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
 
-        // When & Then
+        // when & then
         mockMvc.perform(get("/api/catalog/products")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .param("productName", "맥북"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(4)))
-                .andExpect(jsonPath("$.totalElements", is(4)))
-                .andExpect(jsonPath("$.content[0].productName", is("노트북")))
-                .andExpect(jsonPath("$.content[1].productName", is("마우스")))
-                .andExpect(jsonPath("$.content[2].productName", is("키보드")))
-                .andExpect(jsonPath("$.content[3].productName", is("모니터")));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].productName").value("맥북 프로 16인치"))
+                .andExpect(jsonPath("$.content[1].productName").value("맥북 에어 M2"))
+                .andExpect(jsonPath("$.totalElements").value(2));
 
-        verify(productSearchService).searchProducts(eq(null), any(Pageable.class));
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
     }
 
     @Test
-    @DisplayName("GET /api/catalog/products - categoryId 없이 페이지네이션만 적용")
-    void getProducts_NoCategoryWithPagination() throws Exception {
-        // Given
-        Pageable pageable = PageRequest.of(1, 5);
-
-        List<ProductDocument> documents = List.of(
-                createProductDocument("6", "상품6", List.of(100L)),
-                createProductDocument("7", "상품7", List.of(200L))
+    @DisplayName("GET /api/catalog/products?categoryId=1 - 카테고리로 필터링")
+    void getProducts_byCategoryId() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로", 3300000L, List.of(1L, 10L)),
+                createProduct("3", "아이패드 프로", 1100000L, List.of(1L, 11L))
         );
-        Page<ProductDocument> productsPage = new PageImpl<>(documents, pageable, 12);
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
+        );
 
-        when(productSearchService.searchProducts(eq(null), any(Pageable.class)))
-                .thenReturn(productsPage);
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
 
-        // When & Then
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("categoryId", "1"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].categoryIds[0]").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products?minPrice=1000000&maxPrice=2000000 - 가격 범위 필터링")
+    void getProducts_byPriceRange() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("2", "갤럭시 S24", 1400000L),
+                createProduct("7", "맥북 에어 M2", 1400000L)
+        );
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("minPrice", "1000000")
+                        .param("maxPrice", "2000000"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products?status=ACTIVE - 상태로 필터링")
+    void getProducts_byStatus() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로", 3300000L, "ACTIVE"),
+                createProduct("2", "갤럭시 S24", 1400000L, "ACTIVE")
+        );
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("status", "ACTIVE"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products?productName=맥북&categoryId=1 - 복합 조건 검색")
+    void getProducts_combinedConditions() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로 16인치", 3300000L, List.of(1L, 10L)),
+                createProduct("7", "맥북 에어 M2", 1400000L, List.of(1L, 10L))
+        );
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                2
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("productName", "맥북")
+                        .param("categoryId", "1"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products?page=1&size=10 - 페이지네이션")
+    void getProducts_withPagination() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("11", "상품 11", 100000L),
+                createProduct("12", "상품 12", 100000L)
+        );
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(1, 10, Sort.by(Sort.Direction.DESC, "createdAt")),
+                22
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
+
+        // when & then
         mockMvc.perform(get("/api/catalog/products")
                         .param("page", "1")
-                        .param("size", "5")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .param("size", "10"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(2)))
-                .andExpect(jsonPath("$.totalElements", is(12)))
-                .andExpect(jsonPath("$.totalPages", is(3)))
-                .andExpect(jsonPath("$.size", is(5)))
-                .andExpect(jsonPath("$.number", is(1)));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.totalElements").value(22))
+                .andExpect(jsonPath("$.totalPages").value(3))
+                .andExpect(jsonPath("$.first").value(false))
+                .andExpect(jsonPath("$.last").value(false));
 
-        verify(productSearchService).searchProducts(eq(null), any(Pageable.class));
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
     }
 
     @Test
-    @DisplayName("GET /api/catalog/products - ProductResponse 매핑 검증")
-    void getProducts_ResponseMapping() throws Exception {
-        // Given
-        Long categoryId = 100L;
-        Pageable pageable = PageRequest.of(0, 20);
-
-        LocalDateTime createdAt = LocalDateTime.of(2024, 1, 1, 10, 0);
-        LocalDateTime updatedAt = LocalDateTime.of(2024, 1, 2, 15, 30);
-
-        ProductDocument document = ProductDocument.builder()
-                .productId("999")
-                .productName("테스트 상품")
-                .description("상품 설명")
-                .basePrice(50000L)
-                .salePrice(45000L)
-                .status("ON_SALE")
-                .primaryImageUrl("https://example.com/test.jpg")
-                .categoryIds(List.of(100L, 200L, 300L))
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
-                .build();
-
-        Page<ProductDocument> productsPage = new PageImpl<>(List.of(document), pageable, 1);
-
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(productsPage);
-
-        // When & Then
-        mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(1)))
-                .andExpect(jsonPath("$.content[0].productId", is("999")))
-                .andExpect(jsonPath("$.content[0].productName", is("테스트 상품")))
-                .andExpect(jsonPath("$.content[0].description", is("상품 설명")))
-                .andExpect(jsonPath("$.content[0].basePrice", is(50000)))
-                .andExpect(jsonPath("$.content[0].salePrice", is(45000)))
-                .andExpect(jsonPath("$.content[0].status", is("ON_SALE")))
-                .andExpect(jsonPath("$.content[0].primaryImageUrl", is("https://example.com/test.jpg")))
-                .andExpect(jsonPath("$.content[0].categoryIds", hasSize(3)))
-                .andExpect(jsonPath("$.content[0].categoryIds[0]", is(100)))
-                .andExpect(jsonPath("$.content[0].categoryIds[1]", is(200)))
-                .andExpect(jsonPath("$.content[0].categoryIds[2]", is(300)))
-                .andExpect(jsonPath("$.content[0].createdAt", notNullValue()))
-                .andExpect(jsonPath("$.content[0].updatedAt", notNullValue()));
-
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
-    }
-
-    @Test
-    @DisplayName("GET /api/catalog/products - 대량 데이터 조회")
-    void getProducts_LargeDataSet() throws Exception {
-        // Given
-        Long categoryId = 100L;
-        Pageable pageable = PageRequest.of(0, 20);
-
-        List<ProductDocument> documents = List.of(
-                createProductDocument("1", "상품1", List.of(100L)),
-                createProductDocument("2", "상품2", List.of(100L)),
-                createProductDocument("3", "상품3", List.of(100L)),
-                createProductDocument("4", "상품4", List.of(100L)),
-                createProductDocument("5", "상품5", List.of(100L)),
-                createProductDocument("6", "상품6", List.of(100L)),
-                createProductDocument("7", "상품7", List.of(100L)),
-                createProductDocument("8", "상품8", List.of(100L)),
-                createProductDocument("9", "상품9", List.of(100L)),
-                createProductDocument("10", "상품10", List.of(100L)),
-                createProductDocument("11", "상품11", List.of(100L)),
-                createProductDocument("12", "상품12", List.of(100L)),
-                createProductDocument("13", "상품13", List.of(100L)),
-                createProductDocument("14", "상품14", List.of(100L)),
-                createProductDocument("15", "상품15", List.of(100L)),
-                createProductDocument("16", "상품16", List.of(100L)),
-                createProductDocument("17", "상품17", List.of(100L)),
-                createProductDocument("18", "상품18", List.of(100L)),
-                createProductDocument("19", "상품19", List.of(100L)),
-                createProductDocument("20", "상품20", List.of(100L))
+    @DisplayName("GET /api/catalog/products?sort=salePrice,asc - 정렬 옵션")
+    void getProducts_withSorting() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("4", "에어팟 프로", 320000L),
+                createProduct("6", "갤럭시 탭 S9", 850000L)
         );
-        Page<ProductDocument> productsPage = new PageImpl<>(documents, pageable, 100);
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "salePrice")),
+                2
+        );
 
-        when(productSearchService.searchProducts(eq(categoryId), any(Pageable.class)))
-                .thenReturn(productsPage);
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
 
-        // When & Then
+        // when & then
         mockMvc.perform(get("/api/catalog/products")
-                        .param("categoryId", categoryId.toString())
-                        .param("page", "0")
-                        .param("size", "20")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .param("sort", "salePrice,asc"))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(20)))
-                .andExpect(jsonPath("$.totalElements", is(100)))
-                .andExpect(jsonPath("$.totalPages", is(5)));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].salePrice").value(320000))
+                .andExpect(jsonPath("$.content[1].salePrice").value(850000));
 
-        verify(productSearchService).searchProducts(eq(categoryId), any(Pageable.class));
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
     }
 
-    private ProductDocument createProductDocument(String id, String name, List<Long> categoryIds) {
+    @Test
+    @DisplayName("GET /api/catalog/products - 검색 결과 없음")
+    void getProducts_noResults() throws Exception {
+        // given
+        PageImpl<ProductDocument> emptyPage = new PageImpl<>(
+                List.of(),
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")),
+                0
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(emptyPage);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("productName", "존재하지않는상품"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products - 모든 파라미터 조합 테스트")
+    void getProducts_allParameters() throws Exception {
+        // given
+        List<ProductDocument> products = List.of(
+                createProduct("1", "맥북 프로", 3300000L, "ACTIVE", List.of(1L, 10L))
+        );
+        PageImpl<ProductDocument> page = new PageImpl<>(
+                products,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "salePrice")),
+                1
+        );
+
+        given(productSearchService.searchProducts(any(ProductSearchRequest.class)))
+                .willReturn(page);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products")
+                        .param("productName", "맥북")
+                        .param("categoryId", "1")
+                        .param("status", "ACTIVE")
+                        .param("minPrice", "3000000")
+                        .param("maxPrice", "4000000")
+                        .param("page", "0")
+                        .param("size", "10")
+                        .param("sort", "salePrice,asc"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].productName").value("맥북 프로"))
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
+    }
+
+    private ProductDocument createProduct(String id, String name, Long salePrice) {
+        return createProduct(id, name, salePrice, "ACTIVE");
+    }
+
+    private ProductDocument createProduct(String id, String name, Long salePrice, String status) {
+        return createProduct(id, name, salePrice, status, List.of(1L));
+    }
+
+    private ProductDocument createProduct(String id, String name, Long salePrice, List<Long> categoryIds) {
+        return createProduct(id, name, salePrice, "ACTIVE", categoryIds);
+    }
+
+    private ProductDocument createProduct(
+            String id,
+            String name,
+            Long salePrice,
+            String status,
+            List<Long> categoryIds
+    ) {
         return ProductDocument.builder()
                 .productId(id)
                 .productName(name)
-                .description("상품 설명 " + name)
-                .basePrice(10000L)
-                .salePrice(8000L)
-                .status("ACTIVE")
+                .description("상품 설명")
+                .basePrice(salePrice + 100000L)
+                .salePrice(salePrice)
+                .status(status)
                 .primaryImageUrl("https://example.com/image.jpg")
                 .categoryIds(categoryIds)
                 .createdAt(LocalDateTime.now())
