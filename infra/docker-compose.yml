@@ -5,6 +5,8 @@ x-service-common: &service-common
   environment: &service-common-env
     MYSQL_HOST: mysql8
     KAFKA_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092,kafka3:9094
+    ELASTICSEARCH_HOST: elasticsearch
+    REDIS_HOST: redis
     CONFIG_HOST: config-server
     EUREKA_HOST: discovery-service
 
