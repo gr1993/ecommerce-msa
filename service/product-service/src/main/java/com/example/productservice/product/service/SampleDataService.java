@@ -119,6 +119,14 @@ public class SampleDataService {
     private List<SampleProductData> getSampleProductDataList() {
         List<SampleProductData> products = new ArrayList<>();
 
+        // 3단계(leaf) 카테고리 ID
+        // 5: 맨투맨 (상의 > 남자상의 > 맨투맨) - 티셔츠 관련
+        // 8: 나이키 (신발 > 스포츠 > 나이키) - 신발 관련
+        // 10: 데님바지 (하의 > 남자하의 > 데님바지) - 바지 관련
+        final Long CATEGORY_TOP = 5L;      // 맨투맨
+        final Long CATEGORY_SHOES = 8L;    // 나이키
+        final Long CATEGORY_BOTTOM = 10L;  // 데님바지
+
         // 자동완성 테스트를 위해 비슷한 이름의 상품들 포함
 
         // 프리미엄 시리즈 (티셔츠)
@@ -127,7 +135,8 @@ public class SampleDataService {
                 "최고급 면 소재의 편안한 티셔츠입니다. 사계절 내내 입기 좋습니다.",
                 new BigDecimal("45000"), new BigDecimal("39000"),
                 List.of("top-white.jpg", "top-blue.jpg"),
-                List.of("화이트", "블루"), "색상"
+                List.of("화이트", "블루"), "색상",
+                Set.of(CATEGORY_TOP)
         ));
 
         products.add(new SampleProductData(
@@ -135,7 +144,8 @@ public class SampleDataService {
                 "시원한 린넨 소재의 여름용 티셔츠입니다.",
                 new BigDecimal("55000"), new BigDecimal("49000"),
                 List.of("top-blue.jpg", "top-pink.jpg"),
-                List.of("블루", "핑크"), "색상"
+                List.of("블루", "핑크"), "색상",
+                Set.of(CATEGORY_TOP)
         ));
 
         products.add(new SampleProductData(
@@ -143,7 +153,8 @@ public class SampleDataService {
                 "부드러운 울 소재의 따뜻한 니트입니다.",
                 new BigDecimal("89000"), new BigDecimal("79000"),
                 List.of("top-pink.jpg", "top-white.jpg"),
-                List.of("핑크", "화이트"), "색상"
+                List.of("핑크", "화이트"), "색상",
+                Set.of(CATEGORY_TOP)
         ));
 
         // 슬림핏 시리즈 (바지)
@@ -152,7 +163,8 @@ public class SampleDataService {
                 "날씬해 보이는 슬림핏 청바지입니다.",
                 new BigDecimal("69000"), new BigDecimal("59000"),
                 List.of("bottom-black.jpg", "bottom-brown.jpg"),
-                List.of("블랙", "브라운"), "색상"
+                List.of("블랙", "브라운"), "색상",
+                Set.of(CATEGORY_BOTTOM)
         ));
 
         products.add(new SampleProductData(
@@ -160,7 +172,8 @@ public class SampleDataService {
                 "세련된 블랙 컬러의 슬림핏 청바지입니다.",
                 new BigDecimal("69000"), new BigDecimal("59000"),
                 List.of("bottom-black.jpg"),
-                List.of("블랙"), "색상"
+                List.of("블랙"), "색상",
+                Set.of(CATEGORY_BOTTOM)
         ));
 
         products.add(new SampleProductData(
@@ -168,7 +181,8 @@ public class SampleDataService {
                 "편안한 착용감의 면 소재 슬림핏 바지입니다.",
                 new BigDecimal("59000"), new BigDecimal("49000"),
                 List.of("bottom-white.jpg", "bottom-brown.jpg"),
-                List.of("화이트", "브라운"), "색상"
+                List.of("화이트", "브라운"), "색상",
+                Set.of(CATEGORY_BOTTOM)
         ));
 
         // 클래식 시리즈 (신발)
@@ -177,7 +191,8 @@ public class SampleDataService {
                 "오래도록 사랑받는 클래식 디자인의 러닝화입니다.",
                 new BigDecimal("129000"), new BigDecimal("99000"),
                 List.of("shoes-black.jpg", "Shoes-red.jpg"),
-                List.of("블랙", "레드"), "색상"
+                List.of("블랙", "레드"), "색상",
+                Set.of(CATEGORY_SHOES)
         ));
 
         products.add(new SampleProductData(
@@ -185,7 +200,8 @@ public class SampleDataService {
                 "편안한 워킹을 위한 클래식 디자인 신발입니다.",
                 new BigDecimal("119000"), new BigDecimal("89000"),
                 List.of("Shoes-brown.jpg", "Shoes-purple.jpg"),
-                List.of("브라운", "퍼플"), "색상"
+                List.of("브라운", "퍼플"), "색상",
+                Set.of(CATEGORY_SHOES)
         ));
 
         // 스포츠 시리즈 (신발)
@@ -194,7 +210,8 @@ public class SampleDataService {
                 "뛰어난 쿠셔닝의 스포츠 러닝화입니다.",
                 new BigDecimal("159000"), new BigDecimal("129000"),
                 List.of("Shoes-red.jpg", "shoes-black.jpg", "Shoes-purple.jpg"),
-                List.of("레드", "블랙", "퍼플"), "색상"
+                List.of("레드", "블랙", "퍼플"), "색상",
+                Set.of(CATEGORY_SHOES)
         ));
 
         products.add(new SampleProductData(
@@ -202,7 +219,8 @@ public class SampleDataService {
                 "일상에서 편하게 신을 수 있는 캐주얼 스니커즈입니다.",
                 new BigDecimal("89000"), new BigDecimal("69000"),
                 List.of("Shoes-purple.jpg", "Shoes-brown.jpg"),
-                List.of("퍼플", "브라운"), "색상"
+                List.of("퍼플", "브라운"), "색상",
+                Set.of(CATEGORY_SHOES)
         ));
 
         // 데일리 시리즈 (티셔츠)
@@ -211,7 +229,8 @@ public class SampleDataService {
                 "매일 입기 좋은 기본 화이트 티셔츠입니다.",
                 new BigDecimal("29000"), new BigDecimal("25000"),
                 List.of("top-white.jpg"),
-                List.of("화이트"), "색상"
+                List.of("화이트"), "색상",
+                Set.of(CATEGORY_TOP)
         ));
 
         products.add(new SampleProductData(
@@ -219,7 +238,8 @@ public class SampleDataService {
                 "매일 입기 좋은 시원한 블루 티셔츠입니다.",
                 new BigDecimal("29000"), new BigDecimal("25000"),
                 List.of("top-blue.jpg"),
-                List.of("블루"), "색상"
+                List.of("블루"), "색상",
+                Set.of(CATEGORY_TOP)
         ));
 
         // 베이직 시리즈
@@ -228,7 +248,8 @@ public class SampleDataService {
                 "어디에나 잘 어울리는 베이직 팬츠입니다.",
                 new BigDecimal("49000"), new BigDecimal("39000"),
                 List.of("bottom-white.jpg", "bottom-black.jpg", "bottom-brown.jpg"),
-                List.of("화이트", "블랙", "브라운"), "색상"
+                List.of("화이트", "블랙", "브라운"), "색상",
+                Set.of(CATEGORY_BOTTOM)
         ));
 
         products.add(new SampleProductData(
@@ -236,7 +257,8 @@ public class SampleDataService {
                 "기본에 충실한 편안한 운동화입니다.",
                 new BigDecimal("79000"), new BigDecimal("59000"),
                 List.of("shoes-black.jpg", "Shoes-red.jpg", "Shoes-brown.jpg"),
-                List.of("블랙", "레드", "브라운"), "색상"
+                List.of("블랙", "레드", "브라운"), "색상",
+                Set.of(CATEGORY_SHOES)
         ));
 
         // 와이드 팬츠
@@ -245,7 +267,8 @@ public class SampleDataService {
                 "트렌디한 와이드 핏의 데님 팬츠입니다.",
                 new BigDecimal("79000"), new BigDecimal("69000"),
                 List.of("bottom-brown.jpg", "bottom-white.jpg"),
-                List.of("브라운", "화이트"), "색상"
+                List.of("브라운", "화이트"), "색상",
+                Set.of(CATEGORY_BOTTOM)
         ));
 
         return products;
@@ -304,7 +327,7 @@ public class SampleDataService {
                 .salePrice(data.salePrice)
                 .status("ACTIVE")
                 .isDisplayed(true)
-                .categoryIds(new HashSet<>())
+                .categoryIds(data.categoryIds != null ? data.categoryIds : new HashSet<>())
                 .optionGroups(optionGroups)
                 .skus(skus)
                 .images(images)
@@ -320,10 +343,12 @@ public class SampleDataService {
         List<String> imageFiles;
         List<String> optionValues;
         String optionGroupName;
+        Set<Long> categoryIds;
 
         SampleProductData(String productName, String productCode, String description,
                           BigDecimal basePrice, BigDecimal salePrice,
-                          List<String> imageFiles, List<String> optionValues, String optionGroupName) {
+                          List<String> imageFiles, List<String> optionValues, String optionGroupName,
+                          Set<Long> categoryIds) {
             this.productName = productName;
             this.productCode = productCode;
             this.description = description;
@@ -332,6 +357,7 @@ public class SampleDataService {
             this.imageFiles = imageFiles;
             this.optionValues = optionValues;
             this.optionGroupName = optionGroupName;
+            this.categoryIds = categoryIds;
         }
     }
 }
