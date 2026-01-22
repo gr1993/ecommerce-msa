@@ -26,6 +26,7 @@ dependencies {
 	// Spring Boot Starters
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
 	// OpenAPI/Swagger Documentation
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
@@ -54,6 +55,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:elasticsearch'
 	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'com.redis:testcontainers-redis:2.2.2'
 
 	// Test Lombok
 	testCompileOnly 'org.projectlombok:lombok'

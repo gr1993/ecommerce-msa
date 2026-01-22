@@ -20,7 +20,9 @@ Full Sync API 구현 시에는 멱등성을 확보하여 같은 데이터를 여
 상품 수가 많을 경우에는 Batch 처리도 고려하는 것이 좋다.  
 
 마지막으로, Full Sync 이후에는 product-service에서 발생한 변경 이벤트도 적용하여 이벤트 기반 증분 동기화가 이루어지도록 구현해야 한다.  
-
+* Product Full Sync : 검색 대상 전체 상품을 ES에 Full Reindex (API 호출 시 실행)
+* Category Full Sync : 전체 카테고리를 Redis에 동기화(캐싱(한다. (일 1회 비트래픽 시간대 스케줄 실행, 테스트용으로 API도 구현)
+* Stock Full Sync
 
 ### 백엔드 기술
 

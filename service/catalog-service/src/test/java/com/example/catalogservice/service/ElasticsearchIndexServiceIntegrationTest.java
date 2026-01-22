@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(properties = {
         "spring.cloud.config.enabled=false",
         "eureka.client.enabled=false",
-        "springwolf.enabled=false"
+        "springwolf.enabled=false",
+        "product-service.url=http://localhost:8083"
 })
 @Import(ElasticsearchTestContainerConfig.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
