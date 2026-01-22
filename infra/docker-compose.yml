@@ -81,6 +81,16 @@ services:
       <<: *service-common-env
     depends_on: *depends-on-infra
 
+  catalog-service:
+    <<: *service-common
+    container_name: catalog-service
+    build: ../service/catalog-service
+    ports:
+      - "8084:8080"
+    environment:
+      <<: *service-common-env
+    depends_on: *depends-on-infra
+
 
 networks:
   ecommerce-net:
