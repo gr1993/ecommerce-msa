@@ -39,6 +39,30 @@ npm run lint         # Run ESLint
 npm preview          # Preview production build locally
 ```
 
+## TypeScript Import Guidelines
+
+### Type-Only Imports
+
+In this project, all TypeScript types or interfaces imported from other modules **must use `type`-only imports**. This prevents errors when `verbatimModuleSyntax` is enabled.
+
+#### Correct Usage
+
+```ts
+// Importing a type/interface only
+import type { CategoryTreeNode, Product } from "@/types/catalog";
+
+// Example usage
+const node: CategoryTreeNode = {
+  categoryId: 1,
+  parentId: null,
+  categoryName: "상의",
+  displayOrder: 0,
+  isDisplayed: true,
+  depth: 1,
+  children: []
+};
+```
+
 ## Architecture
 
 ### Dual-Interface Architecture

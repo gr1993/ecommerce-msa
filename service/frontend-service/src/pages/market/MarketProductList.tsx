@@ -4,16 +4,10 @@ import { SearchOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
+import { getDisplayCategoryTree, type CategoryTreeNode } from '../../api/categoryApi'
 import './MarketProductList.css'
 
 const { Option } = Select
-
-interface Category {
-  category_id: string
-  category_name: string
-  parent_id: string | null
-  children?: Category[]
-}
 
 interface Product {
   product_id: string
@@ -31,8 +25,8 @@ interface Product {
 function MarketProductList() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  
-  const [categories, setCategories] = useState<Category[]>([])
+
+  const [categories, setCategories] = useState<CategoryTreeNode[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [sortBy, setSortBy] = useState<string>('latest')
@@ -42,66 +36,17 @@ function MarketProductList() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([])
 
-  // 카테고리 데이터 로드 (샘플 데이터)
+  // 카테고리 데이터 로드
   useEffect(() => {
-    // TODO: API 호출로 카테고리 데이터 로드
-    const sampleCategories: Category[] = [
-      {
-        category_id: '1',
-        category_name: '전자제품',
-        parent_id: null,
-        children: [
-          {
-            category_id: '1-1',
-            category_name: '노트북',
-            parent_id: '1'
-          },
-          {
-            category_id: '1-2',
-            category_name: '스마트폰',
-            parent_id: '1'
-          },
-          {
-            category_id: '1-3',
-            category_name: '태블릿',
-            parent_id: '1'
-          }
-        ]
-      },
-      {
-        category_id: '2',
-        category_name: '의류',
-        parent_id: null,
-        children: [
-          {
-            category_id: '2-1',
-            category_name: '상의',
-            parent_id: '2'
-          },
-          {
-            category_id: '2-2',
-            category_name: '하의',
-            parent_id: '2'
-          },
-          {
-            category_id: '2-3',
-            category_name: '신발',
-            parent_id: '2'
-          }
-        ]
-      },
-      {
-        category_id: '3',
-        category_name: '도서',
-        parent_id: null
-      },
-      {
-        category_id: '4',
-        category_name: '식품',
-        parent_id: null
+    const fetchCategories = async () => {
+      try {
+        const data = await getDisplayCategoryTree()
+        setCategories(data)
+      } catch (error) {
+        console.error('카테고리 조회 실패:', error)
       }
-    ]
-    setCategories(sampleCategories)
+    }
+    fetchCategories()
   }, [])
 
   // 상품 데이터 로드 (샘플 데이터)
@@ -332,12 +277,12 @@ function MarketProductList() {
     setPaginatedProducts(paginated)
   }, [filteredProducts, currentPage, pageSize])
 
-  const getCategoryIds = (categoryId: string, cats: Category[]): string[] => {
+  const getCategoryIds = (categoryId: string, cats: CategoryTreeNode[]): string[] => {
     const ids: string[] = [categoryId]
     for (const cat of cats) {
-      if (cat.category_id === categoryId && cat.children) {
+      if (String(cat.categoryId) === categoryId && cat.children) {
         cat.children.forEach(child => {
-          ids.push(child.category_id)
+          ids.push(String(child.categoryId))
         })
       }
     }
@@ -472,8 +417,8 @@ function MarketProductList() {
             >
               <Option value="all">전체</Option>
               {categories.map(category => (
-                <Option key={category.category_id} value={category.category_id}>
-                  {category.category_name}
+                <Option key={category.categoryId} value={String(category.categoryId)}>
+                  {category.categoryName}
                 </Option>
               ))}
             </Select>
@@ -509,20 +454,20 @@ function MarketProductList() {
                 전체
               </div>
               {categories.map(category => (
-                <div key={category.category_id} className="category-group">
+                <div key={category.categoryId} className="category-group">
                   <div
-                    className={`category-item category-parent ${selectedCategory === category.category_id ? 'active' : ''}`}
-                    onClick={() => handleCategoryClick(category.category_id)}
+                    className={`category-item category-parent ${selectedCategory === String(category.categoryId) ? 'active' : ''}`}
+                    onClick={() => handleCategoryClick(String(category.categoryId))}
                   >
-                    {category.category_name}
+                    {category.categoryName}
                   </div>
                   {category.children && category.children.map(child => (
                     <div
-                      key={child.category_id}
-                      className={`category-item category-child ${selectedCategory === child.category_id ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(child.category_id)}
+                      key={child.categoryId}
+                      className={`category-item category-child ${selectedCategory === String(child.categoryId) ? 'active' : ''}`}
+                      onClick={() => handleCategoryClick(String(child.categoryId))}
                     >
-                      {child.category_name}
+                      {child.categoryName}
                     </div>
                   ))}
                 </div>

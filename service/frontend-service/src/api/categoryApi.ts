@@ -10,6 +10,24 @@ import { useAuthStore } from '../stores/authStore'
 // ==================== Interfaces ====================
 
 /**
+ * 사용자용 카테고리 트리 노드 DTO (전시용)
+ */
+export interface CategoryTreeNode {
+  /** 카테고리 ID */
+  categoryId: number
+  /** 상위 카테고리 ID */
+  parentId: number | null
+  /** 카테고리명 */
+  categoryName: string
+  /** 전시 순서 */
+  displayOrder: number
+  /** 카테고리 깊이 (1단계부터 시작) */
+  depth: number
+  /** 하위 카테고리 목록 */
+  children?: CategoryTreeNode[]
+}
+
+/**
  * 카테고리 트리 응답 DTO
  */
 export interface CategoryTreeResponse {
@@ -343,5 +361,42 @@ export const deleteCategory = async (categoryId: number): Promise<void> => {
     }
 
     throw new Error('카테고리 삭제 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+// ==================== 사용자용 API Functions ====================
+
+/**
+ * 사용자용 카테고리 트리 조회
+ *
+ * 전시용 카테고리 트리를 조회합니다. (인증 불필요)
+ *
+ * @returns 카테고리 트리 목록
+ * @throws Error - 조회 실패 시
+ */
+export const getDisplayCategoryTree = async (): Promise<CategoryTreeNode[]> => {
+  try {
+    const response = await fetch('http://localhost:8080/api/catalog/categories/tree', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      throw new Error(error.message || `카테고리 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: CategoryTreeNode[] = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get display category tree error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('카테고리 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }
