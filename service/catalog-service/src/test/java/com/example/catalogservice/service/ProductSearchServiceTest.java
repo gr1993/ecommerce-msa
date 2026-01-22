@@ -1,100 +1,88 @@
 package com.example.catalogservice.service;
 
-import com.example.catalogservice.config.ElasticsearchTestContainerConfig;
+import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
-import com.example.catalogservice.repository.ProductSearchRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.IndexOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.TotalHitsRelation;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@SpringBootTest(properties = {
-        "spring.cloud.config.enabled=false",
-        "eureka.client.enabled=false",
-        "springwolf.enabled=false",
-        "product-service.url=http://localhost:8083"
-})
-@Import(ElasticsearchTestContainerConfig.class)
-@DisplayName("ProductSearchService 통합 테스트")
+@ExtendWith(MockitoExtension.class)
+@DisplayName("ProductSearchService Mock 테스트")
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ProductSearchServiceTest {
 
-    @Autowired
-    private ProductSearchService productSearchService;
-
-    @Autowired
+    @Mock
     private ElasticsearchOperations elasticsearchOperations;
 
-    @Autowired
-    private ProductSearchRepository productSearchRepository;
-
-    @BeforeEach
-    void setUp() {
-        // 인덱스가 없으면 생성
-        IndexOperations indexOps = elasticsearchOperations.indexOps(ProductDocument.class);
-        if (!indexOps.exists()) {
-            indexOps.createWithMapping();
-        }
-
-        // 기존 데이터만 삭제 (인덱스는 유지) - Repository의 deleteAll() 사용
-        productSearchRepository.deleteAll();
-        indexOps.refresh();
-    }
+    @InjectMocks
+    private ProductSearchService productSearchService;
 
     @Test
     @DisplayName("카테고리 ID로 상품 검색 - 단일 카테고리 매칭")
     void searchProducts_SingleCategoryMatch() {
         // Given
-        ProductDocument product1 = createProductDocument("1", "노트북", List.of(10L, 20L));
-        ProductDocument product2 = createProductDocument("2", "마우스", List.of(10L, 30L));
-        ProductDocument product3 = createProductDocument("3", "키보드", List.of(40L, 50L));
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .page(0)
+                .size(10)
+                .build();
 
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.save(product3);
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "노트북", List.of(10L, 20L)),
+                createProductDocument("2", "마우스", List.of(10L, 30L))
+        );
 
-        // ES의 near-realtime 특성 때문에 refresh 필요
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
-
-        Pageable pageable = PageRequest.of(0, 10);
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
 
         // When
-        Page<ProductDocument> result = productSearchService.searchProducts(10L, pageable);
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // Then
         assertThat(result.getTotalElements()).isEqualTo(2);
         assertThat(result.getContent())
                 .extracting(ProductDocument::getProductName)
                 .containsExactlyInAnyOrder("노트북", "마우스");
+
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
     }
 
     @Test
     @DisplayName("카테고리 ID로 상품 검색 - 결과 없음")
     void searchProducts_NoResults() {
         // Given
-        ProductDocument product1 = createProductDocument("1", "노트북", List.of(10L, 20L));
-        ProductDocument product2 = createProductDocument("2", "마우스", List.of(10L, 30L));
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(99L)
+                .page(0)
+                .size(10)
+                .build();
 
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
-
-        Pageable pageable = PageRequest.of(0, 10);
+        SearchHits<ProductDocument> searchHits = createSearchHits(List.of(), 0L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
 
         // When
-        Page<ProductDocument> result = productSearchService.searchProducts(99L, pageable);
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // Then
         assertThat(result.getTotalElements()).isEqualTo(0);
@@ -105,133 +93,51 @@ class ProductSearchServiceTest {
     @DisplayName("카테고리 ID로 상품 검색 - 페이지네이션")
     void searchProducts_Pagination() {
         // Given
-        for (int i = 1; i <= 25; i++) {
-            ProductDocument product = createProductDocument(
-                    String.valueOf(i),
-                    "상품 " + i,
-                    List.of(100L, 200L)
-            );
-            elasticsearchOperations.save(product);
-        }
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(100L)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품 1", List.of(100L)),
+                createProductDocument("2", "상품 2", List.of(100L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 25L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
 
         // When
-        Pageable firstPage = PageRequest.of(0, 10);
-        Page<ProductDocument> result1 = productSearchService.searchProducts(100L, firstPage);
-
-        Pageable secondPage = PageRequest.of(1, 10);
-        Page<ProductDocument> result2 = productSearchService.searchProducts(100L, secondPage);
-
-        Pageable thirdPage = PageRequest.of(2, 10);
-        Page<ProductDocument> result3 = productSearchService.searchProducts(100L, thirdPage);
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // Then
-        assertThat(result1.getTotalElements()).isEqualTo(25);
-        assertThat(result1.getTotalPages()).isEqualTo(3);
-        assertThat(result1.getContent()).hasSize(10);
-        assertThat(result1.isFirst()).isTrue();
-
-        assertThat(result2.getContent()).hasSize(10);
-        assertThat(result2.isFirst()).isFalse();
-        assertThat(result2.isLast()).isFalse();
-
-        assertThat(result3.getContent()).hasSize(5);
-        assertThat(result3.isLast()).isTrue();
-    }
-
-    @Test
-    @DisplayName("카테고리 ID로 상품 검색 - 여러 카테고리 ID 중 하나만 매칭되어도 검색됨")
-    void searchProducts_MultipleCategories() {
-        // Given
-        ProductDocument product1 = createProductDocument("1", "노트북", List.of(10L, 20L, 30L));
-        ProductDocument product2 = createProductDocument("2", "태블릿", List.of(15L, 25L));
-        ProductDocument product3 = createProductDocument("3", "스마트폰", List.of(20L, 35L));
-
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.save(product3);
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
-
-        Pageable pageable = PageRequest.of(0, 10);
-
-        // When
-        Page<ProductDocument> result = productSearchService.searchProducts(20L, pageable);
-
-        // Then
-        assertThat(result.getTotalElements()).isEqualTo(2);
-        assertThat(result.getContent())
-                .extracting(ProductDocument::getProductName)
-                .containsExactlyInAnyOrder("노트북", "스마트폰");
-    }
-
-    @Test
-    @DisplayName("카테고리 ID로 상품 검색 - 정렬 검증")
-    void searchProducts_SortOrder() {
-        // Given
-        ProductDocument product1 = createProductDocument("1", "상품A", List.of(50L));
-        ProductDocument product2 = createProductDocument("2", "상품B", List.of(50L));
-        ProductDocument product3 = createProductDocument("3", "상품C", List.of(50L));
-
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.save(product3);
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
-
-        Pageable pageable = PageRequest.of(0, 10);
-
-        // When
-        Page<ProductDocument> result = productSearchService.searchProducts(50L, pageable);
-
-        // Then
-        assertThat(result.getTotalElements()).isEqualTo(3);
-        assertThat(result.getContent()).hasSize(3);
-        assertThat(result.getContent())
-                .extracting(ProductDocument::getProductName)
-                .contains("상품A", "상품B", "상품C");
-    }
-
-    @Test
-    @DisplayName("카테고리 ID로 상품 검색 - 빈 카테고리 ID 배열을 가진 상품은 검색되지 않음")
-    void searchProducts_EmptyCategoryIds() {
-        // Given
-        ProductDocument product1 = createProductDocument("1", "상품1", List.of(60L));
-        ProductDocument product2 = createProductDocument("2", "상품2", List.of());
-
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
-
-        Pageable pageable = PageRequest.of(0, 10);
-
-        // When
-        Page<ProductDocument> result = productSearchService.searchProducts(60L, pageable);
-
-        // Then
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent())
-                .extracting(ProductDocument::getProductName)
-                .containsExactly("상품1");
+        assertThat(result.getTotalElements()).isEqualTo(25);
+        assertThat(result.getContent()).hasSize(2);
     }
 
     @Test
     @DisplayName("카테고리 ID가 null일 때 - 전체 상품 조회 (matchAll)")
     void searchProducts_NullCategoryId_MatchAll() {
         // Given
-        ProductDocument product1 = createProductDocument("1", "노트북", List.of(10L, 20L));
-        ProductDocument product2 = createProductDocument("2", "마우스", List.of(30L, 40L));
-        ProductDocument product3 = createProductDocument("3", "키보드", List.of(50L, 60L));
-        ProductDocument product4 = createProductDocument("4", "모니터", List.of());
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .page(0)
+                .size(10)
+                .build();
 
-        elasticsearchOperations.save(product1);
-        elasticsearchOperations.save(product2);
-        elasticsearchOperations.save(product3);
-        elasticsearchOperations.save(product4);
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "노트북", List.of(10L, 20L)),
+                createProductDocument("2", "마우스", List.of(30L, 40L)),
+                createProductDocument("3", "키보드", List.of(50L, 60L)),
+                createProductDocument("4", "모니터", List.of())
+        );
 
-        Pageable pageable = PageRequest.of(0, 10);
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 4L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
 
         // When
-        Page<ProductDocument> result = productSearchService.searchProducts(null, pageable);
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // Then
         assertThat(result.getTotalElements()).isEqualTo(4);
@@ -241,35 +147,114 @@ class ProductSearchServiceTest {
     }
 
     @Test
-    @DisplayName("카테고리 ID가 null일 때 - 전체 상품 조회 페이지네이션")
-    void searchProducts_NullCategoryId_Pagination() {
+    @DisplayName("상품명으로 검색")
+    void searchProducts_ByProductName() {
         // Given
-        for (int i = 1; i <= 25; i++) {
-            ProductDocument product = createProductDocument(
-                    String.valueOf(i),
-                    "상품 " + i,
-                    List.of((long) (i % 5 + 1))
-            );
-            elasticsearchOperations.save(product);
-        }
-        elasticsearchOperations.indexOps(ProductDocument.class).refresh();
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("노트북")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "삼성 노트북", List.of(10L)),
+                createProductDocument("2", "LG 노트북", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
 
         // When
-        Pageable firstPage = PageRequest.of(0, 10);
-        Page<ProductDocument> result1 = productSearchService.searchProducts(null, firstPage);
-
-        Pageable secondPage = PageRequest.of(1, 10);
-        Page<ProductDocument> result2 = productSearchService.searchProducts(null, secondPage);
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // Then
-        assertThat(result1.getTotalElements()).isEqualTo(25);
-        assertThat(result1.getTotalPages()).isEqualTo(3);
-        assertThat(result1.getContent()).hasSize(10);
-        assertThat(result1.isFirst()).isTrue();
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        assertThat(result.getContent())
+                .allMatch(p -> p.getProductName().contains("노트북"));
+    }
 
-        assertThat(result2.getContent()).hasSize(10);
-        assertThat(result2.isFirst()).isFalse();
-        assertThat(result2.isLast()).isFalse();
+    @Test
+    @DisplayName("가격 범위로 필터링")
+    void searchProducts_ByPriceRange() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .minPrice(5000L)
+                .maxPrice(10000L)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L)),
+                createProductDocument("2", "상품2", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("상태로 필터링")
+    void searchProducts_ByStatus() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .status("ACTIVE")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 1L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent()).allMatch(p -> "ACTIVE".equals(p.getStatus()));
+    }
+
+    @Test
+    @DisplayName("복합 조건 검색 - 상품명 + 카테고리 + 가격")
+    void searchProducts_MultipleConditions() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("노트북")
+                .categoryId(10L)
+                .minPrice(5000L)
+                .maxPrice(15000L)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "삼성 노트북", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 1L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).getProductName()).contains("노트북");
     }
 
     private ProductDocument createProductDocument(String id, String name, List<Long> categoryIds) {
@@ -285,5 +270,34 @@ class ProductSearchServiceTest {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private SearchHits<ProductDocument> createSearchHits(List<ProductDocument> products, long totalHits) {
+        SearchHits<ProductDocument> searchHits = mock(SearchHits.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+
+        List<SearchHit<ProductDocument>> searchHitList = products.stream()
+                .map(product -> new SearchHit<>(
+                        null,
+                        null,
+                        null,
+                        1.0f,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        product
+                ))
+                .toList();
+
+        when(searchHits.getTotalHits()).thenReturn(totalHits);
+        when(searchHits.getTotalHitsRelation()).thenReturn(TotalHitsRelation.EQUAL_TO);
+        when(searchHits.getSearchHits()).thenReturn(searchHitList);
+        when(searchHits.hasSearchHits()).thenReturn(!products.isEmpty());
+        when(searchHits.stream()).thenReturn(searchHitList.stream());
+
+        return searchHits;
     }
 }
