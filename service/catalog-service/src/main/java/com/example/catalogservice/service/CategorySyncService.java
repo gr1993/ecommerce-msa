@@ -3,6 +3,7 @@ package com.example.catalogservice.service;
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncCategoryResponse;
 import com.example.catalogservice.domain.CategoryCache;
+import com.example.catalogservice.domain.CategoryTreeNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -12,7 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,6 +32,7 @@ public class CategorySyncService {
     private static final String KEY_TEMP_PREFIX = "catalog:category:temp:";
     private static final String KEY_OLD_PREFIX = "catalog:category:old:";
     private static final String KEY_INDEX_ALL = "catalog:category:index:all";
+    private static final String KEY_DISPLAY_TREE = "catalog:category:display:tree";
 
     private final ObjectMapper objectMapper = createObjectMapper();
 
@@ -45,6 +50,7 @@ public class CategorySyncService {
      * 3. temp 키들을 정규 키로 rename
      * 4. old 키들 삭제
      * 5. index:all에 전체 목록 JSON 저장
+     * 6. display:tree에 계층 트리 구조 저장
      *
      * 이 방식은 삭제된 카테고리도 자동으로 처리된다.
      */
@@ -103,6 +109,9 @@ public class CategorySyncService {
 
             // 6. index:all에 전체 목록 JSON 저장
             saveIndexAll(categoryList);
+
+            // 7. display:tree에 계층 트리 구조 저장
+            saveDisplayTree(categoryList);
 
             log.info("Category full sync completed successfully. Total categories synced: {}", categoryList.size());
             return categoryList.size();
@@ -180,5 +189,74 @@ public class CategorySyncService {
             return (CategoryCache) value;
         }
         return null;
+    }
+
+    /**
+     * 플랫 목록을 계층 트리 구조로 변환
+     */
+    private List<CategoryTreeNode> buildTree(List<CategoryCache> flatList) {
+        Map<Long, List<CategoryCache>> childrenMap = flatList.stream()
+                .filter(c -> c.getParentId() != null)
+                .collect(Collectors.groupingBy(CategoryCache::getParentId));
+
+        return flatList.stream()
+                .filter(c -> c.getParentId() == null)
+                .sorted(Comparator.comparing(CategoryCache::getDisplayOrder,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(root -> buildNode(root, childrenMap))
+                .toList();
+    }
+
+    private CategoryTreeNode buildNode(CategoryCache category, Map<Long, List<CategoryCache>> childrenMap) {
+        List<CategoryCache> childCategories = childrenMap.get(category.getCategoryId());
+
+        List<CategoryTreeNode> children = null;
+        if (childCategories != null && !childCategories.isEmpty()) {
+            children = childCategories.stream()
+                    .sorted(Comparator.comparing(CategoryCache::getDisplayOrder,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .map(child -> buildNode(child, childrenMap))
+                    .toList();
+        }
+
+        return CategoryTreeNode.builder()
+                .categoryId(category.getCategoryId())
+                .parentId(category.getParentId())
+                .categoryName(category.getCategoryName())
+                .displayOrder(category.getDisplayOrder())
+                .depth(category.getDepth())
+                .children(children)
+                .build();
+    }
+
+    private void saveDisplayTree(List<CategoryCache> categoryList) {
+        try {
+            List<CategoryTreeNode> tree = buildTree(categoryList);
+            String json = objectMapper.writeValueAsString(tree);
+            redisTemplate.opsForValue().set(KEY_DISPLAY_TREE, json);
+            log.info("Saved display:tree with {} root categories", tree.size());
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize category tree to JSON", e);
+            throw new RuntimeException("Failed to save display:tree", e);
+        }
+    }
+
+    /**
+     * 조회용: 카테고리 트리 조회
+     */
+    public List<CategoryTreeNode> getCategoryTree() {
+        Object value = redisTemplate.opsForValue().get(KEY_DISPLAY_TREE);
+        if (value == null) {
+            return List.of();
+        }
+
+        try {
+            String json = value instanceof String ? (String) value : objectMapper.writeValueAsString(value);
+            return objectMapper.readValue(json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, CategoryTreeNode.class));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to deserialize category tree from display:tree", e);
+            return List.of();
+        }
     }
 }

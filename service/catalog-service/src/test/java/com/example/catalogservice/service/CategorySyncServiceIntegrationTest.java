@@ -4,6 +4,7 @@ import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncCategoryResponse;
 import com.example.catalogservice.config.RedisTestContainerConfig;
 import com.example.catalogservice.domain.CategoryCache;
+import com.example.catalogservice.domain.CategoryTreeNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,7 @@ class CategorySyncServiceIntegrationTest {
     private static final String KEY_TEMP_PREFIX = "catalog:category:temp:";
     private static final String KEY_OLD_PREFIX = "catalog:category:old:";
     private static final String KEY_INDEX_ALL = "catalog:category:index:all";
+    private static final String KEY_DISPLAY_TREE = "catalog:category:display:tree";
 
     @BeforeEach
     void setUp() {
@@ -326,5 +328,219 @@ class CategorySyncServiceIntegrationTest {
         return java.util.stream.IntStream.range(startId, startId + count)
                 .mapToObj(i -> createMockCategory((long) i, null, "Category " + i, i, 0))
                 .toList();
+    }
+
+    @Test
+    @DisplayName("fullSync - display:tree에 트리 구조 저장 검증 (통합)")
+    void fullSync_DisplayTreeSavedToRedis() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "전자제품", 1, 0),
+                createMockCategory(2L, 1L, "스마트폰", 1, 1),
+                createMockCategory(3L, 1L, "노트북", 2, 1),
+                createMockCategory(4L, 2L, "삼성", 1, 2),
+                createMockCategory(5L, 2L, "애플", 2, 2)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+
+        // When
+        int result = categorySyncService.fullSync();
+
+        // Then
+        assertThat(result).isEqualTo(5);
+
+        // Redis에 display:tree가 저장되었는지 확인
+        Object treeValue = redisTemplate.opsForValue().get(KEY_DISPLAY_TREE);
+        assertThat(treeValue).isNotNull();
+        assertThat(treeValue.toString()).contains("\"categoryId\":1");
+        assertThat(treeValue.toString()).contains("\"categoryName\":\"전자제품\"");
+        assertThat(treeValue.toString()).contains("\"children\"");
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - 계층 구조 조회 (통합)")
+    void getCategoryTree_RealRedisIntegration() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "전자제품", 1, 0),
+                createMockCategory(2L, null, "의류", 2, 0),
+                createMockCategory(3L, 1L, "스마트폰", 1, 1),
+                createMockCategory(4L, 1L, "노트북", 2, 1),
+                createMockCategory(5L, 3L, "삼성", 1, 2),
+                createMockCategory(6L, 3L, "애플", 2, 2),
+                createMockCategory(7L, 2L, "남성의류", 1, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        categorySyncService.fullSync();
+
+        // When
+        List<CategoryTreeNode> tree = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(tree).hasSize(2); // 두 개의 루트 카테고리
+
+        // 첫 번째 루트: 전자제품
+        CategoryTreeNode electronics = tree.get(0);
+        assertThat(electronics.getCategoryId()).isEqualTo(1L);
+        assertThat(electronics.getCategoryName()).isEqualTo("전자제품");
+        assertThat(electronics.getParentId()).isNull();
+        assertThat(electronics.getDepth()).isEqualTo(0);
+        assertThat(electronics.getChildren()).hasSize(2);
+
+        // 전자제품의 자식들
+        CategoryTreeNode smartphone = electronics.getChildren().get(0);
+        assertThat(smartphone.getCategoryId()).isEqualTo(3L);
+        assertThat(smartphone.getCategoryName()).isEqualTo("스마트폰");
+        assertThat(smartphone.getParentId()).isEqualTo(1L);
+        assertThat(smartphone.getChildren()).hasSize(2);
+
+        CategoryTreeNode laptop = electronics.getChildren().get(1);
+        assertThat(laptop.getCategoryId()).isEqualTo(4L);
+        assertThat(laptop.getCategoryName()).isEqualTo("노트북");
+        assertThat(laptop.getParentId()).isEqualTo(1L);
+        assertThat(laptop.getChildren()).isNull(); // 자식이 없음
+
+        // 스마트폰의 자식들
+        CategoryTreeNode samsung = smartphone.getChildren().get(0);
+        assertThat(samsung.getCategoryId()).isEqualTo(5L);
+        assertThat(samsung.getCategoryName()).isEqualTo("삼성");
+        assertThat(samsung.getDepth()).isEqualTo(2);
+        assertThat(samsung.getChildren()).isNull();
+
+        CategoryTreeNode apple = smartphone.getChildren().get(1);
+        assertThat(apple.getCategoryId()).isEqualTo(6L);
+        assertThat(apple.getCategoryName()).isEqualTo("애플");
+        assertThat(apple.getDepth()).isEqualTo(2);
+
+        // 두 번째 루트: 의류
+        CategoryTreeNode clothing = tree.get(1);
+        assertThat(clothing.getCategoryId()).isEqualTo(2L);
+        assertThat(clothing.getCategoryName()).isEqualTo("의류");
+        assertThat(clothing.getChildren()).hasSize(1);
+
+        CategoryTreeNode menClothing = clothing.getChildren().get(0);
+        assertThat(menClothing.getCategoryId()).isEqualTo(7L);
+        assertThat(menClothing.getCategoryName()).isEqualTo("남성의류");
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - displayOrder 정렬 검증 (통합)")
+    void getCategoryTree_SortedByDisplayOrder() {
+        // Given - displayOrder가 역순으로 들어옴
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "C카테고리", 3, 0),
+                createMockCategory(2L, null, "A카테고리", 1, 0),
+                createMockCategory(3L, null, "B카테고리", 2, 0),
+                createMockCategory(4L, 2L, "A-2", 2, 1),
+                createMockCategory(5L, 2L, "A-1", 1, 1),
+                createMockCategory(6L, 2L, "A-3", 3, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        categorySyncService.fullSync();
+
+        // When
+        List<CategoryTreeNode> tree = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(tree).hasSize(3);
+
+        // 루트 레벨 정렬 확인 (displayOrder 오름차순)
+        assertThat(tree.get(0).getCategoryName()).isEqualTo("A카테고리");
+        assertThat(tree.get(0).getDisplayOrder()).isEqualTo(1);
+        assertThat(tree.get(1).getCategoryName()).isEqualTo("B카테고리");
+        assertThat(tree.get(1).getDisplayOrder()).isEqualTo(2);
+        assertThat(tree.get(2).getCategoryName()).isEqualTo("C카테고리");
+        assertThat(tree.get(2).getDisplayOrder()).isEqualTo(3);
+
+        // 자식 레벨 정렬 확인
+        CategoryTreeNode aCategory = tree.get(0);
+        assertThat(aCategory.getChildren()).hasSize(3);
+        assertThat(aCategory.getChildren().get(0).getCategoryName()).isEqualTo("A-1");
+        assertThat(aCategory.getChildren().get(1).getCategoryName()).isEqualTo("A-2");
+        assertThat(aCategory.getChildren().get(2).getCategoryName()).isEqualTo("A-3");
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - 빈 트리 조회")
+    void getCategoryTree_EmptyTree() {
+        // When
+        List<CategoryTreeNode> tree = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(tree).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - 단일 루트, 다중 depth 트리")
+    void getCategoryTree_DeepHierarchy() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "루트", 1, 0),
+                createMockCategory(2L, 1L, "Depth1", 1, 1),
+                createMockCategory(3L, 2L, "Depth2", 1, 2),
+                createMockCategory(4L, 3L, "Depth3", 1, 3),
+                createMockCategory(5L, 4L, "Depth4", 1, 4)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        categorySyncService.fullSync();
+
+        // When
+        List<CategoryTreeNode> tree = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(tree).hasSize(1);
+
+        CategoryTreeNode root = tree.get(0);
+        assertThat(root.getDepth()).isEqualTo(0);
+
+        CategoryTreeNode depth1 = root.getChildren().get(0);
+        assertThat(depth1.getDepth()).isEqualTo(1);
+
+        CategoryTreeNode depth2 = depth1.getChildren().get(0);
+        assertThat(depth2.getDepth()).isEqualTo(2);
+
+        CategoryTreeNode depth3 = depth2.getChildren().get(0);
+        assertThat(depth3.getDepth()).isEqualTo(3);
+
+        CategoryTreeNode depth4 = depth3.getChildren().get(0);
+        assertThat(depth4.getDepth()).isEqualTo(4);
+        assertThat(depth4.getChildren()).isNull(); // leaf 노드
+    }
+
+    @Test
+    @DisplayName("fullSync 후 트리 업데이트 검증")
+    void fullSync_TreeUpdatedOnSync() {
+        // Given - 초기 트리
+        List<CatalogSyncCategoryResponse> initialCategories = List.of(
+                createMockCategory(1L, null, "구형 전자제품", 1, 0),
+                createMockCategory(2L, 1L, "구형 스마트폰", 1, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(initialCategories);
+        categorySyncService.fullSync();
+
+        List<CategoryTreeNode> initialTree = categorySyncService.getCategoryTree();
+        assertThat(initialTree).hasSize(1);
+        assertThat(initialTree.get(0).getCategoryName()).isEqualTo("구형 전자제품");
+
+        // When - 새로운 트리로 업데이트
+        List<CatalogSyncCategoryResponse> newCategories = List.of(
+                createMockCategory(1L, null, "최신 전자제품", 1, 0),
+                createMockCategory(3L, 1L, "태블릿", 2, 1) // 카테고리 2 삭제, 3 추가
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(newCategories);
+        categorySyncService.fullSync();
+
+        // Then
+        List<CategoryTreeNode> updatedTree = categorySyncService.getCategoryTree();
+        assertThat(updatedTree).hasSize(1);
+        assertThat(updatedTree.get(0).getCategoryName()).isEqualTo("최신 전자제품");
+        assertThat(updatedTree.get(0).getChildren()).hasSize(1);
+        assertThat(updatedTree.get(0).getChildren().get(0).getCategoryName()).isEqualTo("태블릿");
     }
 }

@@ -3,6 +3,7 @@ package com.example.catalogservice.service;
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncCategoryResponse;
 import com.example.catalogservice.domain.CategoryCache;
+import com.example.catalogservice.domain.CategoryTreeNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,7 @@ class CategorySyncServiceTest {
     private static final String KEY_TEMP_PREFIX = "catalog:category:temp:";
     private static final String KEY_OLD_PREFIX = "catalog:category:old:";
     private static final String KEY_INDEX_ALL = "catalog:category:index:all";
+    private static final String KEY_DISPLAY_TREE = "catalog:category:display:tree";
 
     @BeforeEach
     void setUp() {
@@ -360,6 +362,209 @@ class CategorySyncServiceTest {
                         cache.getDepth().equals(2) &&
                         cache.getCreatedAt().equals(now) &&
                         cache.getUpdatedAt().equals(now);
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("fullSync - display:tree에 트리 구조 저장 검증")
+    void fullSync_DisplayTreeSaved() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "전자제품", 1, 0),
+                createMockCategory(2L, 1L, "스마트폰", 1, 1),
+                createMockCategory(3L, 1L, "노트북", 2, 1),
+                createMockCategory(4L, 2L, "삼성", 1, 2),
+                createMockCategory(5L, 2L, "애플", 2, 2)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+        when(redisTemplate.keys(KEY_TEMP_PREFIX + "*")).thenReturn(Set.of(
+                KEY_TEMP_PREFIX + "1",
+                KEY_TEMP_PREFIX + "2",
+                KEY_TEMP_PREFIX + "3",
+                KEY_TEMP_PREFIX + "4",
+                KEY_TEMP_PREFIX + "5"
+        ));
+        when(redisTemplate.keys(KEY_OLD_PREFIX + "*")).thenReturn(Set.of());
+
+        // When
+        categorySyncService.fullSync();
+
+        // Then
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), argThat(value -> {
+            if (value instanceof String) {
+                String json = (String) value;
+                // 루트 카테고리가 포함되어 있는지 확인
+                return json.contains("\"categoryId\":1") &&
+                       json.contains("\"categoryName\":\"전자제품\"") &&
+                       json.contains("\"children\"") &&
+                       json.contains("\"categoryId\":2") &&
+                       json.contains("\"categoryId\":3");
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - 정상 조회")
+    void getCategoryTree_Success() throws JsonProcessingException {
+        // Given
+        String json = "[{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1,\"children\":null}," +
+                "{\"categoryId\":3,\"parentId\":1,\"categoryName\":\"노트북\",\"displayOrder\":2,\"depth\":1,\"children\":null}]}]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When
+        List<CategoryTreeNode> result = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(result).hasSize(1);
+
+        CategoryTreeNode root = result.get(0);
+        assertThat(root.getCategoryId()).isEqualTo(1L);
+        assertThat(root.getCategoryName()).isEqualTo("전자제품");
+        assertThat(root.getParentId()).isNull();
+        assertThat(root.getDepth()).isEqualTo(0);
+        assertThat(root.getChildren()).hasSize(2);
+
+        CategoryTreeNode child1 = root.getChildren().get(0);
+        assertThat(child1.getCategoryId()).isEqualTo(2L);
+        assertThat(child1.getCategoryName()).isEqualTo("스마트폰");
+        assertThat(child1.getParentId()).isEqualTo(1L);
+
+        CategoryTreeNode child2 = root.getChildren().get(1);
+        assertThat(child2.getCategoryId()).isEqualTo(3L);
+        assertThat(child2.getCategoryName()).isEqualTo("노트북");
+        assertThat(child2.getParentId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - 데이터 없음")
+    void getCategoryTree_NoData() {
+        // Given
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(null);
+
+        // When
+        List<CategoryTreeNode> result = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getCategoryTree - JSON 파싱 실패 시 빈 리스트 반환")
+    void getCategoryTree_JsonParsingFailed() {
+        // Given
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn("invalid json");
+
+        // When
+        List<CategoryTreeNode> result = categorySyncService.getCategoryTree();
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("buildTree - 다중 레벨 계층 구조 변환")
+    void buildTree_MultiLevelHierarchy() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "전자제품", 1, 0),
+                createMockCategory(2L, null, "의류", 2, 0),
+                createMockCategory(3L, 1L, "스마트폰", 1, 1),
+                createMockCategory(4L, 1L, "노트북", 2, 1),
+                createMockCategory(5L, 3L, "삼성", 1, 2),
+                createMockCategory(6L, 3L, "애플", 2, 2),
+                createMockCategory(7L, 2L, "남성의류", 1, 1),
+                createMockCategory(8L, 2L, "여성의류", 2, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+        when(redisTemplate.keys(KEY_TEMP_PREFIX + "*")).thenReturn(Set.of(
+                KEY_TEMP_PREFIX + "1", KEY_TEMP_PREFIX + "2", KEY_TEMP_PREFIX + "3",
+                KEY_TEMP_PREFIX + "4", KEY_TEMP_PREFIX + "5", KEY_TEMP_PREFIX + "6",
+                KEY_TEMP_PREFIX + "7", KEY_TEMP_PREFIX + "8"
+        ));
+        when(redisTemplate.keys(KEY_OLD_PREFIX + "*")).thenReturn(Set.of());
+
+        // When
+        categorySyncService.fullSync();
+
+        // Then
+        // display:tree에 저장되는지 확인
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), argThat(value -> {
+            if (value instanceof String) {
+                String json = (String) value;
+                // 두 개의 루트 카테고리가 있어야 함
+                return json.contains("\"categoryName\":\"전자제품\"") &&
+                       json.contains("\"categoryName\":\"의류\"") &&
+                       // 자식 카테고리들도 포함
+                       json.contains("\"categoryName\":\"스마트폰\"") &&
+                       json.contains("\"categoryName\":\"삼성\"") &&
+                       json.contains("\"categoryName\":\"남성의류\"");
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("buildTree - displayOrder 기준 정렬 검증")
+    void buildTree_SortedByDisplayOrder() {
+        // Given - displayOrder가 역순으로 들어옴
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "C카테고리", 3, 0),
+                createMockCategory(2L, null, "A카테고리", 1, 0),
+                createMockCategory(3L, null, "B카테고리", 2, 0),
+                createMockCategory(4L, 2L, "A-2", 2, 1),
+                createMockCategory(5L, 2L, "A-1", 1, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+        when(redisTemplate.keys(KEY_TEMP_PREFIX + "*")).thenReturn(Set.of(
+                KEY_TEMP_PREFIX + "1", KEY_TEMP_PREFIX + "2", KEY_TEMP_PREFIX + "3",
+                KEY_TEMP_PREFIX + "4", KEY_TEMP_PREFIX + "5"
+        ));
+        when(redisTemplate.keys(KEY_OLD_PREFIX + "*")).thenReturn(Set.of());
+
+        // When
+        categorySyncService.fullSync();
+
+        // Then
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), anyString());
+    }
+
+    @Test
+    @DisplayName("buildTree - 자식이 없는 leaf 노드 처리")
+    void buildTree_LeafNodesWithoutChildren() {
+        // Given
+        List<CatalogSyncCategoryResponse> categories = List.of(
+                createMockCategory(1L, null, "루트", 1, 0),
+                createMockCategory(2L, 1L, "리프1", 1, 1),
+                createMockCategory(3L, 1L, "리프2", 2, 1)
+        );
+
+        when(productServiceClient.getCategoriesForSync()).thenReturn(categories);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+        when(redisTemplate.keys(KEY_TEMP_PREFIX + "*")).thenReturn(Set.of(
+                KEY_TEMP_PREFIX + "1", KEY_TEMP_PREFIX + "2", KEY_TEMP_PREFIX + "3"
+        ));
+        when(redisTemplate.keys(KEY_OLD_PREFIX + "*")).thenReturn(Set.of());
+
+        // When
+        categorySyncService.fullSync();
+
+        // Then
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), argThat(value -> {
+            if (value instanceof String) {
+                String json = (String) value;
+                // children:null이 포함되어야 함 (leaf 노드)
+                return json.contains("\"categoryName\":\"리프1\"") &&
+                       json.contains("\"categoryName\":\"리프2\"");
             }
             return false;
         }));
