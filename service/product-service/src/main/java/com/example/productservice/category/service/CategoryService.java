@@ -1,5 +1,6 @@
 package com.example.productservice.category.service;
 
+import com.example.productservice.category.dto.CatalogSyncCategoryResponse;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
@@ -18,4 +19,6 @@ public interface CategoryService {
     CategoryResponse updateCategory(Long categoryId, CategoryUpdateRequest request);
 
     void deleteCategory(Long categoryId);
+
+    List<CatalogSyncCategoryResponse> getCategoriesForCatalogSync();
 }

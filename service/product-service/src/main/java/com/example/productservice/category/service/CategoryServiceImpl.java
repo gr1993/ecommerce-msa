@@ -1,6 +1,7 @@
 package com.example.productservice.category.service;
 
 import com.example.productservice.category.domain.Category;
+import com.example.productservice.category.dto.CatalogSyncCategoryResponse;
 import com.example.productservice.category.dto.CategoryCreateRequest;
 import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
@@ -109,5 +110,17 @@ public class CategoryServiceImpl implements CategoryService {
 
         categoryRepository.delete(category);
         log.info("카테고리 삭제 완료 - categoryId: {}", categoryId);
+    }
+
+    @Override
+    public List<CatalogSyncCategoryResponse> getCategoriesForCatalogSync() {
+        log.info("카탈로그 동기화용 카테고리 목록 조회");
+
+        List<CatalogSyncCategoryResponse> result = categoryRepository.findByIsDisplayedTrue().stream()
+                .map(CatalogSyncCategoryResponse::from)
+                .collect(Collectors.toList());
+
+        log.info("카탈로그 동기화용 카테고리 목록 조회 완료 - 총 카테고리 수: {}", result.size());
+        return result;
     }
 }
