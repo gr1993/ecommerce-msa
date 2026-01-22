@@ -3,7 +3,9 @@ package com.example.productservice.product.controller;
 import com.example.productservice.global.common.dto.PageResponse;
 import com.example.productservice.product.dto.CatalogSyncProductResponse;
 import com.example.productservice.product.dto.CatalogSyncRequest;
+import com.example.productservice.product.dto.ProductResponse;
 import com.example.productservice.product.service.ProductService;
+import com.example.productservice.product.service.SampleDataService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,9 +17,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/internal/products")
@@ -27,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalProductController {
 
     private final ProductService productService;
+    private final SampleDataService sampleDataService;
 
     @GetMapping("/sync")
     @Operation(
@@ -58,5 +64,26 @@ public class InternalProductController {
 
     @Schema(name = "PageResponseCatalogSyncProductResponse", description = "카탈로그 동기화 상품 페이지 응답")
     private static class PageResponseCatalogSyncProductResponse extends PageResponse<CatalogSyncProductResponse> {
+    }
+
+    @PostMapping("/sample-data")
+    @Operation(
+            summary = "샘플 상품 데이터 생성",
+            description = "테스트용 샘플 상품 15개를 생성합니다. 자동완성 테스트를 위해 비슷한 이름의 상품들이 포함됩니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "샘플 상품 생성 성공"
+            )
+    })
+    public ResponseEntity<List<ProductResponse>> createSampleProducts() {
+        log.info("POST /api/internal/products/sample-data - Creating sample products");
+
+        List<ProductResponse> createdProducts = sampleDataService.createSampleProducts();
+
+        log.info("Created {} sample products", createdProducts.size());
+
+        return ResponseEntity.ok(createdProducts);
     }
 }
