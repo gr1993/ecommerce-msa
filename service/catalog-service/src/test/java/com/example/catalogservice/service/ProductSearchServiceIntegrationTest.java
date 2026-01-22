@@ -165,8 +165,9 @@ class ProductSearchServiceIntegrationTest {
     @DisplayName("가격 범위 필터 - 최소 가격만")
     void searchProducts_byMinPrice() {
         // given
+        long minPrice = 1400000L;
         ProductSearchRequest request = ProductSearchRequest.builder()
-                .minPrice(1500000L)
+                .minPrice(minPrice)
                 .page(0)
                 .size(10)
                 .build();
@@ -175,9 +176,9 @@ class ProductSearchServiceIntegrationTest {
         Page<ProductDocument> result = productSearchService.searchProducts(request);
 
         // then
-        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getTotalElements()).isEqualTo(4);
         assertThat(result.getContent())
-                .allMatch(product -> product.getSalePrice() >= 1500000L);
+                .allMatch(product -> product.getSalePrice() >= minPrice);
     }
 
     @Test
