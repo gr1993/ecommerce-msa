@@ -3,7 +3,10 @@ package com.example.catalogservice.service;
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncProductResponse;
 import com.example.catalogservice.client.dto.PageResponse;
+import com.example.catalogservice.consumer.event.ProductCreatedEvent;
+import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.domain.document.ProductDocument;
+import com.example.catalogservice.repository.ProductSearchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -23,8 +26,10 @@ public class ProductSyncService {
     private final ProductServiceClient productServiceClient;
     private final ElasticsearchOperations elasticsearchOperations;
     private final ElasticsearchIndexService elasticsearchIndexService;
+    private final ProductSearchRepository productSearchRepository;
 
     private static final int DEFAULT_PAGE_SIZE = 100;
+    private static final String PRODUCTS_ALIAS = "products";
 
     /**
      * alias 기반 reindex를 통한 Full Sync.
@@ -121,5 +126,59 @@ public class ProductSyncService {
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 상품 생성 이벤트 처리 - Elasticsearch에 신규 상품 인덱싱
+     */
+    public void indexProduct(ProductCreatedEvent event) {
+        log.info("Indexing new product: productId={}", event.getProductId());
+
+        ProductDocument document = toProductDocument(event);
+        productSearchRepository.save(document);
+
+        log.info("Successfully indexed new product: productId={}", event.getProductId());
+    }
+
+    /**
+     * 상품 수정 이벤트 처리 - Elasticsearch에 상품 정보 갱신
+     */
+    public void updateProduct(ProductUpdatedEvent event) {
+        log.info("Updating product: productId={}", event.getProductId());
+
+        ProductDocument document = toProductDocument(event);
+        productSearchRepository.save(document);
+
+        log.info("Successfully updated product: productId={}", event.getProductId());
+    }
+
+    private ProductDocument toProductDocument(ProductCreatedEvent event) {
+        return ProductDocument.builder()
+                .productId(String.valueOf(event.getProductId()))
+                .productName(event.getProductName())
+                .description(event.getDescription())
+                .basePrice(convertToLong(event.getBasePrice()))
+                .salePrice(convertToLong(event.getSalePrice()))
+                .status(event.getStatus())
+                .categoryIds(event.getCategoryIds())
+                .createdAt(event.getCreatedAt())
+                .build();
+    }
+
+    private ProductDocument toProductDocument(ProductUpdatedEvent event) {
+        return ProductDocument.builder()
+                .productId(String.valueOf(event.getProductId()))
+                .productName(event.getProductName())
+                .description(event.getDescription())
+                .basePrice(convertToLong(event.getBasePrice()))
+                .salePrice(convertToLong(event.getSalePrice()))
+                .status(event.getStatus())
+                .categoryIds(event.getCategoryIds())
+                .updatedAt(event.getUpdatedAt())
+                .build();
+    }
+
+    private Long convertToLong(java.math.BigDecimal value) {
+        return value != null ? value.longValue() : null;
     }
 }

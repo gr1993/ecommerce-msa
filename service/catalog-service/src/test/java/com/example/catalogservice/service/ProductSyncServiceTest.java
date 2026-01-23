@@ -4,6 +4,7 @@ import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncProductResponse;
 import com.example.catalogservice.client.dto.PageResponse;
 import com.example.catalogservice.domain.document.ProductDocument;
+import com.example.catalogservice.repository.ProductSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ class ProductSyncServiceTest {
     private ElasticsearchIndexService elasticsearchIndexService;
 
     @Mock
+    private ProductSearchRepository productSearchRepository;
+
+    @Mock
     private IndexOperations indexOperations;
 
     private ProductSyncService productSyncService;
@@ -58,7 +62,8 @@ class ProductSyncServiceTest {
         productSyncService = new ProductSyncService(
                 productServiceClient,
                 elasticsearchOperations,
-                elasticsearchIndexService
+                elasticsearchIndexService,
+                productSearchRepository
         );
 
         // indexOps().refresh() 호출을 위한 mock 설정
