@@ -74,6 +74,21 @@ CREATE TABLE product_sku_option (
         ON DELETE CASCADE
 ) COMMENT='SKU와 옵션 값을 매핑하는 테이블';
 
+-- 파일 업로드 기록 테이블
+CREATE TABLE file_upload (
+    file_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '파일 ID',
+    original_filename VARCHAR(255) NOT NULL COMMENT '원본 파일명',
+    stored_filename VARCHAR(255) NOT NULL COMMENT '저장된 파일명',
+    file_path VARCHAR(500) NOT NULL COMMENT '파일 경로',
+    file_size BIGINT NOT NULL COMMENT '파일 크기 (bytes)',
+    content_type VARCHAR(100) COMMENT '파일 타입',
+    status VARCHAR(20) NOT NULL COMMENT '파일 상태: TEMP, CONFIRMED, DELETED',
+    url VARCHAR(500) NOT NULL COMMENT '접근 URL',
+    uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '업로드일시',
+    confirmed_at TIMESTAMP COMMENT '확정일시',
+    INDEX idx_status_uploaded (status, uploaded_at)
+) COMMENT='파일 업로드 기록 테이블';
+
 -- 상품 이미지 테이블
 CREATE TABLE product_image (
     image_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '이미지 ID',
@@ -94,22 +109,6 @@ CREATE TABLE product_image (
 ) COMMENT='상품 이미지 정보를 저장하는 테이블';
 
 
--- 파일 업로드 기록 테이블
-CREATE TABLE file_upload (
-    file_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '파일 ID',
-    original_filename VARCHAR(255) NOT NULL COMMENT '원본 파일명',
-    stored_filename VARCHAR(255) NOT NULL COMMENT '저장된 파일명',
-    file_path VARCHAR(500) NOT NULL COMMENT '파일 경로',
-    file_size BIGINT NOT NULL COMMENT '파일 크기 (bytes)',
-    content_type VARCHAR(100) COMMENT '파일 타입',
-    status VARCHAR(20) NOT NULL COMMENT '파일 상태: TEMP, CONFIRMED, DELETED',
-    url VARCHAR(500) NOT NULL COMMENT '접근 URL',
-    uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '업로드일시',
-    confirmed_at TIMESTAMP COMMENT '확정일시',
-    INDEX idx_status_uploaded (status, uploaded_at)
-) COMMENT='파일 업로드 기록 테이블';
-
-
 -- 카테고리 테이블: 상품 전시용 카테고리 정보 관리
 CREATE TABLE category (
     category_id      BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '카테고리 ID',
@@ -117,7 +116,6 @@ CREATE TABLE category (
     category_name    VARCHAR(100) NOT NULL COMMENT '카테고리명',
     display_order    INT NOT NULL DEFAULT 0 COMMENT '전시 순서',
     is_displayed     BOOLEAN NOT NULL DEFAULT TRUE COMMENT '전시 여부',
-
     created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
     updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시'
 ) COMMENT='카테고리 정보를 저장하는 테이블';
@@ -150,7 +148,6 @@ CREATE TABLE product_display_mapping (
     is_displayed    BOOLEAN NOT NULL DEFAULT TRUE COMMENT '전시 여부',
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
-
     CONSTRAINT fk_display_product FOREIGN KEY (product_id)
         REFERENCES product(product_id)
         ON DELETE CASCADE
@@ -163,12 +160,10 @@ CREATE TABLE product_search_keyword (
     product_id BIGINT NOT NULL COMMENT '상품 ID',
     keyword VARCHAR(100) NOT NULL COMMENT '검색 키워드',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
-    
     CONSTRAINT fk_psk_product
         FOREIGN KEY (product_id)
         REFERENCES product(product_id)
         ON DELETE CASCADE,
-
     CONSTRAINT uq_product_keyword
         UNIQUE (product_id, keyword)
 ) COMMENT='상품별 검색 키워드 매핑 테이블';
