@@ -25,5 +25,6 @@ docker-compose -f docker-compose.infra.yml up -d
 
 ```shell
 docker exec -it kafka1 kafka-topics --create --topic user.registered --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
-
+docker exec -it kafka1 kafka-topics --create --topic product.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic product.updated --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 ```
