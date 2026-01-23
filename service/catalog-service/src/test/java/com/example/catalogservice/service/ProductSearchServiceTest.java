@@ -33,6 +33,9 @@ class ProductSearchServiceTest {
     @Mock
     private ElasticsearchOperations elasticsearchOperations;
 
+    @Mock
+    private CategorySyncService categorySyncService;
+
     @InjectMocks
     private ProductSearchService productSearchService;
 
@@ -51,6 +54,7 @@ class ProductSearchServiceTest {
                 createProductDocument("2", "마우스", List.of(10L, 30L))
         );
 
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
         SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
         when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
                 .thenReturn(searchHits);
@@ -77,6 +81,7 @@ class ProductSearchServiceTest {
                 .size(10)
                 .build();
 
+        when(categorySyncService.getCategoryIdWithDescendants(99L)).thenReturn(List.of(99L));
         SearchHits<ProductDocument> searchHits = createSearchHits(List.of(), 0L);
         when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
                 .thenReturn(searchHits);
@@ -104,6 +109,7 @@ class ProductSearchServiceTest {
                 createProductDocument("2", "상품 2", List.of(100L))
         );
 
+        when(categorySyncService.getCategoryIdWithDescendants(100L)).thenReturn(List.of(100L));
         SearchHits<ProductDocument> searchHits = createSearchHits(products, 25L);
         when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
                 .thenReturn(searchHits);
@@ -245,6 +251,7 @@ class ProductSearchServiceTest {
                 createProductDocument("1", "삼성 노트북", List.of(10L))
         );
 
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
         SearchHits<ProductDocument> searchHits = createSearchHits(products, 1L);
         when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
                 .thenReturn(searchHits);
@@ -255,6 +262,112 @@ class ProductSearchServiceTest {
         // Then
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).getProductName()).contains("노트북");
+    }
+
+    @Test
+    @DisplayName("상위 카테고리 검색 시 하위 카테고리 상품도 함께 조회")
+    void searchProducts_IncludeDescendantCategories() {
+        // Given - 전자제품(1) 카테고리와 하위 카테고리(2, 3, 4)가 있는 경우
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(1L)  // 전자제품 (상위 카테고리)
+                .page(0)
+                .size(10)
+                .build();
+
+        // 상위 카테고리 1과 하위 카테고리 2, 3, 4에 속한 상품들
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "스마트폰", List.of(2L)),      // 하위 카테고리
+                createProductDocument("2", "노트북", List.of(3L)),         // 하위 카테고리
+                createProductDocument("3", "태블릿", List.of(4L)),         // 하위 카테고리
+                createProductDocument("4", "액세서리", List.of(1L, 2L))   // 상위 + 하위
+        );
+
+        // CategorySyncService가 하위 카테고리 ID들을 반환하도록 설정
+        when(categorySyncService.getCategoryIdWithDescendants(1L))
+                .thenReturn(List.of(1L, 2L, 3L, 4L));
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 4L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(4);
+        assertThat(result.getContent())
+                .extracting(ProductDocument::getProductName)
+                .containsExactlyInAnyOrder("스마트폰", "노트북", "태블릿", "액세서리");
+
+        // CategorySyncService가 호출되었는지 검증
+        verify(categorySyncService).getCategoryIdWithDescendants(1L);
+    }
+
+    @Test
+    @DisplayName("리프 카테고리 검색 시 자기 자신만 조회")
+    void searchProducts_LeafCategoryOnly() {
+        // Given - 리프 카테고리(하위 카테고리가 없음)
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L)),
+                createProductDocument("2", "상품2", List.of(10L))
+        );
+
+        // 리프 카테고리는 자기 자신만 반환
+        when(categorySyncService.getCategoryIdWithDescendants(10L))
+                .thenReturn(List.of(10L));
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(categorySyncService).getCategoryIdWithDescendants(10L);
+    }
+
+    @Test
+    @DisplayName("중간 계층 카테고리 검색 시 하위만 포함")
+    void searchProducts_MiddleLevelCategory() {
+        // Given - 스마트폰(2) > 삼성(4), 애플(5)
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(2L)  // 스마트폰 (중간 계층)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "갤럭시 S24", List.of(4L)),    // 삼성
+                createProductDocument("2", "아이폰 15", List.of(5L)),     // 애플
+                createProductDocument("3", "스마트폰 케이스", List.of(2L, 4L))  // 스마트폰 + 삼성
+        );
+
+        // 스마트폰 카테고리와 하위 카테고리 (삼성, 애플)
+        when(categorySyncService.getCategoryIdWithDescendants(2L))
+                .thenReturn(List.of(2L, 4L, 5L));
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 3L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent())
+                .extracting(ProductDocument::getProductName)
+                .containsExactlyInAnyOrder("갤럭시 S24", "아이폰 15", "스마트폰 케이스");
+
+        verify(categorySyncService).getCategoryIdWithDescendants(2L);
     }
 
     private ProductDocument createProductDocument(String id, String name, List<Long> categoryIds) {

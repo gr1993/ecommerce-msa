@@ -21,6 +21,7 @@ import java.util.List;
 public class ProductSearchService {
 
     private final ElasticsearchOperations elasticsearchOperations;
+    private final CategorySyncService categorySyncService;
 
     public Page<ProductDocument> searchProducts(ProductSearchRequest request) {
         Query query = buildQuery(request);
@@ -51,11 +52,15 @@ public class ProductSearchService {
         }
 
         // 카테고리 필터 (filter - 점수에 영향 없음, 캐싱 가능)
+        // 상위 카테고리 선택 시 하위 카테고리도 함께 검색
         if (request.getCategoryId() != null) {
+            List<Long> categoryIds = categorySyncService.getCategoryIdWithDescendants(request.getCategoryId());
             filterQueries.add(Query.of(q -> q
-                    .term(t -> t
+                    .terms(t -> t
                             .field("categoryIds")
-                            .value(request.getCategoryId())
+                            .terms(tv -> tv.value(categoryIds.stream()
+                                    .map(id -> co.elastic.clients.elasticsearch._types.FieldValue.of(id))
+                                    .toList()))
                     )
             ));
         }

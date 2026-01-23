@@ -570,6 +570,133 @@ class CategorySyncServiceTest {
         }));
     }
 
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - null 입력 시 빈 리스트 반환")
+    void getCategoryIdWithDescendants_NullInput() {
+        // When
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(null);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 트리가 비어있으면 자기 자신만 반환")
+    void getCategoryIdWithDescendants_EmptyTree() {
+        // Given
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(null);
+
+        // When
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(100L);
+
+        // Then
+        assertThat(result).containsExactly(100L);
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 트리에서 찾지 못한 카테고리는 자기 자신만 반환")
+    void getCategoryIdWithDescendants_NotFoundInTree() throws JsonProcessingException {
+        // Given
+        String json = "[{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1,\"children\":null}]}]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When - 트리에 없는 카테고리 ID 999
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(999L);
+
+        // Then
+        assertThat(result).containsExactly(999L);
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 루트 카테고리 조회 시 모든 하위 카테고리 ID 포함")
+    void getCategoryIdWithDescendants_RootCategory() throws JsonProcessingException {
+        // Given - 전자제품(1) > 스마트폰(2) > 삼성(4), 애플(5)
+        //                      > 노트북(3)
+        String json = "[{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[" +
+                "{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1," +
+                "\"children\":[" +
+                "{\"categoryId\":4,\"parentId\":2,\"categoryName\":\"삼성\",\"displayOrder\":1,\"depth\":2,\"children\":null}," +
+                "{\"categoryId\":5,\"parentId\":2,\"categoryName\":\"애플\",\"displayOrder\":2,\"depth\":2,\"children\":null}" +
+                "]}," +
+                "{\"categoryId\":3,\"parentId\":1,\"categoryName\":\"노트북\",\"displayOrder\":2,\"depth\":1,\"children\":null}" +
+                "]}]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When - 루트 카테고리(1) 조회
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(1L);
+
+        // Then - 자신과 모든 하위 카테고리 포함
+        assertThat(result).containsExactlyInAnyOrder(1L, 2L, 3L, 4L, 5L);
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 중간 카테고리 조회 시 하위 카테고리만 포함")
+    void getCategoryIdWithDescendants_MiddleCategory() throws JsonProcessingException {
+        // Given - 전자제품(1) > 스마트폰(2) > 삼성(4), 애플(5)
+        //                      > 노트북(3)
+        String json = "[{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[" +
+                "{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1," +
+                "\"children\":[" +
+                "{\"categoryId\":4,\"parentId\":2,\"categoryName\":\"삼성\",\"displayOrder\":1,\"depth\":2,\"children\":null}," +
+                "{\"categoryId\":5,\"parentId\":2,\"categoryName\":\"애플\",\"displayOrder\":2,\"depth\":2,\"children\":null}" +
+                "]}," +
+                "{\"categoryId\":3,\"parentId\":1,\"categoryName\":\"노트북\",\"displayOrder\":2,\"depth\":1,\"children\":null}" +
+                "]}]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When - 스마트폰 카테고리(2) 조회
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(2L);
+
+        // Then - 자신과 하위 카테고리만 포함 (삼성, 애플)
+        assertThat(result).containsExactlyInAnyOrder(2L, 4L, 5L);
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 리프 카테고리 조회 시 자기 자신만 반환")
+    void getCategoryIdWithDescendants_LeafCategory() throws JsonProcessingException {
+        // Given - 전자제품(1) > 스마트폰(2) > 삼성(4)
+        String json = "[{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[" +
+                "{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1," +
+                "\"children\":[" +
+                "{\"categoryId\":4,\"parentId\":2,\"categoryName\":\"삼성\",\"displayOrder\":1,\"depth\":2,\"children\":null}" +
+                "]}" +
+                "]}]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When - 리프 카테고리(4) 조회
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(4L);
+
+        // Then - 자기 자신만 포함
+        assertThat(result).containsExactly(4L);
+    }
+
+    @Test
+    @DisplayName("getCategoryIdWithDescendants - 다중 루트 트리에서 특정 서브트리만 조회")
+    void getCategoryIdWithDescendants_MultipleRootTrees() throws JsonProcessingException {
+        // Given - 전자제품(1) > 스마트폰(2)
+        //         의류(10) > 남성의류(11), 여성의류(12)
+        String json = "[" +
+                "{\"categoryId\":1,\"parentId\":null,\"categoryName\":\"전자제품\",\"displayOrder\":1,\"depth\":0," +
+                "\"children\":[{\"categoryId\":2,\"parentId\":1,\"categoryName\":\"스마트폰\",\"displayOrder\":1,\"depth\":1,\"children\":null}]}," +
+                "{\"categoryId\":10,\"parentId\":null,\"categoryName\":\"의류\",\"displayOrder\":2,\"depth\":0," +
+                "\"children\":[" +
+                "{\"categoryId\":11,\"parentId\":10,\"categoryName\":\"남성의류\",\"displayOrder\":1,\"depth\":1,\"children\":null}," +
+                "{\"categoryId\":12,\"parentId\":10,\"categoryName\":\"여성의류\",\"displayOrder\":2,\"depth\":1,\"children\":null}" +
+                "]}" +
+                "]";
+        when(valueOperations.get(KEY_DISPLAY_TREE)).thenReturn(json);
+
+        // When - 의류 카테고리(10) 조회
+        List<Long> result = categorySyncService.getCategoryIdWithDescendants(10L);
+
+        // Then - 의류와 하위 카테고리만 포함 (전자제품 트리는 제외)
+        assertThat(result).containsExactlyInAnyOrder(10L, 11L, 12L);
+    }
+
     private CatalogSyncCategoryResponse createMockCategory(Long id, Long parentId, String name,
                                                           Integer displayOrder, Integer depth) {
         try {

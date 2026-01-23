@@ -259,4 +259,68 @@ public class CategorySyncService {
             return List.of();
         }
     }
+
+    /**
+     * 특정 카테고리 ID와 모든 하위 카테고리 ID를 반환한다.
+     * 상위 카테고리로 검색 시 하위 카테고리 상품도 함께 조회하기 위해 사용.
+     *
+     * @param categoryId 조회할 카테고리 ID
+     * @return 해당 카테고리 ID와 모든 하위 카테고리 ID 목록 (자신 포함)
+     */
+    public List<Long> getCategoryIdWithDescendants(Long categoryId) {
+        if (categoryId == null) {
+            return List.of();
+        }
+
+        List<CategoryTreeNode> tree = getCategoryTree();
+        if (tree.isEmpty()) {
+            return List.of(categoryId);
+        }
+
+        List<Long> result = new ArrayList<>();
+        CategoryTreeNode targetNode = findNodeInTree(tree, categoryId);
+
+        if (targetNode != null) {
+            collectAllCategoryIds(targetNode, result);
+        } else {
+            // 트리에서 찾지 못한 경우 해당 ID만 반환
+            result.add(categoryId);
+        }
+
+        return result;
+    }
+
+    /**
+     * 트리에서 특정 카테고리 ID를 가진 노드를 찾는다.
+     */
+    private CategoryTreeNode findNodeInTree(List<CategoryTreeNode> nodes, Long categoryId) {
+        if (nodes == null) {
+            return null;
+        }
+
+        for (CategoryTreeNode node : nodes) {
+            if (node.getCategoryId().equals(categoryId)) {
+                return node;
+            }
+            if (node.getChildren() != null) {
+                CategoryTreeNode found = findNodeInTree(node.getChildren(), categoryId);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 노드와 모든 하위 노드의 카테고리 ID를 수집한다.
+     */
+    private void collectAllCategoryIds(CategoryTreeNode node, List<Long> ids) {
+        ids.add(node.getCategoryId());
+        if (node.getChildren() != null) {
+            for (CategoryTreeNode child : node.getChildren()) {
+                collectAllCategoryIds(child, ids);
+            }
+        }
+    }
 }
