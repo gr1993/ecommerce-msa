@@ -23,6 +23,32 @@ public class ProductSearchService {
     private final ElasticsearchOperations elasticsearchOperations;
     private final CategorySyncService categorySyncService;
 
+    public List<String> autocompleteProductName(String keyword) {
+        if (!hasText(keyword)) {
+            return List.of();
+        }
+
+        NativeQuery nativeQuery = NativeQuery.builder()
+                .withQuery(q -> q
+                        .match(m -> m
+                                .field("productName.autocomplete")
+                                .query(keyword)
+                        )
+                )
+                .withSourceFilter(new org.springframework.data.elasticsearch.core.query.FetchSourceFilter(
+                        true, new String[]{"productName"}, null))
+                .withMaxResults(5)
+                .build();
+
+        SearchHits<ProductDocument> searchHits = elasticsearchOperations.search(nativeQuery, ProductDocument.class);
+
+        return searchHits.getSearchHits().stream()
+                .map(hit -> hit.getContent().getProductName())
+                .distinct()
+                .limit(5)
+                .toList();
+    }
+
     public Page<ProductDocument> searchProducts(ProductSearchRequest request) {
         Query query = buildQuery(request);
 

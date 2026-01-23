@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "Product", description = "상품 조회 API")
 @RestController
 @RequestMapping("/api/catalog/products")
@@ -23,6 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductSearchService productSearchService;
+
+    @Operation(summary = "상품명 자동완성", description = "입력된 키워드로 시작하는 상품명을 최대 5개까지 반환합니다.")
+    @GetMapping("/autocomplete")
+    public ResponseEntity<List<String>> autocompleteProductName(
+            @Parameter(description = "검색 키워드", required = true) @RequestParam("keyword") String keyword
+    ) {
+        List<String> suggestions = productSearchService.autocompleteProductName(keyword);
+        return ResponseEntity.ok(suggestions);
+    }
 
     @Operation(summary = "상품 목록 조회", description = "검색 필터와 페이지네이션을 적용하여 상품 목록을 조회합니다.")
     @GetMapping

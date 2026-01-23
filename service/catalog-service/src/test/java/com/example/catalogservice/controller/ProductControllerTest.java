@@ -345,6 +345,136 @@ class ProductControllerTest {
         verify(productSearchService).searchProducts(any(ProductSearchRequest.class));
     }
 
+    @Test
+    @DisplayName("GET /api/catalog/products/autocomplete - 상품명 자동완성 성공")
+    void autocompleteProductName_success() throws Exception {
+        // given
+        String keyword = "노트북";
+        List<String> suggestions = List.of(
+                "삼성 노트북",
+                "LG 노트북",
+                "애플 노트북 프로",
+                "HP 노트북",
+                "레노버 노트북"
+        );
+
+        given(productSearchService.autocompleteProductName(keyword))
+                .willReturn(suggestions);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/autocomplete")
+                        .param("keyword", keyword))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$[0]").value("삼성 노트북"))
+                .andExpect(jsonPath("$[1]").value("LG 노트북"))
+                .andExpect(jsonPath("$[2]").value("애플 노트북 프로"))
+                .andExpect(jsonPath("$[3]").value("HP 노트북"))
+                .andExpect(jsonPath("$[4]").value("레노버 노트북"));
+
+        verify(productSearchService).autocompleteProductName(keyword);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/autocomplete - 3개 미만 결과")
+    void autocompleteProductName_lessThanFiveResults() throws Exception {
+        // given
+        String keyword = "아이패드";
+        List<String> suggestions = List.of(
+                "아이패드 프로",
+                "아이패드 미니",
+                "아이패드 에어"
+        );
+
+        given(productSearchService.autocompleteProductName(keyword))
+                .willReturn(suggestions);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/autocomplete")
+                        .param("keyword", keyword))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0]").value("아이패드 프로"))
+                .andExpect(jsonPath("$[1]").value("아이패드 미니"))
+                .andExpect(jsonPath("$[2]").value("아이패드 에어"));
+
+        verify(productSearchService).autocompleteProductName(keyword);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/autocomplete - 검색 결과 없음")
+    void autocompleteProductName_noResults() throws Exception {
+        // given
+        String keyword = "존재하지않는상품";
+        List<String> suggestions = List.of();
+
+        given(productSearchService.autocompleteProductName(keyword))
+                .willReturn(suggestions);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/autocomplete")
+                        .param("keyword", keyword))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(productSearchService).autocompleteProductName(keyword);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/autocomplete - 빈 키워드")
+    void autocompleteProductName_emptyKeyword() throws Exception {
+        // given
+        String keyword = "";
+        List<String> suggestions = List.of();
+
+        given(productSearchService.autocompleteProductName(keyword))
+                .willReturn(suggestions);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/autocomplete")
+                        .param("keyword", keyword))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(productSearchService).autocompleteProductName(keyword);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/autocomplete - 한글 키워드")
+    void autocompleteProductName_koreanKeyword() throws Exception {
+        // given
+        String keyword = "갤럭시";
+        List<String> suggestions = List.of(
+                "갤럭시 S24",
+                "갤럭시 Z Fold",
+                "갤럭시 탭"
+        );
+
+        given(productSearchService.autocompleteProductName(keyword))
+                .willReturn(suggestions);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/autocomplete")
+                        .param("keyword", keyword))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0]").value("갤럭시 S24"))
+                .andExpect(jsonPath("$[1]").value("갤럭시 Z Fold"))
+                .andExpect(jsonPath("$[2]").value("갤럭시 탭"));
+
+        verify(productSearchService).autocompleteProductName(keyword);
+    }
+
     private ProductDocument createProduct(String id, String name, Long salePrice) {
         return createProduct(id, name, salePrice, "ACTIVE");
     }

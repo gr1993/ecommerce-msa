@@ -370,6 +370,138 @@ class ProductSearchServiceTest {
         verify(categorySyncService).getCategoryIdWithDescendants(2L);
     }
 
+    @Test
+    @DisplayName("상품명 자동완성 - 키워드 검색 시 최대 5개의 상품명 반환")
+    void autocompleteProductName_withKeyword() {
+        // Given
+        String keyword = "노트북";
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "삼성 노트북", List.of(1L)),
+                createProductDocument("2", "LG 노트북", List.of(1L)),
+                createProductDocument("3", "애플 노트북 프로", List.of(1L)),
+                createProductDocument("4", "HP 노트북", List.of(1L)),
+                createProductDocument("5", "레노버 노트북", List.of(1L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 5L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(keyword);
+
+        // Then
+        assertThat(result).hasSize(5);
+        assertThat(result).containsExactlyInAnyOrder(
+                "삼성 노트북", "LG 노트북", "애플 노트북 프로", "HP 노트북", "레노버 노트북"
+        );
+
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - 빈 키워드 입력 시 빈 리스트 반환")
+    void autocompleteProductName_withEmptyKeyword() {
+        // Given
+        String emptyKeyword = "";
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(emptyKeyword);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - null 키워드 입력 시 빈 리스트 반환")
+    void autocompleteProductName_withNullKeyword() {
+        // Given
+        String nullKeyword = null;
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(nullKeyword);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - 공백 키워드 입력 시 빈 리스트 반환")
+    void autocompleteProductName_withBlankKeyword() {
+        // Given
+        String blankKeyword = "   ";
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(blankKeyword);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - 검색 결과가 5개 미만인 경우")
+    void autocompleteProductName_lessThanFiveResults() {
+        // Given
+        String keyword = "아이패드";
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "아이패드 프로", List.of(1L)),
+                createProductDocument("2", "아이패드 미니", List.of(1L)),
+                createProductDocument("3", "아이패드 에어", List.of(1L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 3L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(keyword);
+
+        // Then
+        assertThat(result).hasSize(3);
+        assertThat(result).containsExactlyInAnyOrder(
+                "아이패드 프로", "아이패드 미니", "아이패드 에어"
+        );
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - 중복된 상품명 제거")
+    void autocompleteProductName_removeDuplicates() {
+        // Given
+        String keyword = "갤럭시";
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "갤럭시 S24", List.of(1L)),
+                createProductDocument("2", "갤럭시 S24", List.of(1L)),
+                createProductDocument("3", "갤럭시 Z Fold", List.of(1L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 3L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(keyword);
+
+        // Then
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactlyInAnyOrder("갤럭시 S24", "갤럭시 Z Fold");
+    }
+
+    @Test
+    @DisplayName("상품명 자동완성 - 검색 결과 없음")
+    void autocompleteProductName_noResults() {
+        // Given
+        String keyword = "존재하지않는상품";
+        SearchHits<ProductDocument> searchHits = createSearchHits(List.of(), 0L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        List<String> result = productSearchService.autocompleteProductName(keyword);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
     private ProductDocument createProductDocument(String id, String name, List<Long> categoryIds) {
         return ProductDocument.builder()
                 .productId(id)
