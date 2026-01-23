@@ -160,6 +160,7 @@ public class ProductSyncService {
                 .basePrice(convertToLong(event.getBasePrice()))
                 .salePrice(convertToLong(event.getSalePrice()))
                 .status(event.getStatus())
+                .primaryImageUrl(event.getPrimaryImageUrl())
                 .categoryIds(event.getCategoryIds())
                 .createdAt(event.getCreatedAt())
                 .build();
@@ -173,6 +174,7 @@ public class ProductSyncService {
                 .basePrice(convertToLong(event.getBasePrice()))
                 .salePrice(convertToLong(event.getSalePrice()))
                 .status(event.getStatus())
+                .primaryImageUrl(event.getPrimaryImageUrl())
                 .categoryIds(event.getCategoryIds())
                 .updatedAt(event.getUpdatedAt())
                 .build();

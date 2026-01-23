@@ -23,6 +23,7 @@ public class ProductCreatedEvent {
     private BigDecimal salePrice;
     private String status;
     private Boolean isDisplayed;
+    private String primaryImageUrl;
     private List<Long> categoryIds;
     private LocalDateTime createdAt;
 }
