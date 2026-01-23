@@ -155,7 +155,7 @@ function MarketProductList() {
     navigate(`/market/product/${productId}`)
   }
 
-  // 카테고리 ID로 카테고리명 조회
+  // 카테고리 ID로 카테고리명 조회 (3단계까지 지원)
   const getCategoryName = (categoryIds?: number[]): string => {
     if (!categoryIds || categoryIds.length === 0) return ''
     const categoryId = categoryIds[0]
@@ -164,6 +164,11 @@ function MarketProductList() {
       if (cat.children) {
         for (const child of cat.children) {
           if (child.categoryId === categoryId) return child.categoryName
+          if (child.children) {
+            for (const grandChild of child.children) {
+              if (grandChild.categoryId === categoryId) return grandChild.categoryName
+            }
+          }
         }
       }
     }
@@ -285,12 +290,22 @@ function MarketProductList() {
                     {category.categoryName}
                   </div>
                   {category.children && category.children.map(child => (
-                    <div
-                      key={child.categoryId}
-                      className={`category-item category-child ${selectedCategory === String(child.categoryId) ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(String(child.categoryId))}
-                    >
-                      {child.categoryName}
+                    <div key={child.categoryId} className="category-subgroup">
+                      <div
+                        className={`category-item category-child ${selectedCategory === String(child.categoryId) ? 'active' : ''}`}
+                        onClick={() => handleCategoryClick(String(child.categoryId))}
+                      >
+                        {child.categoryName}
+                      </div>
+                      {child.children && child.children.map(grandChild => (
+                        <div
+                          key={grandChild.categoryId}
+                          className={`category-item category-grandchild ${selectedCategory === String(grandChild.categoryId) ? 'active' : ''}`}
+                          onClick={() => handleCategoryClick(String(grandChild.categoryId))}
+                        >
+                          {grandChild.categoryName}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
