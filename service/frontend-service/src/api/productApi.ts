@@ -667,3 +667,132 @@ export const updateProduct = async (productId: number, productData: ProductCreat
     throw new Error('상품 수정 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }
+
+// ==================== 사용자용 API (Catalog) ====================
+
+/**
+ * 사용자용 상품 응답 DTO (Catalog API)
+ */
+export interface CatalogProductResponse {
+  /** 상품 ID */
+  productId: string
+  /** 상품명 */
+  productName: string
+  /** 상품 설명 */
+  description?: string
+  /** 기본 가격 */
+  basePrice: number
+  /** 할인 가격 */
+  salePrice?: number
+  /** 상품 상태 */
+  status: string
+  /** 대표 이미지 URL */
+  primaryImageUrl?: string
+  /** 카테고리 ID 목록 */
+  categoryIds?: number[]
+  /** 생성일시 */
+  createdAt: string
+  /** 수정일시 */
+  updatedAt: string
+}
+
+/**
+ * 사용자용 상품 목록 조회 요청 파라미터 (Catalog API)
+ */
+export interface CatalogSearchProductsParams {
+  /** 상품명 (부분 검색) */
+  productName?: string
+  /** 카테고리 ID */
+  categoryId?: number
+  /** 상품 상태 (ACTIVE, INACTIVE, SOLD_OUT) */
+  status?: string
+  /** 최소 가격 */
+  minPrice?: number
+  /** 최대 가격 */
+  maxPrice?: number
+  /** 페이지 번호 (0부터 시작) */
+  page?: number
+  /** 페이지 크기 */
+  size?: number
+  /** 정렬 기준 (예: createdAt,desc) */
+  sort?: string
+}
+
+/**
+ * 사용자용 상품 목록 조회
+ *
+ * 검색 필터와 페이지네이션을 적용하여 상품 목록을 조회합니다. (인증 불필요)
+ *
+ * @param params - 검색 및 페이지네이션 파라미터
+ * @returns 페이지네이션된 상품 목록
+ * @throws Error - 조회 실패 시
+ *
+ * @example
+ * ```typescript
+ * const result = await getCatalogProducts({
+ *   productName: '노트북',
+ *   categoryId: 1,
+ *   page: 0,
+ *   size: 8
+ * })
+ * console.log('Products:', result.content)
+ * console.log('Total:', result.totalElements)
+ * ```
+ */
+export const getCatalogProducts = async (params?: CatalogSearchProductsParams): Promise<PageResponse<CatalogProductResponse>> => {
+  try {
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+
+    if (params?.productName) {
+      queryParams.append('productName', params.productName)
+    }
+    if (params?.categoryId !== undefined) {
+      queryParams.append('categoryId', params.categoryId.toString())
+    }
+    if (params?.status) {
+      queryParams.append('status', params.status)
+    }
+    if (params?.minPrice !== undefined) {
+      queryParams.append('minPrice', params.minPrice.toString())
+    }
+    if (params?.maxPrice !== undefined) {
+      queryParams.append('maxPrice', params.maxPrice.toString())
+    }
+    if (params?.page !== undefined) {
+      queryParams.append('page', params.page.toString())
+    }
+    if (params?.size !== undefined) {
+      queryParams.append('size', params.size.toString())
+    }
+    if (params?.sort) {
+      queryParams.append('sort', params.sort)
+    }
+
+    const queryString = queryParams.toString()
+    const url = `http://localhost:8080/api/catalog/products${queryString ? `?${queryString}` : ''}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      throw new Error(error.message || `상품 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: PageResponse<CatalogProductResponse> = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get catalog products error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('상품 목록 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}

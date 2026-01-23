@@ -1,26 +1,14 @@
-import { useState, useEffect } from 'react'
-import { Input, Select, Button, Card, Row, Col, Space, Pagination } from 'antd'
+import { useState, useEffect, useCallback } from 'react'
+import { Input, Select, Button, Card, Row, Col, Space, Pagination, Spin, message } from 'antd'
 import { SearchOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { getDisplayCategoryTree, type CategoryTreeNode } from '../../api/categoryApi'
+import { getCatalogProducts, type CatalogProductResponse } from '../../api/productApi'
 import './MarketProductList.css'
 
 const { Option } = Select
-
-interface Product {
-  product_id: string
-  product_name: string
-  product_code: string
-  base_price: number
-  discount_price?: number
-  category_id: string
-  category_name: string
-  sales_count: number
-  created_at: string
-  image_url?: string
-}
 
 function MarketProductList() {
   const navigate = useNavigate()
@@ -32,9 +20,22 @@ function MarketProductList() {
   const [sortBy, setSortBy] = useState<string>('latest')
   const [pageSize, setPageSize] = useState<number>(8)
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<CatalogProductResponse[]>([])
+  const [totalElements, setTotalElements] = useState<number>(0)
+  const [loading, setLoading] = useState<boolean>(false)
+
+  // 정렬 옵션을 API 형식으로 변환
+  const getSortParam = useCallback((sort: string): string => {
+    switch (sort) {
+      case 'price-low':
+        return 'basePrice,asc'
+      case 'price-high':
+        return 'basePrice,desc'
+      case 'latest':
+      default:
+        return 'createdAt,desc'
+    }
+  }, [])
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -49,170 +50,29 @@ function MarketProductList() {
     fetchCategories()
   }, [])
 
-  // 상품 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 상품 데이터 로드
-    const sampleProducts: Product[] = [
-      {
-        product_id: '1',
-        product_name: '프리미엄 노트북',
-        product_code: 'PRD-001',
-        base_price: 1500000,
-        discount_price: 1200000,
-        category_id: '1-1',
-        category_name: '노트북',
-        sales_count: 150,
-        created_at: '2024-01-01 10:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=노트북'
-      },
-      {
-        product_id: '2',
-        product_name: '최신 스마트폰',
-        product_code: 'PRD-002',
-        base_price: 800000,
-        category_id: '1-2',
-        category_name: '스마트폰',
-        sales_count: 230,
-        created_at: '2024-01-05 14:30:00',
-        image_url: 'https://via.placeholder.com/300x300?text=스마트폰'
-      },
-      {
-        product_id: '3',
-        product_name: '고성능 태블릿',
-        product_code: 'PRD-003',
-        base_price: 600000,
-        category_id: '1-3',
-        category_name: '태블릿',
-        sales_count: 89,
-        created_at: '2024-01-10 09:20:00',
-        image_url: 'https://via.placeholder.com/300x300?text=태블릿'
-      },
-      {
-        product_id: '4',
-        product_name: '프리미엄 티셔츠',
-        product_code: 'PRD-004',
-        base_price: 70000,
-        discount_price: 50000,
-        category_id: '2-1',
-        category_name: '상의',
-        sales_count: 320,
-        created_at: '2024-01-15 11:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=티셔츠'
-      },
-      {
-        product_id: '5',
-        product_name: '스타일리시한 바지',
-        product_code: 'PRD-005',
-        base_price: 80000,
-        category_id: '2-2',
-        category_name: '하의',
-        sales_count: 180,
-        created_at: '2024-01-20 15:30:00',
-        image_url: 'https://via.placeholder.com/300x300?text=바지'
-      },
-      {
-        product_id: '6',
-        product_name: '트렌디한 신발',
-        product_code: 'PRD-006',
-        base_price: 120000,
-        category_id: '2-3',
-        category_name: '신발',
-        sales_count: 95,
-        created_at: '2024-01-25 10:15:00',
-        image_url: 'https://via.placeholder.com/300x300?text=신발'
-      },
-      {
-        product_id: '7',
-        product_name: '베스트셀러 도서',
-        product_code: 'PRD-007',
-        base_price: 20000,
-        discount_price: 15000,
-        category_id: '3',
-        category_name: '도서',
-        sales_count: 450,
-        created_at: '2024-02-01 09:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=도서'
-      },
-      {
-        product_id: '8',
-        product_name: '프리미엄 식품',
-        product_code: 'PRD-008',
-        base_price: 30000,
-        category_id: '4',
-        category_name: '식품',
-        sales_count: 280,
-        created_at: '2024-02-05 14:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=식품'
-      },
-      {
-        product_id: '9',
-        product_name: '무선 이어폰',
-        product_code: 'PRD-009',
-        base_price: 150000,
-        category_id: '1-2',
-        category_name: '스마트폰',
-        sales_count: 320,
-        created_at: '2024-02-10 11:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=이어폰'
-      },
-      {
-        product_id: '10',
-        product_name: '스마트 워치',
-        product_code: 'PRD-010',
-        base_price: 350000,
-        category_id: '1-2',
-        category_name: '스마트폰',
-        sales_count: 180,
-        created_at: '2024-02-12 14:30:00',
-        image_url: 'https://via.placeholder.com/300x300?text=워치'
-      },
-      {
-        product_id: '11',
-        product_name: '청바지',
-        product_code: 'PRD-011',
-        base_price: 90000,
-        category_id: '2-2',
-        category_name: '하의',
-        sales_count: 250,
-        created_at: '2024-02-15 10:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=청바지'
-      },
-      {
-        product_id: '12',
-        product_name: '운동화',
-        product_code: 'PRD-012',
-        base_price: 130000,
-        category_id: '2-3',
-        category_name: '신발',
-        sales_count: 200,
-        created_at: '2024-02-18 16:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=운동화'
-      },
-      {
-        product_id: '13',
-        product_name: '소설책',
-        product_code: 'PRD-013',
-        base_price: 12000,
-        category_id: '3',
-        category_name: '도서',
-        sales_count: 380,
-        created_at: '2024-02-20 09:30:00',
-        image_url: 'https://via.placeholder.com/300x300?text=소설'
-      },
-      {
-        product_id: '14',
-        product_name: '건강식품',
-        product_code: 'PRD-014',
-        base_price: 45000,
-        category_id: '4',
-        category_name: '식품',
-        sales_count: 190,
-        created_at: '2024-02-22 13:00:00',
-        image_url: 'https://via.placeholder.com/300x300?text=건강식품'
-      }
-    ]
-    setProducts(sampleProducts)
-  }, [])
+  // 상품 데이터 로드 (API 호출)
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await getCatalogProducts({
+        productName: searchKeyword || undefined,
+        categoryId: selectedCategory !== 'all' ? Number(selectedCategory) : undefined,
+        status: 'ACTIVE',
+        page: currentPage - 1, // API는 0부터 시작
+        size: pageSize,
+        sort: getSortParam(sortBy),
+      })
+      setProducts(response.content)
+      setTotalElements(response.totalElements)
+    } catch (error) {
+      console.error('상품 조회 실패:', error)
+      message.error('상품 목록을 불러오는데 실패했습니다.')
+      setProducts([])
+      setTotalElements(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [searchKeyword, selectedCategory, currentPage, pageSize, sortBy, getSortParam])
 
   // URL 파라미터에서 초기값 설정
   useEffect(() => {
@@ -221,7 +81,7 @@ function MarketProductList() {
     const sort = searchParams.get('sort') || 'latest'
     const page = parseInt(searchParams.get('page') || '1', 10)
     const size = parseInt(searchParams.get('pageSize') || '8', 10)
-    
+
     setSelectedCategory(category)
     setSearchKeyword(keyword)
     setSortBy(sort)
@@ -229,65 +89,10 @@ function MarketProductList() {
     setPageSize(size)
   }, [searchParams])
 
-  // 필터링 및 정렬
+  // 검색 조건이 변경되면 상품 목록 다시 로드
   useEffect(() => {
-    let filtered = [...products]
-
-    // 카테고리 필터
-    if (selectedCategory !== 'all') {
-      // 선택된 카테고리와 그 하위 카테고리 모두 포함
-      const categoryIds = getCategoryIds(selectedCategory, categories)
-      filtered = filtered.filter(product => 
-        categoryIds.includes(product.category_id) ||
-        product.category_id === selectedCategory
-      )
-    }
-
-    // 검색어 필터
-    if (searchKeyword) {
-      filtered = filtered.filter(product =>
-        product.product_name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        product.product_code.toLowerCase().includes(searchKeyword.toLowerCase())
-      )
-    }
-
-    // 정렬
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'price-low':
-          return a.base_price - b.base_price
-        case 'price-high':
-          return b.base_price - a.base_price
-        case 'sales':
-          return b.sales_count - a.sales_count
-        case 'latest':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-    })
-
-    setFilteredProducts(filtered)
-  }, [selectedCategory, searchKeyword, sortBy, products, categories])
-
-  // 페이지네이션 적용
-  useEffect(() => {
-    const startIndex = (currentPage - 1) * pageSize
-    const endIndex = startIndex + pageSize
-    const paginated = filteredProducts.slice(startIndex, endIndex)
-    setPaginatedProducts(paginated)
-  }, [filteredProducts, currentPage, pageSize])
-
-  const getCategoryIds = (categoryId: string, cats: CategoryTreeNode[]): string[] => {
-    const ids: string[] = [categoryId]
-    for (const cat of cats) {
-      if (String(cat.categoryId) === categoryId && cat.children) {
-        cat.children.forEach(child => {
-          ids.push(String(child.categoryId))
-        })
-      }
-    }
-    return ids
-  }
+    fetchProducts()
+  }, [fetchProducts])
 
   const handleSearch = () => {
     const params = new URLSearchParams()
@@ -349,15 +154,30 @@ function MarketProductList() {
     navigate(`/market/product/${productId}`)
   }
 
-  const ProductCard = ({ product }: { product: Product }) => (
+  // 카테고리 ID로 카테고리명 조회
+  const getCategoryName = (categoryIds?: number[]): string => {
+    if (!categoryIds || categoryIds.length === 0) return ''
+    const categoryId = categoryIds[0]
+    for (const cat of categories) {
+      if (cat.categoryId === categoryId) return cat.categoryName
+      if (cat.children) {
+        for (const child of cat.children) {
+          if (child.categoryId === categoryId) return child.categoryName
+        }
+      }
+    }
+    return ''
+  }
+
+  const ProductCard = ({ product }: { product: CatalogProductResponse }) => (
     <Card
       hoverable
       className="product-card"
       cover={
         <div className="product-image-container">
           <img
-            alt={product.product_name}
-            src={product.image_url || 'https://via.placeholder.com/300x300'}
+            alt={product.productName}
+            src={product.primaryImageUrl || 'https://via.placeholder.com/300x300'}
             className="product-image"
           />
           <div className="product-overlay">
@@ -375,26 +195,28 @@ function MarketProductList() {
           </div>
         </div>
       }
-      onClick={() => handleProductClick(product.product_id)}
+      onClick={() => handleProductClick(product.productId)}
     >
       <div className="product-info">
-        <div className="product-category-badge">{product.category_name}</div>
-        <h3 className="product-name">{product.product_name}</h3>
+        {getCategoryName(product.categoryIds) && (
+          <div className="product-category-badge">{getCategoryName(product.categoryIds)}</div>
+        )}
+        <h3 className="product-name">{product.productName}</h3>
         <div className="product-price">
-          {product.discount_price ? (
+          {product.salePrice && product.salePrice < product.basePrice ? (
             <>
               <div className="price-original">
-                <span className="original-price">{product.base_price.toLocaleString()}원</span>
+                <span className="original-price">{product.basePrice.toLocaleString()}원</span>
               </div>
               <div className="price-discount">
                 <span className="discount-rate">
-                  {Math.round(((product.base_price - product.discount_price) / product.base_price) * 100)}%
+                  {Math.round(((product.basePrice - product.salePrice) / product.basePrice) * 100)}%
                 </span>
-                <span className="discount-price">{product.discount_price.toLocaleString()}원</span>
+                <span className="discount-price">{product.salePrice.toLocaleString()}원</span>
               </div>
             </>
           ) : (
-            <span className="price">{product.base_price.toLocaleString()}원</span>
+            <span className="price">{product.basePrice.toLocaleString()}원</span>
           )}
         </div>
       </div>
@@ -480,10 +302,10 @@ function MarketProductList() {
             <div className="product-list-header">
               <div className="result-info">
                 <span className="result-count">
-                  총 {filteredProducts.length}개의 상품
-                  {filteredProducts.length > 0 && (
+                  총 {totalElements}개의 상품
+                  {totalElements > 0 && (
                     <span className="page-info">
-                      ({(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredProducts.length)}개 표시)
+                      ({(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalElements)}개 표시)
                     </span>
                   )}
                 </span>
@@ -507,38 +329,41 @@ function MarketProductList() {
                     <Option value="latest">최신순</Option>
                     <Option value="price-low">낮은 가격순</Option>
                     <Option value="price-high">높은 가격순</Option>
-                    <Option value="sales">판매량순</Option>
                   </Select>
                 </Space>
               </div>
             </div>
 
-            {filteredProducts.length === 0 ? (
-              <div className="empty-state">
-                <p>검색 결과가 없습니다.</p>
-              </div>
-            ) : (
-              <>
-                <Row gutter={[24, 24]}>
-                  {paginatedProducts.map((product) => (
-                    <Col xs={12} sm={8} md={6} key={product.product_id}>
-                      <ProductCard product={product} />
-                    </Col>
-                  ))}
-                </Row>
-                <div className="pagination-wrapper">
-                  <Pagination
-                    current={currentPage}
-                    total={filteredProducts.length}
-                    pageSize={pageSize}
-                    onChange={handlePageChange}
-                    showSizeChanger={false}
-                    showTotal={(total, range) => `${range[0]}-${range[1]} / ${total}개`}
-                    pageSizeOptions={[]}
-                  />
+            <Spin spinning={loading}>
+              {!loading && products.length === 0 ? (
+                <div className="empty-state">
+                  <p>검색 결과가 없습니다.</p>
                 </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <Row gutter={[24, 24]}>
+                    {products.map((product) => (
+                      <Col xs={12} sm={8} md={6} key={product.productId}>
+                        <ProductCard product={product} />
+                      </Col>
+                    ))}
+                  </Row>
+                  {totalElements > 0 && (
+                    <div className="pagination-wrapper">
+                      <Pagination
+                        current={currentPage}
+                        total={totalElements}
+                        pageSize={pageSize}
+                        onChange={handlePageChange}
+                        showSizeChanger={false}
+                        showTotal={(total, range) => `${range[0]}-${range[1]} / ${total}개`}
+                        pageSizeOptions={[]}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </Spin>
           </main>
         </div>
       </div>
