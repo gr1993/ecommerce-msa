@@ -2,10 +2,11 @@
  * Category Service API Integration
  *
  * Type-safe API functions for category management endpoints
- * All requests go through API Gateway (http://localhost:8080)
+ * All requests go through API Gateway
  */
 
 import { useAuthStore } from '../stores/authStore'
+import { API_BASE_URL } from '../config/env'
 
 // ==================== Interfaces ====================
 
@@ -110,7 +111,7 @@ export const getCategoryTree = async (): Promise<CategoryTreeResponse[]> => {
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch('http://localhost:8080/api/admin/categories', {
+    const response = await fetch(`${API_BASE_URL}/api/admin/categories`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -160,7 +161,7 @@ export const getCategory = async (categoryId: number): Promise<CategoryResponse>
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch(`http://localhost:8080/api/admin/categories/${categoryId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -213,7 +214,7 @@ export const createCategory = async (request: CategoryCreateRequest): Promise<Ca
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch('http://localhost:8080/api/admin/categories', {
+    const response = await fetch(`${API_BASE_URL}/api/admin/categories`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -271,7 +272,7 @@ export const updateCategory = async (categoryId: number, request: CategoryUpdate
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch(`http://localhost:8080/api/admin/categories/${categoryId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -327,7 +328,7 @@ export const deleteCategory = async (categoryId: number): Promise<void> => {
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch(`http://localhost:8080/api/admin/categories/${categoryId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -376,7 +377,7 @@ export const deleteCategory = async (categoryId: number): Promise<void> => {
  */
 export const getDisplayCategoryTree = async (): Promise<CategoryTreeNode[]> => {
   try {
-    const response = await fetch('http://localhost:8080/api/catalog/categories/tree', {
+    const response = await fetch(`${API_BASE_URL}/api/catalog/categories/tree`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

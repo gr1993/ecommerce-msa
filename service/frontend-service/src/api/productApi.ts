@@ -2,10 +2,11 @@
  * Product Service API Integration
  *
  * Type-safe API functions for product-service endpoints
- * All requests go through API Gateway (http://localhost:8080)
+ * All requests go through API Gateway
  */
 
 import { useAuthStore } from '../stores/authStore'
+import { API_BASE_URL } from '../config/env'
 
 // ==================== Interfaces ====================
 
@@ -349,7 +350,7 @@ export const searchProducts = async (params?: SearchProductsParams): Promise<Pag
     }
 
     const queryString = queryParams.toString()
-    const url = `http://localhost:8080/api/admin/products${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/api/admin/products${queryString ? `?${queryString}` : ''}`
 
     // Get admin token from Zustand store
     const adminToken = useAuthStore.getState().adminToken
@@ -421,7 +422,7 @@ export const uploadProductImage = async (file: File): Promise<FileUploadResponse
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch('http://localhost:8080/api/admin/products/files/upload', {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/files/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${adminToken}`,
@@ -493,7 +494,7 @@ export const createProduct = async (productData: ProductCreateRequest): Promise<
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch('http://localhost:8080/api/admin/products', {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -559,7 +560,7 @@ export const getProductDetail = async (productId: number): Promise<ProductDetail
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch(`http://localhost:8080/api/admin/products/${productId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -627,7 +628,7 @@ export const updateProduct = async (productId: number, productData: ProductCreat
       throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
     }
 
-    const response = await fetch(`http://localhost:8080/api/admin/products/${productId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -770,7 +771,7 @@ export const getCatalogProducts = async (params?: CatalogSearchProductsParams): 
     }
 
     const queryString = queryParams.toString()
-    const url = `http://localhost:8080/api/catalog/products${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/api/catalog/products${queryString ? `?${queryString}` : ''}`
 
     const response = await fetch(url, {
       method: 'GET',

@@ -2,10 +2,11 @@
  * User Service API Integration
  *
  * Type-safe API functions for user-service endpoints
- * All requests go through API Gateway (http://localhost:8080)
+ * All requests go through API Gateway
  */
 
 import { useAuthStore } from '../stores/authStore'
+import { API_BASE_URL } from '../config/env'
 
 // ==================== Interfaces ====================
 
@@ -128,7 +129,7 @@ export interface SearchUsersParams {
  */
 export const signUp = async (signUpData: SignUpRequest): Promise<SignUpResponse> => {
   try {
-    const response = await fetch('http://localhost:8080/api/users/signup', {
+    const response = await fetch(`${API_BASE_URL}/api/users/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,7 +215,7 @@ export const searchUsers = async (params?: SearchUsersParams): Promise<PageRespo
     }
 
     const queryString = queryParams.toString()
-    const url = `http://localhost:8080/api/admin/users${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/api/admin/users${queryString ? `?${queryString}` : ''}`
 
     // Get admin token from Zustand store
     const adminToken = useAuthStore.getState().adminToken

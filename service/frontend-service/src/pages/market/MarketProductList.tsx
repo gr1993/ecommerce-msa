@@ -6,6 +6,7 @@ import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { getDisplayCategoryTree, type CategoryTreeNode } from '../../api/categoryApi'
 import { getCatalogProducts, type CatalogProductResponse } from '../../api/productApi'
+import { PRODUCT_FILE_URL } from '../../config/env'
 import './MarketProductList.css'
 
 const { Option } = Select
@@ -177,7 +178,7 @@ function MarketProductList() {
         <div className="product-image-container">
           <img
             alt={product.productName}
-            src={product.primaryImageUrl || 'https://via.placeholder.com/300x300'}
+            src={product.primaryImageUrl ? `${PRODUCT_FILE_URL}${product.primaryImageUrl}` : 'https://via.placeholder.com/300x300'}
             className="product-image"
           />
           <div className="product-overlay">

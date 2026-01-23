@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import ProductForm from './ProductForm'
 import type { OptionGroup, SKU, ProductImage, SelectedCategory } from './ProductForm'
 import { getProductDetail, updateProduct, uploadProductImage, type ProductCreateRequest } from '../../../api/productApi'
+import { PRODUCT_FILE_URL } from '../../../config/env'
 import './AdminProductRegister.css'
 
 function AdminProductEdit() {
@@ -61,7 +62,7 @@ function AdminProductEdit() {
           images: product.images.map(img => ({
             id: String(img.id),
             fileId: img.fileId, // 기존 이미지의 fileId 보존
-            url: `http://localhost:8080/product${img.imageUrl}`, // 정적 리소스 경로
+            url: `${PRODUCT_FILE_URL}${img.imageUrl}`, // 정적 리소스 경로
             isPrimary: img.isPrimary,
             displayOrder: img.displayOrder
           })) as ProductImage[]

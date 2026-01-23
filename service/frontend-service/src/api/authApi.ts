@@ -2,8 +2,10 @@
  * Auth Service API Integration
  *
  * Type-safe API functions for auth-service endpoints
- * All requests go through API Gateway (http://localhost:8080)
+ * All requests go through API Gateway
  */
+
+import { API_BASE_URL } from '../config/env'
 
 // ==================== Interfaces ====================
 
@@ -94,7 +96,7 @@ export interface AdminTokenResponse {
  */
 export const login = async (credentials: LoginRequest): Promise<TokenResponse> => {
   try {
-    const response = await fetch('http://localhost:8080/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -150,7 +152,7 @@ export const login = async (credentials: LoginRequest): Promise<TokenResponse> =
  */
 export const refreshToken = async (request: RefreshTokenRequest): Promise<TokenResponse> => {
   try {
-    const response = await fetch('http://localhost:8080/api/auth/refresh', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -206,7 +208,7 @@ export const refreshToken = async (request: RefreshTokenRequest): Promise<TokenR
  */
 export const adminLogin = async (credentials: AdminLoginRequest): Promise<AdminTokenResponse> => {
   try {
-    const response = await fetch('http://localhost:8080/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
