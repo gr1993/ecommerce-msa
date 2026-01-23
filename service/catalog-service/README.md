@@ -20,9 +20,31 @@ Full Sync API 구현 시에는 멱등성을 확보하여 같은 데이터를 여
 상품 수가 많을 경우에는 Batch 처리도 고려하는 것이 좋다.  
 
 마지막으로, Full Sync 이후에는 product-service에서 발생한 변경 이벤트도 적용하여 이벤트 기반 증분 동기화가 이루어지도록 구현해야 한다.  
-* Product Full Sync : 검색 대상 전체 상품을 ES에 Full Reindex (API 호출 시 실행)
-* Category Full Sync : 전체 카테고리를 Redis에 동기화(캐싱(한다. (일 1회 비트래픽 시간대 스케줄 실행, 테스트용으로 API도 구현)
+* Product Full Sync
+  * Full Sync 시 Zero Downtime을 위해 Elasticsearch Alias(별칭) 기능을 활용하여 인덱스를 교체한다.
+  * 검색 대상 전체 상품 정보를 새로운 인덱스에 Full Reindex 후 원자적으로 스위칭한다.
+* Category Full Sync
+  * Full Sync 시 서비스 중단을 방지하기 위해 Redis의 RENAME 명령어를 활용한다.
+  * 전체 카테고리를 Redis에 동기화(캐싱)한다. (일 1회 비트래픽 시간대 스케줄 실행, 테스트용으로 API도 구현)
 * Stock Full Sync
+
+
+### 사용자 API 신뢰성 전략
+catalog-service는 사용자에게 검색 및 상품 조회 기능을 제공하는 읽기 전용 서비스로, 비즈니스  
+핵심 트랜잭션에는 직접 관여하지 않는다. 사용자에게 제공되는 API의 신뢰성을 보장하기 위해,  
+catalog-service 자체에 별도의 서킷 브레이커를 두기보다는 앞단 Gateway-Service에서  
+timeout 및 서킷 브레이커를 통해 장애를 차단하는 구조를 채택한다.  
+
+Elasticsearch 또는 Redis와의 통신 장애로 인해 응답 지연이나 오류가 발생할 경우, 해당 장애는  
+Gateway-Service에서 timeout 또는 fallback 처리되어 장애가 사용자에게 직접 전파되지 않도록 한다.  
+
+또한 catalog-service는 Product-Service의 데이터를 이벤트 기반으로 동기화한 파생(Read)  
+모델이므로, Elasticsearch 또는 Redis의 데이터가 비정상 상태가 되더라도 Full Sync API를  
+실행하여 전체 데이터를 재색인함으로써 데이터 정합성을 빠르게 복구할 수 있다.  
+
+이와 같은 구조를 통해 catalog-service는 장애 발생 시 빠른 실패(Fail Fast), 장애 반경의 최소화  
+, 운영 관점에서의 신속한 복구 를 목표로 사용자 API의 신뢰성을 유지한다.  
+
 
 ### 백엔드 기술
 
