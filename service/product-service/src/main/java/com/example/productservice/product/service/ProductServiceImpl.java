@@ -421,6 +421,8 @@ public class ProductServiceImpl implements ProductService {
                     .map(Category::getCategoryId)
                     .collect(Collectors.toList());
 
+            String primaryImageUrl = extractPrimaryImageUrl(product);
+
             ProductCreatedEvent event = new ProductCreatedEvent(
                     product.getProductId(),
                     product.getProductName(),
@@ -431,6 +433,7 @@ public class ProductServiceImpl implements ProductService {
                     product.getStatus(),
                     product.getIsDisplayed(),
                     categoryIds,
+                    primaryImageUrl,
                     product.getCreatedAt()
             );
 
@@ -457,6 +460,8 @@ public class ProductServiceImpl implements ProductService {
                     .map(Category::getCategoryId)
                     .collect(Collectors.toList());
 
+            String primaryImageUrl = extractPrimaryImageUrl(product);
+
             ProductUpdatedEvent event = new ProductUpdatedEvent(
                     product.getProductId(),
                     product.getProductName(),
@@ -467,6 +472,7 @@ public class ProductServiceImpl implements ProductService {
                     product.getStatus(),
                     product.getIsDisplayed(),
                     categoryIds,
+                    primaryImageUrl,
                     product.getUpdatedAt()
             );
 
@@ -485,5 +491,13 @@ public class ProductServiceImpl implements ProductService {
             log.error("이벤트 직렬화 실패: productId={}", product.getProductId(), e);
             throw new RuntimeException("이벤트 저장 중 오류가 발생했습니다.", e);
         }
+    }
+
+    private String extractPrimaryImageUrl(Product product) {
+        return product.getImages().stream()
+                .filter(image -> Boolean.TRUE.equals(image.getIsPrimary()))
+                .findFirst()
+                .map(ProductImage::getImageUrl)
+                .orElse(null);
     }
 }
