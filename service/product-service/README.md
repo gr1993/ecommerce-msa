@@ -14,10 +14,14 @@ product-service는 e-commerce MSA 시스템에서 **상품 도메인의 쓰기 �
 com.example.productservice/
 ├── ProductServiceApplication.java
 ├── global/                          # 전역 설정, 공통 모듈
-│   ├── config/
 │   ├── common/
 │   │    └── dto/
-│   └── exception/
+│   ├── config/
+│   ├── domain/
+│   ├── exception/
+│   ├── repository/
+│   └── service/
+│        └── outbox/                 # 이벤트 발행 Polling
 ├── product/                         # 상품 도메인
 │   ├── controller/
 │   ├── service/
@@ -56,3 +60,13 @@ com.example.productservice/
 REST API 명세는 다음 방법으로 확인할 수 있다.
 
 1. 브라우저에서 Swagger UI 열기: `/swagger-ui.html`
+
+
+### Events
+
+이벤트 상세 명세는 [`asyncapi.yaml`](./asyncapi.yaml) 파일을 참고하면 된다.
+
+| 구분 | 설명 |
+|-----|------|
+| 발행(Published) | product.created, product.updated |
+| 구독(Subscribed) | - |

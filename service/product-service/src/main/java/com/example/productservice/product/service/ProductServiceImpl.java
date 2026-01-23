@@ -3,9 +3,16 @@ package com.example.productservice.product.service;
 import com.example.productservice.category.domain.Category;
 import com.example.productservice.category.repository.CategoryRepository;
 import com.example.productservice.file.service.FileStorageService;
+import com.example.productservice.global.common.EventTypeConstants;
 import com.example.productservice.global.common.dto.PageResponse;
+import com.example.productservice.global.domain.Outbox;
+import com.example.productservice.global.repository.OutboxRepository;
 import com.example.productservice.product.domain.*;
+import com.example.productservice.product.domain.event.ProductCreatedEvent;
+import com.example.productservice.product.domain.event.ProductUpdatedEvent;
 import com.example.productservice.product.dto.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.jpa.domain.Specification;
 import com.example.productservice.product.repository.ProductRepository;
 import com.example.productservice.product.repository.ProductSpecification;
@@ -34,6 +41,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final FileStorageService fileStorageService;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResponse<ProductResponse> searchProducts(ProductSearchRequest request) {
@@ -167,6 +176,9 @@ public class ProductServiceImpl implements ProductService {
 
         // 7. 저장
         Product savedProduct = productRepository.save(product);
+
+        // 8. 이벤트 생성 및 Outbox에 저장
+        saveProductCreatedEvent(savedProduct);
 
         log.info("Product created successfully with ID: {}", savedProduct.getProductId());
 
@@ -305,6 +317,9 @@ public class ProductServiceImpl implements ProductService {
         // 8. 저장
         Product savedProduct = productRepository.save(product);
 
+        // 9. 이벤트 생성 및 Outbox에 저장
+        saveProductUpdatedEvent(savedProduct);
+
         log.info("Product updated successfully: productId={}", savedProduct.getProductId());
 
         return ProductResponse.from(savedProduct);
@@ -397,6 +412,78 @@ public class ProductServiceImpl implements ProductService {
         categoryIds.add(category.getCategoryId());
         for (Category child : category.getChildren()) {
             collectDescendantIds(child, categoryIds);
+        }
+    }
+
+    private void saveProductCreatedEvent(Product product) {
+        try {
+            List<Long> categoryIds = product.getCategories().stream()
+                    .map(Category::getCategoryId)
+                    .collect(Collectors.toList());
+
+            ProductCreatedEvent event = new ProductCreatedEvent(
+                    product.getProductId(),
+                    product.getProductName(),
+                    product.getProductCode(),
+                    product.getDescription(),
+                    product.getBasePrice(),
+                    product.getSalePrice(),
+                    product.getStatus(),
+                    product.getIsDisplayed(),
+                    categoryIds,
+                    product.getCreatedAt()
+            );
+
+            String payload = objectMapper.writeValueAsString(event);
+
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Product")
+                    .aggregateId(String.valueOf(product.getProductId()))
+                    .eventType(EventTypeConstants.TOPIC_PRODUCT_CREATED)
+                    .payload(payload)
+                    .build();
+
+            outboxRepository.save(outbox);
+            log.info("ProductCreated 이벤트가 Outbox에 저장되었습니다. productId: {}", product.getProductId());
+        } catch (JsonProcessingException e) {
+            log.error("이벤트 직렬화 실패: productId={}", product.getProductId(), e);
+            throw new RuntimeException("이벤트 저장 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    private void saveProductUpdatedEvent(Product product) {
+        try {
+            List<Long> categoryIds = product.getCategories().stream()
+                    .map(Category::getCategoryId)
+                    .collect(Collectors.toList());
+
+            ProductUpdatedEvent event = new ProductUpdatedEvent(
+                    product.getProductId(),
+                    product.getProductName(),
+                    product.getProductCode(),
+                    product.getDescription(),
+                    product.getBasePrice(),
+                    product.getSalePrice(),
+                    product.getStatus(),
+                    product.getIsDisplayed(),
+                    categoryIds,
+                    product.getUpdatedAt()
+            );
+
+            String payload = objectMapper.writeValueAsString(event);
+
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Product")
+                    .aggregateId(String.valueOf(product.getProductId()))
+                    .eventType(EventTypeConstants.TOPIC_PRODUCT_UPDATED)
+                    .payload(payload)
+                    .build();
+
+            outboxRepository.save(outbox);
+            log.info("ProductUpdated 이벤트가 Outbox에 저장되었습니다. productId: {}", product.getProductId());
+        } catch (JsonProcessingException e) {
+            log.error("이벤트 직렬화 실패: productId={}", product.getProductId(), e);
+            throw new RuntimeException("이벤트 저장 중 오류가 발생했습니다.", e);
         }
     }
 }
