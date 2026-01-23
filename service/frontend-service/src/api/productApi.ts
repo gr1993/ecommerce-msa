@@ -797,3 +797,54 @@ export const getCatalogProducts = async (params?: CatalogSearchProductsParams): 
     throw new Error('상품 목록 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
   }
 }
+
+/**
+ * 상품명 자동완성
+ *
+ * 입력된 키워드로 시작하는 상품명을 최대 5개까지 반환합니다. (인증 불필요)
+ *
+ * @param keyword - 검색 키워드
+ * @returns 자동완성 상품명 목록 (최대 5개)
+ * @throws Error - 조회 실패 시
+ *
+ * @example
+ * ```typescript
+ * const suggestions = await autocompleteProductName('나이키')
+ * console.log('Suggestions:', suggestions) // ['나이키 에어맥스', '나이키 조던', ...]
+ * ```
+ */
+export const autocompleteProductName = async (keyword: string): Promise<string[]> => {
+  try {
+    if (!keyword || keyword.trim().length === 0) {
+      return []
+    }
+
+    const queryParams = new URLSearchParams()
+    queryParams.append('keyword', keyword)
+
+    const url = `${API_BASE_URL}/api/catalog/products/autocomplete?${queryParams.toString()}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      throw new Error(error.message || `자동완성 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: string[] = await response.json()
+    return data
+  } catch (error) {
+    console.error('Autocomplete product name error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('자동완성 조회 중 오류가 발생했습니다.')
+  }
+}

@@ -68,6 +68,63 @@
   box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
+/* 검색 입력 wrapper (자동완성 포함) */
+.search-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.search-input-wrapper .search-input {
+  width: 100%;
+}
+
+/* 자동완성 드롭다운 */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+}
+
+.autocomplete-item:last-child {
+  border-radius: 0 0 8px 8px;
+}
+
+.autocomplete-icon {
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.autocomplete-item:hover .autocomplete-icon,
+.autocomplete-item.active .autocomplete-icon {
+  color: #667eea;
+}
+
 /* 상품 목록 컨텐츠 */
 .product-list-content {
   display: flex;

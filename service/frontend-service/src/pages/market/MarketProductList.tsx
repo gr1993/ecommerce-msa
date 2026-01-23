@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Input, Select, Button, Card, Row, Col, Space, Pagination, Spin, message } from 'antd'
 import { SearchOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { getDisplayCategoryTree, type CategoryTreeNode } from '../../api/categoryApi'
-import { getCatalogProducts, type CatalogProductResponse } from '../../api/productApi'
+import { getCatalogProducts, autocompleteProductName, type CatalogProductResponse } from '../../api/productApi'
 import { PRODUCT_FILE_URL } from '../../config/env'
 import './MarketProductList.css'
 
@@ -25,6 +25,13 @@ function MarketProductList() {
   const [totalElements, setTotalElements] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(false)
 
+  // 자동완성 관련 state
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number>(-1)
+  const searchBoxRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // 정렬 옵션을 API 형식으로 변환
   const getSortParam = useCallback((sort: string): string => {
     switch (sort) {
@@ -35,6 +42,117 @@ function MarketProductList() {
       case 'latest':
       default:
         return 'createdAt,desc'
+    }
+  }, [])
+
+  // 자동완성 API 호출 (debounce 적용)
+  const fetchSuggestions = useCallback(async (keyword: string) => {
+    if (keyword.trim().length === 0) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    try {
+      const data = await autocompleteProductName(keyword)
+      setSuggestions(data)
+      setShowSuggestions(data.length > 0)
+      setActiveSuggestionIndex(-1)
+    } catch (error) {
+      console.error('자동완성 조회 실패:', error)
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [])
+
+  // 검색어 입력 핸들러 (자동완성 포함)
+  const handleKeywordChange = useCallback((value: string) => {
+    setSearchKeyword(value)
+
+    // 기존 debounce 취소
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+
+    // 300ms debounce 적용
+    debounceRef.current = setTimeout(() => {
+      fetchSuggestions(value)
+    }, 300)
+  }, [fetchSuggestions])
+
+  // 자동완성 항목 선택
+  const handleSuggestionSelect = useCallback((suggestion: string) => {
+    setSearchKeyword(suggestion)
+    setShowSuggestions(false)
+    setSuggestions([])
+    // 선택 후 바로 검색 실행
+    const params = new URLSearchParams()
+    if (selectedCategory !== 'all') {
+      params.set('category', selectedCategory)
+    }
+    params.set('keyword', suggestion)
+    if (sortBy !== 'latest') {
+      params.set('sort', sortBy)
+    }
+    setSearchParams(params)
+  }, [selectedCategory, sortBy, setSearchParams])
+
+  // 키보드 네비게이션 핸들러
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        handleSearch()
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setActiveSuggestionIndex(prev =>
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setActiveSuggestionIndex(prev => prev > 0 ? prev - 1 : -1)
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (activeSuggestionIndex >= 0) {
+          handleSuggestionSelect(suggestions[activeSuggestionIndex])
+        } else {
+          setShowSuggestions(false)
+          handleSearch()
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        setActiveSuggestionIndex(-1)
+        break
+    }
+  }, [showSuggestions, suggestions, activeSuggestionIndex, handleSuggestionSelect])
+
+  // 외부 클릭 시 자동완성 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // 컴포넌트 언마운트 시 debounce 정리
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
     }
   }, [])
 
@@ -236,7 +354,7 @@ function MarketProductList() {
       <div className="product-list-container">
         {/* 검색바 */}
         <div className="search-section">
-          <div className="search-box">
+          <div className="search-box" ref={searchBoxRef}>
             <Select
               value={selectedCategory}
               onChange={setSelectedCategory}
@@ -250,13 +368,31 @@ function MarketProductList() {
                 </Option>
               ))}
             </Select>
-            <Input
-              placeholder="상품명 또는 상품 코드로 검색"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onPressEnter={handleSearch}
-              className="search-input"
-            />
+            <div className="search-input-wrapper">
+              <Input
+                placeholder="상품명 또는 상품 코드로 검색"
+                value={searchKeyword}
+                onChange={(e) => handleKeywordChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                className="search-input"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="autocomplete-dropdown">
+                  {suggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className={`autocomplete-item ${index === activeSuggestionIndex ? 'active' : ''}`}
+                      onClick={() => handleSuggestionSelect(suggestion)}
+                      onMouseEnter={() => setActiveSuggestionIndex(index)}
+                    >
+                      <SearchOutlined className="autocomplete-icon" />
+                      <span>{suggestion}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button
               type="primary"
               icon={<SearchOutlined />}
