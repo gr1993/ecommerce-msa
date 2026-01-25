@@ -34,7 +34,7 @@ public class UserRegisteredEventConsumer {
 
 	private final EventProcessingService eventProcessingService;
 	private final FailedMessageRepository failedMessageRepository;
-	private final ObjectMapper objectMapper;
+	private final ObjectMapper objectMapper; // DLQ 파싱용
 
 	@RetryableTopic(
 		attempts = "4", // 원본 1회 + 재시도 3회 = 총 4회
@@ -53,24 +53,26 @@ public class UserRegisteredEventConsumer {
 		containerFactory = "kafkaListenerContainerFactory"
 	)
 	public void consume(
-		@Payload String message,
+		@Payload UserRegisteredEvent event,
 		@Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
 		@Header(value = KafkaHeaders.OFFSET, required = false) Long offset
 	) {
-		log.info("UserRegisteredEvent 수신 - topic: {}, offset: {}, message: {}", topic, offset, message);
+		log.info("UserRegisteredEvent 수신 - topic: {}, offset: {}, userId: {}, email: {}",
+			topic, offset, event.getUserId(), event.getEmail());
 
 		try {
-			// JSON 문자열을 UserRegisteredEvent로 역직렬화
-			UserRegisteredEvent event = objectMapper.readValue(message, UserRegisteredEvent.class);
+			// JsonDeserializer가 자동으로 역직렬화했으므로 바로 사용 가능
+			// 추적용 payload는 event 객체를 JSON으로 직렬화하여 전달
+			String eventPayload = objectMapper.writeValueAsString(event);
 
 			// EventProcessingService를 통해 사용자 등록 처리 (Idempotency 보장)
-			eventProcessingService.processUserRegisteredEvent(event, message);
+			eventProcessingService.processUserRegisteredEvent(event, eventPayload);
 
 			log.info("UserRegisteredEvent 처리 완료 - email: {}, userId: {}", event.getEmail(), event.getUserId());
 
 		} catch (Exception e) {
-			log.error("UserRegisteredEvent 처리 실패 - topic: {}, offset: {}, message: {}",
-				topic, offset, message, e);
+			log.error("UserRegisteredEvent 처리 실패 - topic: {}, offset: {}, userId: {}, email: {}",
+				topic, offset, event.getUserId(), event.getEmail(), e);
 			// 예외를 다시 던져서 재시도 메커니즘이 작동하도록 함
 			throw new RuntimeException("이벤트 처리 실패: " + e.getMessage(), e);
 		}
