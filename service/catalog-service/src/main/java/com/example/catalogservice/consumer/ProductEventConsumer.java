@@ -62,7 +62,11 @@ public class ProductEventConsumer {
             include = {Exception.class},
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
     )
-    @KafkaListener(topics = "product.created", groupId = "${spring.kafka.consumer.group-id:catalog-service}")
+    @KafkaListener(
+            topics = "product.created",
+            groupId = "${spring.kafka.consumer.group-id:catalog-service}",
+            containerFactory = "productCreatedKafkaListenerContainerFactory"
+    )
     public void consumeProductCreatedEvent(
             @Payload ProductCreatedEvent event,
             @Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
@@ -102,7 +106,11 @@ public class ProductEventConsumer {
             include = {Exception.class},
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
     )
-    @KafkaListener(topics = "product.updated", groupId = "${spring.kafka.consumer.group-id:catalog-service}")
+    @KafkaListener(
+            topics = "product.updated",
+            groupId = "${spring.kafka.consumer.group-id:catalog-service}",
+            containerFactory = "productUpdatedKafkaListenerContainerFactory"
+    )
     public void consumeProductUpdatedEvent(
             @Payload ProductUpdatedEvent event,
             @Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
