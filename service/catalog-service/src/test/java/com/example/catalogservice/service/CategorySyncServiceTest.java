@@ -2,6 +2,9 @@ package com.example.catalogservice.service;
 
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncCategoryResponse;
+import com.example.catalogservice.consumer.event.CategoryCreatedEvent;
+import com.example.catalogservice.consumer.event.CategoryDeletedEvent;
+import com.example.catalogservice.consumer.event.CategoryUpdatedEvent;
 import com.example.catalogservice.domain.CategoryCache;
 import com.example.catalogservice.domain.CategoryTreeNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -695,6 +698,324 @@ class CategorySyncServiceTest {
 
         // Then - 의류와 하위 카테고리만 포함 (전자제품 트리는 제외)
         assertThat(result).containsExactlyInAnyOrder(10L, 11L, 12L);
+    }
+
+    @Test
+    @DisplayName("syncCategory - 카테고리 생성 이벤트 처리 성공")
+    void syncCategory_Success() {
+        // Given
+        CategoryCreatedEvent event = CategoryCreatedEvent.builder()
+                .categoryId(1L)
+                .parentId(null)
+                .categoryName("전자제품")
+                .displayOrder(1)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+
+        // When
+        categorySyncService.syncCategory(event);
+
+        // Then
+        verify(valueOperations).set(eq(KEY_PREFIX + "1"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getCategoryId().equals(1L) &&
+                        cache.getCategoryName().equals("전자제품") &&
+                        cache.getParentId() == null &&
+                        cache.getDisplayOrder().equals(1) &&
+                        cache.getDepth().equals(0);
+            }
+            return false;
+        }));
+        verify(valueOperations).set(eq(KEY_INDEX_ALL), anyString());
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), anyString());
+    }
+
+    @Test
+    @DisplayName("syncCategory - 하위 카테고리 생성 시 depth 자동 계산")
+    void syncCategory_SubCategoryDepthCalculated() {
+        // Given - 부모 카테고리가 이미 존재
+        CategoryCache parentCategory = CategoryCache.builder()
+                .categoryId(1L)
+                .categoryName("전자제품")
+                .displayOrder(1)
+                .depth(0)
+                .build();
+
+        when(valueOperations.get(KEY_PREFIX + "1")).thenReturn(parentCategory);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of(KEY_PREFIX + "1"));
+
+        CategoryCreatedEvent event = CategoryCreatedEvent.builder()
+                .categoryId(10L)
+                .parentId(1L)
+                .categoryName("스마트폰")
+                .displayOrder(1)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.syncCategory(event);
+
+        // Then
+        verify(valueOperations).set(eq(KEY_PREFIX + "10"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getCategoryId().equals(10L) &&
+                        cache.getCategoryName().equals("스마트폰") &&
+                        cache.getParentId().equals(1L) &&
+                        cache.getDepth().equals(1);  // 부모 depth(0) + 1
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("syncCategory - 부모 카테고리가 없는 경우 depth=1로 가정")
+    void syncCategory_ParentNotFoundDepthAssumed() {
+        // Given - 부모 ID는 있지만 실제 부모 카테고리가 Redis에 없음
+        when(valueOperations.get(KEY_PREFIX + "999")).thenReturn(null);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+
+        CategoryCreatedEvent event = CategoryCreatedEvent.builder()
+                .categoryId(10L)
+                .parentId(999L)
+                .categoryName("고아 카테고리")
+                .displayOrder(1)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.syncCategory(event);
+
+        // Then
+        verify(valueOperations).set(eq(KEY_PREFIX + "10"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getDepth().equals(1);  // 부모를 찾지 못하면 depth=1로 가정
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("updateCategory - 카테고리 수정 이벤트 처리 성공")
+    void updateCategory_Success() {
+        // Given - 기존 카테고리 존재
+        CategoryCache existingCategory = CategoryCache.builder()
+                .categoryId(1L)
+                .categoryName("전자제품")
+                .parentId(null)
+                .displayOrder(1)
+                .depth(0)
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .build();
+
+        when(valueOperations.get(KEY_PREFIX + "1")).thenReturn(existingCategory);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of(KEY_PREFIX + "1"));
+
+        CategoryUpdatedEvent event = CategoryUpdatedEvent.builder()
+                .categoryId(1L)
+                .parentId(null)
+                .categoryName("전자제품 (수정됨)")
+                .displayOrder(2)
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.updateCategory(event);
+
+        // Then
+        verify(valueOperations).set(eq(KEY_PREFIX + "1"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getCategoryId().equals(1L) &&
+                        cache.getCategoryName().equals("전자제품 (수정됨)") &&
+                        cache.getDisplayOrder().equals(2) &&
+                        cache.getCreatedAt() != null &&  // createdAt 보존
+                        cache.getUpdatedAt() != null;
+            }
+            return false;
+        }));
+        verify(valueOperations).set(eq(KEY_INDEX_ALL), anyString());
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), anyString());
+    }
+
+    @Test
+    @DisplayName("updateCategory - 존재하지 않는 카테고리 수정 시 새로 생성")
+    void updateCategory_CategoryNotFoundCreatesNew() {
+        // Given - 카테고리가 존재하지 않음
+        when(valueOperations.get(KEY_PREFIX + "999")).thenReturn(null);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+
+        CategoryUpdatedEvent event = CategoryUpdatedEvent.builder()
+                .categoryId(999L)
+                .parentId(null)
+                .categoryName("신규 카테고리")
+                .displayOrder(1)
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.updateCategory(event);
+
+        // Then - 새로운 카테고리로 생성됨
+        verify(valueOperations).set(eq(KEY_PREFIX + "999"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getCategoryId().equals(999L) &&
+                        cache.getCategoryName().equals("신규 카테고리") &&
+                        cache.getCreatedAt() == null;  // 기존 카테고리가 없었으므로 null
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("updateCategory - 부모 카테고리 변경 시 depth 재계산")
+    void updateCategory_ParentChangedDepthRecalculated() {
+        // Given - 기존 카테고리와 새 부모 카테고리 존재
+        CategoryCache existingCategory = CategoryCache.builder()
+                .categoryId(10L)
+                .categoryName("스마트폰")
+                .parentId(1L)
+                .depth(1)
+                .createdAt(LocalDateTime.now().minusDays(1))
+                .build();
+
+        CategoryCache newParentCategory = CategoryCache.builder()
+                .categoryId(2L)
+                .categoryName("가전제품")
+                .depth(0)
+                .build();
+
+        when(valueOperations.get(KEY_PREFIX + "10")).thenReturn(existingCategory);
+        when(valueOperations.get(KEY_PREFIX + "2")).thenReturn(newParentCategory);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of(KEY_PREFIX + "10", KEY_PREFIX + "2"));
+
+        CategoryUpdatedEvent event = CategoryUpdatedEvent.builder()
+                .categoryId(10L)
+                .parentId(2L)  // 부모 변경
+                .categoryName("스마트폰")
+                .displayOrder(1)
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.updateCategory(event);
+
+        // Then
+        verify(valueOperations).set(eq(KEY_PREFIX + "10"), argThat(value -> {
+            if (value instanceof CategoryCache) {
+                CategoryCache cache = (CategoryCache) value;
+                return cache.getParentId().equals(2L) &&
+                        cache.getDepth().equals(1);  // 새 부모 depth(0) + 1
+            }
+            return false;
+        }));
+    }
+
+    @Test
+    @DisplayName("deleteCategory - 카테고리 삭제 이벤트 처리 성공")
+    void deleteCategory_Success() {
+        // Given
+        when(redisTemplate.delete(KEY_PREFIX + "1")).thenReturn(true);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(1L)
+                .deletedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.deleteCategory(event);
+
+        // Then
+        verify(redisTemplate).delete(KEY_PREFIX + "1");
+        verify(valueOperations).set(eq(KEY_INDEX_ALL), anyString());
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), anyString());
+    }
+
+    @Test
+    @DisplayName("deleteCategory - 존재하지 않는 카테고리 삭제 시 경고 로그만")
+    void deleteCategory_CategoryNotFound() {
+        // Given
+        when(redisTemplate.delete(KEY_PREFIX + "999")).thenReturn(false);
+
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(999L)
+                .deletedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.deleteCategory(event);
+
+        // Then
+        verify(redisTemplate).delete(KEY_PREFIX + "999");
+        // index:all과 display:tree는 재구성되지 않음 (삭제 실패)
+        verify(valueOperations, never()).set(eq(KEY_INDEX_ALL), anyString());
+        verify(valueOperations, never()).set(eq(KEY_DISPLAY_TREE), anyString());
+    }
+
+    @Test
+    @DisplayName("deleteCategory - 모든 카테고리 삭제 시 빈 목록으로 저장")
+    void deleteCategory_AllCategoriesDeleted() {
+        // Given - 마지막 남은 카테고리 삭제
+        when(redisTemplate.delete(KEY_PREFIX + "1")).thenReturn(true);
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of());
+
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(1L)
+                .deletedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.deleteCategory(event);
+
+        // Then - 빈 배열로 저장됨
+        verify(valueOperations).set(KEY_INDEX_ALL, "[]");
+        verify(valueOperations).set(KEY_DISPLAY_TREE, "[]");
+    }
+
+    @Test
+    @DisplayName("rebuildIndexAndTree - 개별 카테고리 키들로부터 index와 tree 재구성")
+    void rebuildIndexAndTree_ReconstructFromIndividualKeys() {
+        // Given - 여러 개별 카테고리 키가 존재
+        CategoryCache category1 = CategoryCache.builder()
+                .categoryId(1L)
+                .categoryName("전자제품")
+                .displayOrder(1)
+                .depth(0)
+                .build();
+
+        CategoryCache category2 = CategoryCache.builder()
+                .categoryId(2L)
+                .parentId(1L)
+                .categoryName("스마트폰")
+                .displayOrder(1)
+                .depth(1)
+                .build();
+
+        when(redisTemplate.keys(KEY_PREFIX + "[0-9]*")).thenReturn(Set.of(
+                KEY_PREFIX + "1",
+                KEY_PREFIX + "2"
+        ));
+        when(valueOperations.get(KEY_PREFIX + "1")).thenReturn(category1);
+        when(valueOperations.get(KEY_PREFIX + "2")).thenReturn(category2);
+        when(redisTemplate.delete(KEY_PREFIX + "1")).thenReturn(true);
+
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(1L)
+                .deletedAt(LocalDateTime.now())
+                .build();
+
+        // When
+        categorySyncService.deleteCategory(event);
+
+        // Then - index:all과 display:tree가 재구성됨
+        verify(valueOperations).set(eq(KEY_INDEX_ALL), anyString());
+        verify(valueOperations).set(eq(KEY_DISPLAY_TREE), anyString());
     }
 
     private CatalogSyncCategoryResponse createMockCategory(Long id, Long parentId, String name,

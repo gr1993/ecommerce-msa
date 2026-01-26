@@ -2,6 +2,9 @@ package com.example.catalogservice.service;
 
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncCategoryResponse;
+import com.example.catalogservice.consumer.event.CategoryCreatedEvent;
+import com.example.catalogservice.consumer.event.CategoryDeletedEvent;
+import com.example.catalogservice.consumer.event.CategoryUpdatedEvent;
 import com.example.catalogservice.domain.CategoryCache;
 import com.example.catalogservice.domain.CategoryTreeNode;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -321,6 +324,118 @@ public class CategorySyncService {
             for (CategoryTreeNode child : node.getChildren()) {
                 collectAllCategoryIds(child, ids);
             }
+        }
+    }
+
+    /**
+     * 카테고리 생성 이벤트 처리
+     * 개별 카테고리를 Redis에 저장하고 index:all, display:tree를 재구성한다.
+     */
+    public void syncCategory(CategoryCreatedEvent event) {
+        log.info("Processing category created event: categoryId={}", event.getCategoryId());
+
+        CategoryCache category = CategoryCache.builder()
+                .categoryId(event.getCategoryId())
+                .parentId(event.getParentId())
+                .categoryName(event.getCategoryName())
+                .displayOrder(event.getDisplayOrder())
+                .depth(calculateDepth(event.getParentId()))
+                .createdAt(event.getCreatedAt())
+                .build();
+
+        String key = KEY_PREFIX + category.getCategoryId();
+        redisTemplate.opsForValue().set(key, category);
+
+        rebuildIndexAndTree();
+        log.info("Category created event processed: categoryId={}", event.getCategoryId());
+    }
+
+    /**
+     * 카테고리 수정 이벤트 처리
+     * 개별 카테고리를 업데이트하고 index:all, display:tree를 재구성한다.
+     */
+    public void updateCategory(CategoryUpdatedEvent event) {
+        log.info("Processing category updated event: categoryId={}", event.getCategoryId());
+
+        CategoryCache existingCategory = getCategoryById(event.getCategoryId());
+        if (existingCategory == null) {
+            log.warn("Category not found for update: categoryId={}, will create new", event.getCategoryId());
+        }
+
+        CategoryCache category = CategoryCache.builder()
+                .categoryId(event.getCategoryId())
+                .parentId(event.getParentId())
+                .categoryName(event.getCategoryName())
+                .displayOrder(event.getDisplayOrder())
+                .depth(calculateDepth(event.getParentId()))
+                .createdAt(existingCategory != null ? existingCategory.getCreatedAt() : null)
+                .updatedAt(event.getUpdatedAt())
+                .build();
+
+        String key = KEY_PREFIX + category.getCategoryId();
+        redisTemplate.opsForValue().set(key, category);
+
+        rebuildIndexAndTree();
+        log.info("Category updated event processed: categoryId={}", event.getCategoryId());
+    }
+
+    /**
+     * 카테고리 삭제 이벤트 처리
+     * 개별 카테고리를 삭제하고 index:all, display:tree를 재구성한다.
+     */
+    public void deleteCategory(CategoryDeletedEvent event) {
+        log.info("Processing category deleted event: categoryId={}", event.getCategoryId());
+
+        String key = KEY_PREFIX + event.getCategoryId();
+        Boolean deleted = redisTemplate.delete(key);
+
+        if (Boolean.TRUE.equals(deleted)) {
+            rebuildIndexAndTree();
+            log.info("Category deleted event processed: categoryId={}", event.getCategoryId());
+        } else {
+            log.warn("Category not found for deletion: categoryId={}", event.getCategoryId());
+        }
+    }
+
+    /**
+     * 부모 카테고리 ID를 기반으로 depth를 계산한다.
+     */
+    private int calculateDepth(Long parentId) {
+        if (parentId == null) {
+            return 0;
+        }
+
+        CategoryCache parent = getCategoryById(parentId);
+        if (parent == null) {
+            log.warn("Parent category not found: parentId={}, assuming depth=1", parentId);
+            return 1;
+        }
+
+        return parent.getDepth() + 1;
+    }
+
+    /**
+     * 현재 Redis에 저장된 모든 개별 카테고리 키를 스캔하여
+     * index:all과 display:tree를 재구성한다.
+     */
+    private void rebuildIndexAndTree() {
+        Set<String> categoryKeys = scanKeys(KEY_PREFIX + "[0-9]*");
+        List<CategoryCache> categoryList = new ArrayList<>();
+
+        for (String key : categoryKeys) {
+            Object value = redisTemplate.opsForValue().get(key);
+            if (value instanceof CategoryCache category) {
+                categoryList.add(category);
+            }
+        }
+
+        if (!categoryList.isEmpty()) {
+            saveIndexAll(categoryList);
+            saveDisplayTree(categoryList);
+        } else {
+            // 모든 카테고리가 삭제된 경우 빈 목록으로 저장
+            redisTemplate.opsForValue().set(KEY_INDEX_ALL, "[]");
+            redisTemplate.opsForValue().set(KEY_DISPLAY_TREE, "[]");
         }
     }
 }
