@@ -502,6 +502,174 @@ class ProductSearchServiceTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    @DisplayName("키워드 검색 시 _score 우선 정렬 후 기본 정렬 적용")
+    void searchProducts_WithKeyword_ScoreThenDefaultSort() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("노트북")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "삼성 노트북", List.of(10L)),
+                createProductDocument("2", "LG 노트북", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("키워드 검색 시 _score 우선 정렬 후 사용자 지정 정렬 적용")
+    void searchProducts_WithKeyword_ScoreThenCustomSort() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("노트북")
+                .sort("salePrice,desc")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "삼성 노트북", List.of(10L)),
+                createProductDocument("2", "LG 노트북", List.of(10L))
+        );
+
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("키워드 없이 필터만 있을 때 사용자 지정 정렬만 적용")
+    void searchProducts_WithoutKeyword_CustomSortOnly() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .sort("salePrice,asc")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L)),
+                createProductDocument("2", "상품2", List.of(10L))
+        );
+
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("키워드 없이 필터만 있을 때 기본 정렬만 적용")
+    void searchProducts_WithoutKeyword_DefaultSortOnly() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L)),
+                createProductDocument("2", "상품2", List.of(10L))
+        );
+
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 2L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("정렬 파라미터가 여러 부분으로 구성된 경우 올바르게 파싱")
+    void searchProducts_SortParsing() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .sort("salePrice,desc")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L))
+        );
+
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 1L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
+    @Test
+    @DisplayName("정렬 방향이 명시되지 않으면 ASC 기본값 적용")
+    void searchProducts_SortDirectionDefault() {
+        // Given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .categoryId(10L)
+                .sort("salePrice")
+                .page(0)
+                .size(10)
+                .build();
+
+        List<ProductDocument> products = List.of(
+                createProductDocument("1", "상품1", List.of(10L))
+        );
+
+        when(categorySyncService.getCategoryIdWithDescendants(10L)).thenReturn(List.of(10L));
+        SearchHits<ProductDocument> searchHits = createSearchHits(products, 1L);
+        when(elasticsearchOperations.search(any(NativeQuery.class), eq(ProductDocument.class)))
+                .thenReturn(searchHits);
+
+        // When
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // Then
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(elasticsearchOperations).search(any(NativeQuery.class), eq(ProductDocument.class));
+    }
+
     private ProductDocument createProductDocument(String id, String name, List<Long> categoryIds) {
         return ProductDocument.builder()
                 .productId(id)

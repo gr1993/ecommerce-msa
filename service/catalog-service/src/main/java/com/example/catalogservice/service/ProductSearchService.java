@@ -1,12 +1,15 @@
 package com.example.catalogservice.service;
 
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHitSupport;
 import org.springframework.data.elasticsearch.core.SearchHits;
@@ -51,16 +54,44 @@ public class ProductSearchService {
 
     public Page<ProductDocument> searchProducts(ProductSearchRequest request) {
         Query query = buildQuery(request);
+        boolean hasKeyword = hasText(request.getProductName());
 
-        NativeQuery nativeQuery = NativeQuery.builder()
+        NativeQueryBuilder queryBuilder = NativeQuery.builder()
                 .withQuery(query)
-                .withPageable(request.toPageable())
-                .build();
+                .withPageable(PageRequest.of(request.getPage(), request.getSize()));
+
+        // 키워드 검색이 있으면 _score 우선 정렬, 없으면 요청된 정렬만 적용
+        if (hasKeyword) {
+            // _score 우선 정렬
+            queryBuilder.withSort(s -> s.score(sc -> sc.order(SortOrder.Desc)));
+        }
+
+        // 요청된 정렬 또는 기본 정렬 적용
+        applySort(queryBuilder, request);
+
+        NativeQuery nativeQuery = queryBuilder.build();
 
         SearchHits<ProductDocument> searchHits = elasticsearchOperations.search(nativeQuery, ProductDocument.class);
-        SearchPage<ProductDocument> searchPage = SearchHitSupport.searchPageFor(searchHits, request.toPageable());
+        SearchPage<ProductDocument> searchPage = SearchHitSupport.searchPageFor(
+                searchHits, PageRequest.of(request.getPage(), request.getSize()));
 
         return (Page<ProductDocument>) SearchHitSupport.unwrapSearchHits(searchPage);
+    }
+
+    private void applySort(NativeQueryBuilder queryBuilder, ProductSearchRequest request) {
+        String sort = request.getSort();
+
+        if (hasText(sort)) {
+            String[] parts = sort.split(",");
+            String field = parts[0];
+            SortOrder order = parts.length > 1 && "desc".equalsIgnoreCase(parts[1])
+                    ? SortOrder.Desc
+                    : SortOrder.Asc;
+            queryBuilder.withSort(s -> s.field(f -> f.field(field).order(order)));
+        } else {
+            // 기본 정렬: createdAt DESC
+            queryBuilder.withSort(s -> s.field(f -> f.field("createdAt").order(SortOrder.Desc)));
+        }
     }
 
     private Query buildQuery(ProductSearchRequest request) {
