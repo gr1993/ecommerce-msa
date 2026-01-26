@@ -3,6 +3,8 @@ package com.example.catalogservice.service;
 import com.example.catalogservice.client.ProductServiceClient;
 import com.example.catalogservice.client.dto.CatalogSyncProductResponse;
 import com.example.catalogservice.client.dto.PageResponse;
+import com.example.catalogservice.consumer.event.ProductCreatedEvent;
+import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.domain.document.ProductDocument;
 import com.example.catalogservice.repository.ProductSearchRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -379,5 +381,193 @@ class ProductSyncServiceTest {
         return java.util.stream.IntStream.range(startId, startId + count)
                 .mapToObj(i -> createMockProduct((long) i, "Product " + i))
                 .toList();
+    }
+
+    @Test
+    @DisplayName("상품 생성 이벤트 처리 - 새 상품 인덱싱")
+    void indexProduct_Success() {
+        // Given
+        LocalDateTime createdAt = LocalDateTime.of(2024, 1, 1, 10, 0);
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(100L)
+                .productCode("PROD-100")
+                .productName("New Product")
+                .description("New Product Description")
+                .basePrice(java.math.BigDecimal.valueOf(20000))
+                .salePrice(java.math.BigDecimal.valueOf(15000))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .primaryImageUrl("https://example.com/new.jpg")
+                .categoryIds(List.of(10L, 20L))
+                .createdAt(createdAt)
+                .build();
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.indexProduct(event);
+
+        // Then
+        verify(productSearchRepository).save(documentCaptor.capture());
+
+        ProductDocument savedDoc = documentCaptor.getValue();
+        assertThat(savedDoc.getProductId()).isEqualTo("100");
+        assertThat(savedDoc.getProductName()).isEqualTo("New Product");
+        assertThat(savedDoc.getDescription()).isEqualTo("New Product Description");
+        assertThat(savedDoc.getBasePrice()).isEqualTo(20000L);
+        assertThat(savedDoc.getSalePrice()).isEqualTo(15000L);
+        assertThat(savedDoc.getStatus()).isEqualTo("ACTIVE");
+        assertThat(savedDoc.getPrimaryImageUrl()).isEqualTo("https://example.com/new.jpg");
+        assertThat(savedDoc.getCategoryIds()).containsExactly(10L, 20L);
+        assertThat(savedDoc.getCreatedAt()).isEqualTo(createdAt);
+        assertThat(savedDoc.getUpdatedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("상품 수정 이벤트 처리 - 기존 문서의 createdAt 보존")
+    void updateProduct_PreservesCreatedAt() {
+        // Given
+        LocalDateTime originalCreatedAt = LocalDateTime.of(2024, 1, 1, 10, 0);
+        LocalDateTime updatedAt = LocalDateTime.of(2024, 1, 15, 14, 30);
+
+        // 기존 ES 문서
+        ProductDocument existingDocument = ProductDocument.builder()
+                .productId("100")
+                .productName("Old Product Name")
+                .description("Old Description")
+                .basePrice(10000L)
+                .salePrice(8000L)
+                .status("ACTIVE")
+                .primaryImageUrl("https://example.com/old.jpg")
+                .categoryIds(List.of(1L, 2L))
+                .createdAt(originalCreatedAt)
+                .updatedAt(LocalDateTime.of(2024, 1, 10, 9, 0))
+                .build();
+
+        // 업데이트 이벤트 (createdAt 포함하지 않음)
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(100L)
+                .productCode("PROD-100")
+                .productName("Updated Product Name")
+                .description("Updated Description")
+                .basePrice(java.math.BigDecimal.valueOf(25000))
+                .salePrice(java.math.BigDecimal.valueOf(20000))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .primaryImageUrl("https://example.com/updated.jpg")
+                .categoryIds(List.of(10L, 20L, 30L))
+                .updatedAt(updatedAt)
+                .build();
+
+        when(productSearchRepository.findById("100"))
+                .thenReturn(java.util.Optional.of(existingDocument));
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.updateProduct(event);
+
+        // Then
+        verify(productSearchRepository).findById("100");
+        verify(productSearchRepository).save(documentCaptor.capture());
+
+        ProductDocument savedDoc = documentCaptor.getValue();
+        assertThat(savedDoc.getProductId()).isEqualTo("100");
+        assertThat(savedDoc.getProductName()).isEqualTo("Updated Product Name");
+        assertThat(savedDoc.getDescription()).isEqualTo("Updated Description");
+        assertThat(savedDoc.getBasePrice()).isEqualTo(25000L);
+        assertThat(savedDoc.getSalePrice()).isEqualTo(20000L);
+        assertThat(savedDoc.getStatus()).isEqualTo("ACTIVE");
+        assertThat(savedDoc.getPrimaryImageUrl()).isEqualTo("https://example.com/updated.jpg");
+        assertThat(savedDoc.getCategoryIds()).containsExactly(10L, 20L, 30L);
+
+        // 핵심 검증: createdAt이 기존 문서의 값으로 보존되어야 함
+        assertThat(savedDoc.getCreatedAt())
+                .as("createdAt should be preserved from existing document")
+                .isEqualTo(originalCreatedAt);
+
+        assertThat(savedDoc.getUpdatedAt()).isEqualTo(updatedAt);
+    }
+
+    @Test
+    @DisplayName("상품 수정 이벤트 처리 - 기존 문서가 없을 때 createdAt null")
+    void updateProduct_NoExistingDocument_CreatedAtIsNull() {
+        // Given
+        LocalDateTime updatedAt = LocalDateTime.of(2024, 1, 15, 14, 30);
+
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(999L)
+                .productCode("PROD-999")
+                .productName("New Product via Update Event")
+                .description("Description")
+                .basePrice(java.math.BigDecimal.valueOf(30000))
+                .salePrice(java.math.BigDecimal.valueOf(25000))
+                .status("ACTIVE")
+                .isDisplayed(true)
+                .primaryImageUrl("https://example.com/new-via-update.jpg")
+                .categoryIds(List.of(5L, 6L))
+                .updatedAt(updatedAt)
+                .build();
+
+        when(productSearchRepository.findById("999"))
+                .thenReturn(java.util.Optional.empty());
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.updateProduct(event);
+
+        // Then
+        verify(productSearchRepository).findById("999");
+        verify(productSearchRepository).save(documentCaptor.capture());
+
+        ProductDocument savedDoc = documentCaptor.getValue();
+        assertThat(savedDoc.getProductId()).isEqualTo("999");
+        assertThat(savedDoc.getProductName()).isEqualTo("New Product via Update Event");
+
+        // 기존 문서가 없으므로 createdAt은 null이어야 함
+        assertThat(savedDoc.getCreatedAt())
+                .as("createdAt should be null when no existing document found")
+                .isNull();
+
+        assertThat(savedDoc.getUpdatedAt()).isEqualTo(updatedAt);
+    }
+
+    @Test
+    @DisplayName("상품 수정 이벤트 처리 - BigDecimal null 값 처리")
+    void updateProduct_WithNullPrices() {
+        // Given
+        LocalDateTime originalCreatedAt = LocalDateTime.of(2024, 1, 1, 10, 0);
+        LocalDateTime updatedAt = LocalDateTime.of(2024, 1, 15, 14, 30);
+
+        ProductDocument existingDocument = ProductDocument.builder()
+                .productId("100")
+                .productName("Product")
+                .createdAt(originalCreatedAt)
+                .build();
+
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(100L)
+                .productName("Updated Product")
+                .basePrice(null)  // null price
+                .salePrice(null)  // null price
+                .updatedAt(updatedAt)
+                .build();
+
+        when(productSearchRepository.findById("100"))
+                .thenReturn(java.util.Optional.of(existingDocument));
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.updateProduct(event);
+
+        // Then
+        verify(productSearchRepository).save(documentCaptor.capture());
+
+        ProductDocument savedDoc = documentCaptor.getValue();
+        assertThat(savedDoc.getBasePrice()).isNull();
+        assertThat(savedDoc.getSalePrice()).isNull();
+        assertThat(savedDoc.getCreatedAt()).isEqualTo(originalCreatedAt);
     }
 }

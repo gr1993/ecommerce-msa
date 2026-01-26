@@ -142,11 +142,15 @@ public class ProductSyncService {
 
     /**
      * 상품 수정 이벤트 처리 - Elasticsearch에 상품 정보 갱신
+     * 기존 문서의 createdAt을 보존합니다.
      */
     public void updateProduct(ProductUpdatedEvent event) {
         log.info("Updating product: productId={}", event.getProductId());
 
-        ProductDocument document = toProductDocument(event);
+        String productId = String.valueOf(event.getProductId());
+        ProductDocument existingDocument = productSearchRepository.findById(productId).orElse(null);
+
+        ProductDocument document = toProductDocument(event, existingDocument);
         productSearchRepository.save(document);
 
         log.info("Successfully updated product: productId={}", event.getProductId());
@@ -166,7 +170,7 @@ public class ProductSyncService {
                 .build();
     }
 
-    private ProductDocument toProductDocument(ProductUpdatedEvent event) {
+    private ProductDocument toProductDocument(ProductUpdatedEvent event, ProductDocument existingDocument) {
         return ProductDocument.builder()
                 .productId(String.valueOf(event.getProductId()))
                 .productName(event.getProductName())
@@ -176,6 +180,7 @@ public class ProductSyncService {
                 .status(event.getStatus())
                 .primaryImageUrl(event.getPrimaryImageUrl())
                 .categoryIds(event.getCategoryIds())
+                .createdAt(existingDocument != null ? existingDocument.getCreatedAt() : null)
                 .updatedAt(event.getUpdatedAt())
                 .build();
     }
