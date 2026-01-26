@@ -49,8 +49,7 @@ public class UserRegisteredEventConsumer {
 	)
 	@KafkaListener(
 		topics = EventTypeConstants.TOPIC_USER_REGISTERED,
-		groupId = "${spring.kafka.consumer.group-id}",
-		containerFactory = "kafkaListenerContainerFactory"
+		groupId = "${spring.kafka.consumer.group-id}"
 	)
 	public void consume(
 		@Payload UserRegisteredEvent event,

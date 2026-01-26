@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 public class AuthUser {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
     private Long userId;
 
@@ -44,7 +43,8 @@ public class AuthUser {
     private LocalDateTime updatedAt;
 
     @Builder
-    public AuthUser(String email, String password, UserStatus status, UserRole role) {
+    public AuthUser(Long userId, String email, String password, UserStatus status, UserRole role) {
+        this.userId = userId;
         this.email = email;
         this.password = password;
         this.status = status != null ? status : UserStatus.ACTIVE;

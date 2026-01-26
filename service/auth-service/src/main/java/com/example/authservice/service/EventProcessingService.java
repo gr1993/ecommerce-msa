@@ -68,8 +68,9 @@ public class EventProcessingService {
                 return;
             }
 
-            // 3. AuthUser 생성 (비밀번호는 이미 해시된 상태)
+            // 3. AuthUser 생성 (비밀번호는 이미 해시된 상태, userId는 Kafka 이벤트에서 전달받음)
             AuthUser authUser = AuthUser.builder()
+                    .userId(event.getUserId())
                     .email(event.getEmail())
                     .password(event.getHashedPassword())
                     .status(AuthUser.UserStatus.ACTIVE)
