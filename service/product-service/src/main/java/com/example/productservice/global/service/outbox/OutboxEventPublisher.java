@@ -5,11 +5,15 @@ import com.example.productservice.global.domain.Outbox;
 import com.example.productservice.global.repository.OutboxRepository;
 import com.example.productservice.product.domain.event.ProductCreatedEvent;
 import com.example.productservice.product.domain.event.ProductUpdatedEvent;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding.KafkaAsyncKey;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding.KafkaAsyncMessageBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation.Headers;
 import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
+import org.springframework.kafka.support.mapping.AbstractJavaTypeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,7 +28,8 @@ import java.util.List;
 public class OutboxEventPublisher {
 
 	private final OutboxRepository outboxRepository;
-	private final KafkaTemplate<String, String> kafkaTemplate;
+	private final KafkaTemplate<String, Object> kafkaTemplate;
+	private final ObjectMapper objectMapper;
 
 	/**
 	 * DB 트랜잭션으로 Outbox 상태를 관리하고 Kafka 트랜잭션은
@@ -65,8 +70,8 @@ public class OutboxEventPublisher {
 		} else if (EventTypeConstants.TOPIC_PRODUCT_UPDATED.equals(eventType)) {
 			publishProductUpdatedEvent(outbox);
 		} else {
-			// 알 수 없는 이벤트 타입은 기본 메서드로 처리
-			publishEvent(outbox);
+			log.warn("알 수 없는 이벤트 타입: {}", eventType);
+			throw new IllegalArgumentException("알 수 없는 이벤트 타입: " + eventType);
 		}
 	}
 
@@ -74,7 +79,17 @@ public class OutboxEventPublisher {
 		operation = @AsyncOperation(
 			channelName = EventTypeConstants.TOPIC_PRODUCT_CREATED,
 			description = "상품 등록 이벤트 발행",
-			payloadType = ProductCreatedEvent.class
+			payloadType = ProductCreatedEvent.class,
+			headers = @Headers(
+				schemaName = "ProductCreatedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_PRODUCT_CREATED
+					)
+				}
+			)
 		)
 	)
 	@KafkaAsyncOperationBinding(
@@ -88,11 +103,14 @@ public class OutboxEventPublisher {
 	private void publishProductCreatedEvent(Outbox outbox) {
 		String topic = EventTypeConstants.TOPIC_PRODUCT_CREATED;
 		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
-		String payload = outbox.getPayload();
 
 		try {
-			kafkaTemplate.send(topic, key, payload).get();
+			ProductCreatedEvent event = objectMapper.readValue(outbox.getPayload(), ProductCreatedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
 			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
 		} catch (Exception e) {
 			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
 			throw new RuntimeException("Kafka 메시지 전송 실패", e);
@@ -103,7 +121,17 @@ public class OutboxEventPublisher {
 		operation = @AsyncOperation(
 			channelName = EventTypeConstants.TOPIC_PRODUCT_UPDATED,
 			description = "상품 수정 이벤트 발행",
-			payloadType = ProductUpdatedEvent.class
+			payloadType = ProductUpdatedEvent.class,
+			headers = @Headers(
+				schemaName = "ProductUpdatedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_PRODUCT_UPDATED
+					)
+				}
+			)
 		)
 	)
 	@KafkaAsyncOperationBinding(
@@ -117,33 +145,18 @@ public class OutboxEventPublisher {
 	private void publishProductUpdatedEvent(Outbox outbox) {
 		String topic = EventTypeConstants.TOPIC_PRODUCT_UPDATED;
 		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
-		String payload = outbox.getPayload();
 
 		try {
-			kafkaTemplate.send(topic, key, payload).get();
+			ProductUpdatedEvent event = objectMapper.readValue(outbox.getPayload(), ProductUpdatedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
 			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
 		} catch (Exception e) {
 			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
 			throw new RuntimeException("Kafka 메시지 전송 실패", e);
 		}
-	}
-
-	private void publishEvent(Outbox outbox) {
-		String topic = buildTopic(outbox.getEventType());
-		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
-		String payload = outbox.getPayload();
-
-		try {
-			kafkaTemplate.send(topic, key, payload).get();
-			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
-		} catch (Exception e) {
-			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
-			throw new RuntimeException("Kafka 메시지 전송 실패", e);
-		}
-	}
-
-	private String buildTopic(String eventType) {
-		return eventType;
 	}
 
 	private String buildKey(String aggregateType, String aggregateId) {
