@@ -1,5 +1,8 @@
 package com.example.productservice.global.service.outbox;
 
+import com.example.productservice.category.domain.event.CategoryCreatedEvent;
+import com.example.productservice.category.domain.event.CategoryDeletedEvent;
+import com.example.productservice.category.domain.event.CategoryUpdatedEvent;
 import com.example.productservice.global.common.EventTypeConstants;
 import com.example.productservice.global.domain.Outbox;
 import com.example.productservice.global.repository.OutboxRepository;
@@ -65,13 +68,16 @@ public class OutboxEventPublisher {
 	private void publishEventByType(Outbox outbox) {
 		String eventType = outbox.getEventType();
 
-		if (EventTypeConstants.TOPIC_PRODUCT_CREATED.equals(eventType)) {
-			publishProductCreatedEvent(outbox);
-		} else if (EventTypeConstants.TOPIC_PRODUCT_UPDATED.equals(eventType)) {
-			publishProductUpdatedEvent(outbox);
-		} else {
-			log.warn("알 수 없는 이벤트 타입: {}", eventType);
-			throw new IllegalArgumentException("알 수 없는 이벤트 타입: " + eventType);
+		switch (eventType) {
+			case EventTypeConstants.TOPIC_PRODUCT_CREATED -> publishProductCreatedEvent(outbox);
+			case EventTypeConstants.TOPIC_PRODUCT_UPDATED -> publishProductUpdatedEvent(outbox);
+			case EventTypeConstants.TOPIC_CATEGORY_CREATED -> publishCategoryCreatedEvent(outbox);
+			case EventTypeConstants.TOPIC_CATEGORY_UPDATED -> publishCategoryUpdatedEvent(outbox);
+			case EventTypeConstants.TOPIC_CATEGORY_DELETED -> publishCategoryDeletedEvent(outbox);
+			default -> {
+				log.warn("알 수 없는 이벤트 타입: {}", eventType);
+				throw new IllegalArgumentException("알 수 없는 이벤트 타입: " + eventType);
+			}
 		}
 	}
 
@@ -148,6 +154,132 @@ public class OutboxEventPublisher {
 
 		try {
 			ProductUpdatedEvent event = objectMapper.readValue(outbox.getPayload(), ProductUpdatedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_CATEGORY_CREATED,
+			description = "카테고리 등록 이벤트 발행",
+			payloadType = CategoryCreatedEvent.class,
+			headers = @Headers(
+				schemaName = "CategoryCreatedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_CATEGORY_CREATED
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Category-1"
+			)
+		)
+	)
+	private void publishCategoryCreatedEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_CATEGORY_CREATED;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			CategoryCreatedEvent event = objectMapper.readValue(outbox.getPayload(), CategoryCreatedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_CATEGORY_UPDATED,
+			description = "카테고리 수정 이벤트 발행",
+			payloadType = CategoryUpdatedEvent.class,
+			headers = @Headers(
+				schemaName = "CategoryUpdatedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_CATEGORY_UPDATED
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Category-1"
+			)
+		)
+	)
+	private void publishCategoryUpdatedEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_CATEGORY_UPDATED;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			CategoryUpdatedEvent event = objectMapper.readValue(outbox.getPayload(), CategoryUpdatedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_CATEGORY_DELETED,
+			description = "카테고리 삭제 이벤트 발행",
+			payloadType = CategoryDeletedEvent.class,
+			headers = @Headers(
+				schemaName = "CategoryDeletedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_CATEGORY_DELETED
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Category-1"
+			)
+		)
+	)
+	private void publishCategoryDeletedEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_CATEGORY_DELETED;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			CategoryDeletedEvent event = objectMapper.readValue(outbox.getPayload(), CategoryDeletedEvent.class);
 			kafkaTemplate.send(topic, key, event).get();
 			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
 		} catch (JsonProcessingException e) {
