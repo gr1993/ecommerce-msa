@@ -19,6 +19,7 @@ public class ProductResponse {
     private String status;
     private String primaryImageUrl;
     private List<Long> categoryIds;
+    private List<String> searchKeywords;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -32,6 +33,7 @@ public class ProductResponse {
                 .status(document.getStatus())
                 .primaryImageUrl(document.getPrimaryImageUrl())
                 .categoryIds(document.getCategoryIds())
+                .searchKeywords(document.getSearchKeywords())
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
                 .build();

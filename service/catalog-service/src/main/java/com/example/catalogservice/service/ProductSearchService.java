@@ -98,12 +98,12 @@ public class ProductSearchService {
         List<Query> mustQueries = new ArrayList<>();
         List<Query> filterQueries = new ArrayList<>();
 
-        // 상품명 검색 (must - 점수에 영향)
+        // 상품명 + 검색 키워드 검색 (must - 점수에 영향, productName boost 2배)
         if (hasText(request.getProductName())) {
             mustQueries.add(Query.of(q -> q
-                    .match(m -> m
-                            .field("productName")
+                    .multiMatch(mm -> mm
                             .query(request.getProductName())
+                            .fields("productName^2", "searchKeywords")
                     )
             ));
         }

@@ -47,13 +47,13 @@ class ProductSearchServiceIntegrationTest {
 
         // 테스트 데이터 준비
         List<ProductDocument> testProducts = List.of(
-                createProduct("1", "맥북 프로 16인치", "애플 M3 맥스 칩 탑재", 3500000L, 3300000L, "ACTIVE", List.of(1L, 10L)),
-                createProduct("2", "갤럭시 S24 울트라", "삼성 최신 플래그십 스마트폰", 1500000L, 1400000L, "ACTIVE", List.of(2L, 20L)),
-                createProduct("3", "아이패드 프로 12.9", "M2 칩 탑재 태블릿", 1200000L, 1100000L, "ACTIVE", List.of(1L, 11L)),
-                createProduct("4", "에어팟 프로 2세대", "노이즈 캔슬링 이어폰", 350000L, 320000L, "ACTIVE", List.of(3L, 30L)),
-                createProduct("5", "LG 그램 17", "초경량 노트북", 2000000L, 1800000L, "SOLD_OUT", List.of(1L, 12L)),
-                createProduct("6", "갤럭시 탭 S9", "안드로이드 태블릿", 900000L, 850000L, "ACTIVE", List.of(2L, 21L)),
-                createProduct("7", "맥북 에어 M2", "가성비 좋은 노트북", 1500000L, 1400000L, "ACTIVE", List.of(1L, 10L))
+                createProduct("1", "맥북 프로 16인치", "애플 M3 맥스 칩 탑재", 3500000L, 3300000L, "ACTIVE", List.of(1L, 10L), List.of("애플", "노트북", "프로")),
+                createProduct("2", "갤럭시 S24 울트라", "삼성 최신 플래그십 스마트폰", 1500000L, 1400000L, "ACTIVE", List.of(2L, 20L), List.of("삼성", "스마트폰", "플래그십")),
+                createProduct("3", "아이패드 프로 12.9", "M2 칩 탑재 태블릿", 1200000L, 1100000L, "ACTIVE", List.of(1L, 11L), List.of("애플", "태블릿")),
+                createProduct("4", "에어팟 프로 2세대", "노이즈 캔슬링 이어폰", 350000L, 320000L, "ACTIVE", List.of(3L, 30L), List.of("애플", "이어폰", "무선")),
+                createProduct("5", "LG 그램 17", "초경량 노트북", 2000000L, 1800000L, "SOLD_OUT", List.of(1L, 12L), List.of("LG", "노트북", "경량")),
+                createProduct("6", "갤럭시 탭 S9", "안드로이드 태블릿", 900000L, 850000L, "ACTIVE", List.of(2L, 21L), List.of("삼성", "태블릿", "안드로이드")),
+                createProduct("7", "맥북 에어 M2", "가성비 좋은 노트북", 1500000L, 1400000L, "ACTIVE", List.of(1L, 10L), List.of("애플", "노트북", "가성비"))
         );
 
         productSearchRepository.saveAll(testProducts);
@@ -418,6 +418,82 @@ class ProductSearchServiceIntegrationTest {
         assertThat(result.getContent()).isEmpty();
     }
 
+    @Test
+    @DisplayName("검색 키워드로 검색 - 애플")
+    void searchProducts_bySearchKeywords_apple() {
+        // given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("애플")
+                .page(0)
+                .size(10)
+                .build();
+
+        // when
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(4);
+        assertThat(result.getContent())
+                .allMatch(product -> product.getSearchKeywords() != null && product.getSearchKeywords().contains("애플"));
+    }
+
+    @Test
+    @DisplayName("검색 키워드로 검색 - 노트북")
+    void searchProducts_bySearchKeywords_laptop() {
+        // given
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("노트북")
+                .page(0)
+                .size(10)
+                .build();
+
+        // when
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(3);
+        assertThat(result.getContent())
+                .allMatch(product -> product.getSearchKeywords() != null && product.getSearchKeywords().contains("노트북"));
+    }
+
+    @Test
+    @DisplayName("상품명과 검색 키워드 동시 검색 - productName boost 확인")
+    void searchProducts_multiMatch_withBoost() {
+        // given: "프로"는 상품명에도 있고(맥북 프로, 아이패드 프로, 에어팟 프로), 검색키워드에도 있음(맥북 프로)
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("프로")
+                .page(0)
+                .size(10)
+                .build();
+
+        // when
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // then
+        assertThat(result.getTotalElements()).isGreaterThanOrEqualTo(3);
+        // 상품명에 "프로"가 포함된 상품이 검색 키워드에만 있는 것보다 우선순위가 높아야 함
+        assertThat(result.getContent().get(0).getProductName()).contains("프로");
+    }
+
+    @Test
+    @DisplayName("검색 키워드로만 매칭되는 검색")
+    void searchProducts_bySearchKeywordsOnly() {
+        // given: "무선"은 상품명에는 없지만 에어팟의 검색키워드에만 존재
+        ProductSearchRequest request = ProductSearchRequest.builder()
+                .productName("무선")
+                .page(0)
+                .size(10)
+                .build();
+
+        // when
+        Page<ProductDocument> result = productSearchService.searchProducts(request);
+
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().get(0).getProductId()).isEqualTo("4");
+        assertThat(result.getContent().get(0).getSearchKeywords()).contains("무선");
+    }
+
     private ProductDocument createProduct(
             String id,
             String name,
@@ -425,7 +501,8 @@ class ProductSearchServiceIntegrationTest {
             Long basePrice,
             Long salePrice,
             String status,
-            List<Long> categoryIds
+            List<Long> categoryIds,
+            List<String> searchKeywords
     ) {
         return ProductDocument.builder()
                 .productId(id)
@@ -436,6 +513,7 @@ class ProductSearchServiceIntegrationTest {
                 .status(status)
                 .primaryImageUrl("https://example.com/image.jpg")
                 .categoryIds(categoryIds)
+                .searchKeywords(searchKeywords)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
