@@ -53,6 +53,12 @@ public class ProductDocument {
     @Field(type = FieldType.Long)
     private List<Long> categoryIds;
 
+    /**
+     * 검색 키워드 배열
+     */
+    @Field(type = FieldType.Keyword)
+    private List<String> searchKeywords;
+
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second_millis)
     private LocalDateTime createdAt;
 
