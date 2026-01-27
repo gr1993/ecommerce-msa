@@ -19,6 +19,7 @@ public class CatalogSyncProductResponse {
     private String status;
     private String primaryImageUrl;
     private List<Long> categoryIds;
+    private List<String> searchKeywords;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

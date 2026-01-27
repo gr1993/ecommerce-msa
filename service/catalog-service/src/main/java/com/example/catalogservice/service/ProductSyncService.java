@@ -123,6 +123,7 @@ public class ProductSyncService {
                 .status(product.getStatus())
                 .primaryImageUrl(product.getPrimaryImageUrl())
                 .categoryIds(product.getCategoryIds())
+                .searchKeywords(product.getSearchKeywords())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
