@@ -1,10 +1,14 @@
 package com.example.productservice.product.service;
 
+import com.example.productservice.category.repository.CategoryRepository;
 import com.example.productservice.file.service.FileStorageService;
 import com.example.productservice.global.common.dto.PageResponse;
+import com.example.productservice.global.repository.OutboxRepository;
 import com.example.productservice.product.domain.*;
 import com.example.productservice.product.dto.*;
 import com.example.productservice.product.repository.ProductRepository;
+import com.example.productservice.product.repository.ProductSearchKeywordRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +37,19 @@ class ProductServiceImplTest {
     private ProductRepository productRepository;
 
     @Mock
+    private ProductSearchKeywordRepository productSearchKeywordRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
     private FileStorageService fileStorageService;
+
+    @Mock
+    private OutboxRepository outboxRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private ProductServiceImpl productService;

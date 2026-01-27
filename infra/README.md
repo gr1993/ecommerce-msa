@@ -27,4 +27,9 @@ docker-compose -f docker-compose.infra.yml up -d
 docker exec -it kafka1 kafka-topics --create --topic user.registered --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 docker exec -it kafka1 kafka-topics --create --topic product.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 docker exec -it kafka1 kafka-topics --create --topic product.updated --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic category.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic category.updated --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic category.deleted --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic keyword.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic keyword.deleted --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 ```

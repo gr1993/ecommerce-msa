@@ -6,6 +6,8 @@ import com.example.productservice.category.dto.CategoryResponse;
 import com.example.productservice.category.dto.CategoryTreeResponse;
 import com.example.productservice.category.dto.CategoryUpdateRequest;
 import com.example.productservice.category.repository.CategoryRepository;
+import com.example.productservice.global.repository.OutboxRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,12 @@ class CategoryServiceImplTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private OutboxRepository outboxRepository;
+
+    @Mock
+    private ObjectMapper objectMapper;
 
     @InjectMocks
     private CategoryServiceImpl categoryService;

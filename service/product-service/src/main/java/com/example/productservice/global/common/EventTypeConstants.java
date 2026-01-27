@@ -15,6 +15,10 @@ public final class EventTypeConstants {
 	public static final String TOPIC_CATEGORY_UPDATED = "category.updated";
 	public static final String TOPIC_CATEGORY_DELETED = "category.deleted";
 
+	// Kafka Topics - Search Keyword
+	public static final String TOPIC_KEYWORD_CREATED = "keyword.created";
+	public static final String TOPIC_KEYWORD_DELETED = "keyword.deleted";
+
 	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Product
 	public static final String TYPE_ID_PRODUCT_CREATED = "productCreatedEvent";
 	public static final String TYPE_ID_PRODUCT_UPDATED = "productUpdatedEvent";
@@ -23,4 +27,8 @@ public final class EventTypeConstants {
 	public static final String TYPE_ID_CATEGORY_CREATED = "categoryCreatedEvent";
 	public static final String TYPE_ID_CATEGORY_UPDATED = "categoryUpdatedEvent";
 	public static final String TYPE_ID_CATEGORY_DELETED = "categoryDeletedEvent";
+
+	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Search Keyword
+	public static final String TYPE_ID_KEYWORD_CREATED = "keywordCreatedEvent";
+	public static final String TYPE_ID_KEYWORD_DELETED = "keywordDeletedEvent";
 }
