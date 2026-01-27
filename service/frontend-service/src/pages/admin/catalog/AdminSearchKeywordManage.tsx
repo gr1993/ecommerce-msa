@@ -1,134 +1,108 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, message, Space, Input, Button, Select, Tag, Popconfirm } from 'antd'
+import { Table, Card, message, Space, Input, Button, Select, Tag, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, LoadingOutlined } from '@ant-design/icons'
 import './AdminSearchKeywordManage.css'
+import {
+  searchProducts,
+  getProductSearchKeywords,
+  addProductSearchKeyword,
+  deleteProductSearchKeyword,
+  type ProductResponse,
+  type SearchKeywordResponse,
+} from '../../../api/productApi'
 
 const { Option } = Select
 
-interface Product {
-  id: string
-  product_name: string
-  product_code: string
-  category_id: string
-  category_name?: string
-}
-
-interface SearchKeyword {
-  keyword_id: string
-  product_id: string
-  keyword: string
-  created_at: string
+interface ProductWithKeywords extends ProductResponse {
+  keywords: SearchKeywordResponse[]
+  keywordsLoading: boolean
 }
 
 function AdminSearchKeywordManage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [searchCategory, setSearchCategory] = useState<string | undefined>(undefined)
+  const [products, setProducts] = useState<ProductWithKeywords[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchName, setSearchName] = useState('')
-  const [keywords, setKeywords] = useState<Record<string, SearchKeyword[]>>({})
-  const [newKeyword, setNewKeyword] = useState<Record<string, string>>({})
+  const [searchStatus, setSearchStatus] = useState<'ACTIVE' | 'INACTIVE' | 'SOLD_OUT' | undefined>(undefined)
+  const [newKeyword, setNewKeyword] = useState<Record<number, string>>({})
+  const [addingKeyword, setAddingKeyword] = useState<Record<number, boolean>>({})
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
 
-  const categoryMap: Record<string, string> = {
-    electronics: '전자제품',
-    clothing: '의류',
-    food: '식품',
-    books: '도서',
-    sports: '스포츠',
-    beauty: '뷰티'
+  // 상품 데이터 로드
+  const loadProducts = async (page = 0, size = 10) => {
+    setLoading(true)
+    try {
+      const response = await searchProducts({
+        productName: searchName || undefined,
+        status: searchStatus,
+        page,
+        size,
+      })
+
+      // 상품별로 키워드를 별도로 로드할 준비
+      const productsWithKeywords: ProductWithKeywords[] = response.content.map((product) => ({
+        ...product,
+        keywords: [],
+        keywordsLoading: true,
+      }))
+
+      setProducts(productsWithKeywords)
+      setPagination({
+        current: response.page + 1,
+        pageSize: response.size,
+        total: response.totalElements,
+      })
+
+      // 각 상품의 키워드를 비동기로 로드
+      productsWithKeywords.forEach((product) => {
+        loadKeywordsForProduct(product.productId)
+      })
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '상품 목록 조회에 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // 상품 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 상품 데이터 로드
-    const sampleProducts: Product[] = [
-      {
-        id: '1',
-        product_name: '노트북',
-        product_code: 'PRD-001',
-        category_id: 'electronics',
-        category_name: '전자제품'
-      },
-      {
-        id: '2',
-        product_name: '스마트폰',
-        product_code: 'PRD-002',
-        category_id: 'electronics',
-        category_name: '전자제품'
-      },
-      {
-        id: '3',
-        product_name: '티셔츠',
-        product_code: 'PRD-003',
-        category_id: 'clothing',
-        category_name: '의류'
-      },
-      {
-        id: '4',
-        product_name: '바지',
-        product_code: 'PRD-004',
-        category_id: 'clothing',
-        category_name: '의류'
-      }
-    ]
-    setProducts(sampleProducts)
-  }, [])
-
-  // 키워드 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 키워드 데이터 로드
-    const sampleKeywords: Record<string, SearchKeyword[]> = {
-      '1': [
-        {
-          keyword_id: '1',
-          product_id: '1',
-          keyword: '랩탑',
-          created_at: '2024-01-15 10:00:00'
-        },
-        {
-          keyword_id: '2',
-          product_id: '1',
-          keyword: '컴퓨터',
-          created_at: '2024-01-15 10:01:00'
-        }
-      ],
-      '2': [
-        {
-          keyword_id: '3',
-          product_id: '2',
-          keyword: '핸드폰',
-          created_at: '2024-01-15 11:00:00'
-        }
-      ]
+  // 특정 상품의 키워드 로드
+  const loadKeywordsForProduct = async (productId: number) => {
+    try {
+      const keywords = await getProductSearchKeywords(productId)
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.productId === productId
+            ? { ...p, keywords, keywordsLoading: false }
+            : p
+        )
+      )
+    } catch {
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.productId === productId
+            ? { ...p, keywords: [], keywordsLoading: false }
+            : p
+        )
+      )
     }
-    setKeywords(sampleKeywords)
-  }, [])
+  }
 
-  // 필터링된 데이터
   useEffect(() => {
-    const filtered = products.filter((product) => {
-      const nameMatch = !searchName || 
-        product.product_name.toLowerCase().includes(searchName.toLowerCase()) ||
-        product.product_code.toLowerCase().includes(searchName.toLowerCase())
-      const categoryMatch = !searchCategory || product.category_id === searchCategory
-      return nameMatch && categoryMatch
-    })
-    setFilteredProducts(filtered)
-  }, [searchName, searchCategory, products])
+    loadProducts()
+  }, [])
 
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+    loadProducts(0, pagination.pageSize)
   }
 
   const handleReset = () => {
     setSearchName('')
-    setSearchCategory(undefined)
+    setSearchStatus(undefined)
   }
 
   // 키워드 추가
-  const handleAddKeyword = (productId: string) => {
+  const handleAddKeyword = async (productId: number) => {
     const keyword = newKeyword[productId]?.trim()
-    
+
     if (!keyword) {
       message.warning('키워드를 입력하세요.')
       return
@@ -139,84 +113,109 @@ function AdminSearchKeywordManage() {
       return
     }
 
-    // 중복 체크
-    const existingKeywords = keywords[productId] || []
-    if (existingKeywords.some(k => k.keyword.toLowerCase() === keyword.toLowerCase())) {
+    // 프론트엔드 중복 체크
+    const product = products.find((p) => p.productId === productId)
+    if (product?.keywords.some((k) => k.keyword.toLowerCase() === keyword.toLowerCase())) {
       message.warning('이미 등록된 키워드입니다.')
       return
     }
 
-    const newKeywordData: SearchKeyword = {
-      keyword_id: `kw_${Date.now()}`,
-      product_id: productId,
-      keyword: keyword,
-      created_at: new Date().toISOString()
+    setAddingKeyword((prev) => ({ ...prev, [productId]: true }))
+
+    try {
+      const newKw = await addProductSearchKeyword(productId, { keyword })
+
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.productId === productId
+            ? { ...p, keywords: [...p.keywords, newKw] }
+            : p
+        )
+      )
+
+      setNewKeyword((prev) => ({ ...prev, [productId]: '' }))
+      message.success('키워드가 추가되었습니다.')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '키워드 추가에 실패했습니다.')
+    } finally {
+      setAddingKeyword((prev) => ({ ...prev, [productId]: false }))
     }
-
-    setKeywords(prev => ({
-      ...prev,
-      [productId]: [...existingKeywords, newKeywordData]
-    }))
-
-    setNewKeyword(prev => ({
-      ...prev,
-      [productId]: ''
-    }))
-
-    // TODO: API 호출로 키워드 추가
-    message.success('키워드가 추가되었습니다.')
   }
 
   // 키워드 삭제
-  const handleDeleteKeyword = (productId: string, keywordId: string) => {
-    setKeywords(prev => ({
-      ...prev,
-      [productId]: (prev[productId] || []).filter(k => k.keyword_id !== keywordId)
-    }))
+  const handleDeleteKeyword = async (productId: number, keywordId: number) => {
+    try {
+      await deleteProductSearchKeyword(productId, keywordId)
 
-    // TODO: API 호출로 키워드 삭제
-    message.success('키워드가 삭제되었습니다.')
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.productId === productId
+            ? { ...p, keywords: p.keywords.filter((k) => k.keywordId !== keywordId) }
+            : p
+        )
+      )
+
+      message.success('키워드가 삭제되었습니다.')
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '키워드 삭제에 실패했습니다.')
+    }
+  }
+
+  // 테이블 페이지 변경
+  const handleTableChange = (newPagination: { current?: number; pageSize?: number }) => {
+    loadProducts((newPagination.current || 1) - 1, newPagination.pageSize || 10)
   }
 
   // 테이블 컬럼 정의
-  const columns: ColumnsType<Product> = [
+  const columns: ColumnsType<ProductWithKeywords> = [
     {
       title: '상품명',
-      dataIndex: 'product_name',
-      key: 'product_name',
-      sorter: (a, b) => a.product_name.localeCompare(b.product_name),
+      dataIndex: 'productName',
+      key: 'productName',
       width: 200,
     },
     {
       title: '상품 코드',
-      dataIndex: 'product_code',
-      key: 'product_code',
-      sorter: (a, b) => a.product_code.localeCompare(b.product_code),
+      dataIndex: 'productCode',
+      key: 'productCode',
       width: 150,
+      render: (code: string | undefined) => code || '-',
     },
     {
-      title: '카테고리',
-      dataIndex: 'category_id',
-      key: 'category_id',
-      render: (categoryId: string) => categoryMap[categoryId] || categoryId,
-      width: 120,
+      title: '상태',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => {
+        const statusMap: Record<string, { color: string; text: string }> = {
+          ACTIVE: { color: 'green', text: '판매중' },
+          INACTIVE: { color: 'default', text: '비활성' },
+          SOLD_OUT: { color: 'red', text: '품절' },
+        }
+        const info = statusMap[status] || { color: 'default', text: status }
+        return <Tag color={info.color}>{info.text}</Tag>
+      },
     },
     {
       title: '검색 키워드',
       key: 'keywords',
-      render: (_, record: Product) => {
-        const productKeywords = keywords[record.id] || []
-        const keywordInput = newKeyword[record.id] || ''
-        
+      render: (_, record: ProductWithKeywords) => {
+        const keywordInput = newKeyword[record.productId] || ''
+        const isAdding = addingKeyword[record.productId] || false
+
+        if (record.keywordsLoading) {
+          return <Spin indicator={<LoadingOutlined spin />} size="small" />
+        }
+
         return (
           <div className="keyword-cell">
             <div className="keyword-tags">
-              {productKeywords.length > 0 ? (
-                productKeywords.map(kw => (
+              {record.keywords.length > 0 ? (
+                record.keywords.map((kw) => (
                   <Tag
-                    key={kw.keyword_id}
+                    key={kw.keywordId}
                     closable
-                    onClose={() => handleDeleteKeyword(record.id, kw.keyword_id)}
+                    onClose={() => handleDeleteKeyword(record.productId, kw.keywordId)}
                     style={{ marginBottom: '8px' }}
                   >
                     {kw.keyword}
@@ -231,18 +230,22 @@ function AdminSearchKeywordManage() {
                 placeholder="키워드 입력 (최대 100자)"
                 maxLength={100}
                 value={keywordInput}
-                onChange={(e) => setNewKeyword(prev => ({
-                  ...prev,
-                  [record.id]: e.target.value
-                }))}
-                onPressEnter={() => handleAddKeyword(record.id)}
+                onChange={(e) =>
+                  setNewKeyword((prev) => ({
+                    ...prev,
+                    [record.productId]: e.target.value,
+                  }))
+                }
+                onPressEnter={() => handleAddKeyword(record.productId)}
                 style={{ width: '200px', marginRight: '8px' }}
+                disabled={isAdding}
               />
               <Button
                 type="primary"
                 size="small"
                 icon={<PlusOutlined />}
-                onClick={() => handleAddKeyword(record.id)}
+                onClick={() => handleAddKeyword(record.productId)}
+                loading={isAdding}
               >
                 추가
               </Button>
@@ -263,7 +266,7 @@ function AdminSearchKeywordManage() {
           <div className="filter-inputs">
             <Space size="middle">
               <Input
-                placeholder="상품명 또는 상품 코드 검색"
+                placeholder="상품명 검색"
                 allowClear
                 style={{ width: 250 }}
                 value={searchName}
@@ -271,18 +274,15 @@ function AdminSearchKeywordManage() {
                 onPressEnter={handleSearch}
               />
               <Select
-                placeholder="카테고리 선택"
+                placeholder="상태 선택"
                 allowClear
                 style={{ width: 150 }}
-                value={searchCategory}
-                onChange={(value) => setSearchCategory(value)}
+                value={searchStatus}
+                onChange={(value) => setSearchStatus(value)}
               >
-                <Option value="electronics">전자제품</Option>
-                <Option value="clothing">의류</Option>
-                <Option value="food">식품</Option>
-                <Option value="books">도서</Option>
-                <Option value="sports">스포츠</Option>
-                <Option value="beauty">뷰티</Option>
+                <Option value="ACTIVE">판매중</Option>
+                <Option value="INACTIVE">비활성</Option>
+                <Option value="SOLD_OUT">품절</Option>
               </Select>
             </Space>
           </div>
@@ -300,13 +300,17 @@ function AdminSearchKeywordManage() {
         <Card>
           <Table
             columns={columns}
-            dataSource={filteredProducts}
-            rowKey="id"
+            dataSource={products}
+            rowKey="productId"
+            loading={loading}
             pagination={{
-              pageSize: 10,
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              total: pagination.total,
               showSizeChanger: true,
               showTotal: (total) => `총 ${total}개`,
             }}
+            onChange={handleTableChange}
           />
         </Card>
       </div>

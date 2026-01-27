@@ -848,3 +848,185 @@ export const autocompleteProductName = async (keyword: string): Promise<string[]
     throw new Error('자동완성 조회 중 오류가 발생했습니다.')
   }
 }
+
+// ==================== 검색 키워드 관리 API ====================
+
+/**
+ * 검색 키워드 응답 DTO
+ */
+export interface SearchKeywordResponse {
+  /** 키워드 ID */
+  keywordId: number
+  /** 상품 ID */
+  productId: number
+  /** 검색 키워드 */
+  keyword: string
+  /** 생성일시 */
+  createdAt: string
+}
+
+/**
+ * 검색 키워드 등록 요청 DTO
+ */
+export interface SearchKeywordRequest {
+  /** 검색 키워드 (최대 100자) */
+  keyword: string
+}
+
+/**
+ * 상품별 검색 키워드 목록 조회
+ *
+ * 특정 상품에 등록된 검색 키워드 목록을 조회합니다. (관리자 전용)
+ *
+ * @param productId - 상품 ID
+ * @returns 검색 키워드 목록
+ * @throws Error - 조회 실패 시 (인증 실패, 상품 없음 등)
+ */
+export const getProductSearchKeywords = async (productId: number): Promise<SearchKeywordResponse[]> => {
+  try {
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '상품을 찾을 수 없습니다.')
+      }
+
+      throw new Error(error.message || `키워드 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: SearchKeywordResponse[] = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get product search keywords error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('키워드 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 검색 키워드 등록
+ *
+ * 특정 상품에 검색 키워드를 등록합니다. 동일 상품에 중복 키워드는 등록할 수 없습니다. (관리자 전용)
+ *
+ * @param productId - 상품 ID
+ * @param request - 키워드 등록 요청
+ * @returns 등록된 키워드 정보
+ * @throws Error - 등록 실패 시 (인증 실패, 중복 키워드, 상품 없음 등)
+ */
+export const addProductSearchKeyword = async (productId: number, request: SearchKeywordRequest): Promise<SearchKeywordResponse> => {
+  try {
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '키워드 등록에 실패했습니다.')
+      }
+
+      throw new Error(error.message || `키워드 등록 실패 (HTTP ${response.status})`)
+    }
+
+    const data: SearchKeywordResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Add product search keyword error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('키워드 등록 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
+/**
+ * 검색 키워드 삭제
+ *
+ * 특정 상품의 검색 키워드를 삭제합니다. (관리자 전용)
+ *
+ * @param productId - 상품 ID
+ * @param keywordId - 키워드 ID
+ * @throws Error - 삭제 실패 시 (인증 실패, 키워드 없음, 상품 불일치 등)
+ */
+export const deleteProductSearchKeyword = async (productId: number, keywordId: number): Promise<void> => {
+  try {
+    const adminToken = useAuthStore.getState().adminToken
+    if (!adminToken) {
+      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords/${keywordId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${adminToken}`,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '키워드 삭제에 실패했습니다.')
+      }
+
+      throw new Error(error.message || `키워드 삭제 실패 (HTTP ${response.status})`)
+    }
+  } catch (error) {
+    console.error('Delete product search keyword error:', error)
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('키워드 삭제 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
