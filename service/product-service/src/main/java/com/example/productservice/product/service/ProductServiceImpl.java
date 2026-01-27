@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.jpa.domain.Specification;
 import com.example.productservice.product.repository.ProductRepository;
+import com.example.productservice.product.repository.ProductSearchKeywordRepository;
 import com.example.productservice.product.repository.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final ProductSearchKeywordRepository productSearchKeywordRepository;
     private final CategoryRepository categoryRepository;
     private final FileStorageService fileStorageService;
     private final OutboxRepository outboxRepository;
@@ -336,14 +338,29 @@ public class ProductServiceImpl implements ProductService {
                 Sort.by("productId").ascending()
         );
 
-        // ACTIVE 상태이고 진열 중인 상품만 조회
-        Specification<Product> spec = (root, query, cb) -> cb.and(
-                cb.equal(root.get("status"), "ACTIVE"),
-                cb.equal(root.get("isDisplayed"), true)
-        );
+        // ACTIVE 상태이고 진열 중인 상품만 조회 (images, categories fetch join)
+        Page<Product> productPage = productRepository.findActiveDisplayedProductsWithDetails(pageable);
 
-        Page<Product> productPage = productRepository.findAll(spec, pageable);
-        Page<CatalogSyncProductResponse> responsePage = productPage.map(CatalogSyncProductResponse::from);
+        // 조회된 상품 ID 목록 추출
+        List<Long> productIds = productPage.getContent().stream()
+                .map(Product::getProductId)
+                .collect(Collectors.toList());
+
+        // 검색 키워드 별도 조회 및 productId별 그룹핑
+        Map<Long, List<String>> keywordsByProductId = productSearchKeywordRepository
+                .findByProductProductIdIn(productIds).stream()
+                .collect(Collectors.groupingBy(
+                        keyword -> keyword.getProduct().getProductId(),
+                        Collectors.mapping(ProductSearchKeyword::getKeyword, Collectors.toList())
+                ));
+
+        // 응답 매핑 (키워드 포함)
+        Page<CatalogSyncProductResponse> responsePage = productPage.map(product ->
+                CatalogSyncProductResponse.from(
+                        product,
+                        keywordsByProductId.getOrDefault(product.getProductId(), List.of())
+                )
+        );
 
         log.info("Found {} products for catalog sync (page {}/{})",
                 responsePage.getNumberOfElements(),

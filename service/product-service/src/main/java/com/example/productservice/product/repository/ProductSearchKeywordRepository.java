@@ -12,6 +12,8 @@ public interface ProductSearchKeywordRepository extends JpaRepository<ProductSea
 
     List<ProductSearchKeyword> findByProductProductIdOrderByCreatedAtDesc(Long productId);
 
+    List<ProductSearchKeyword> findByProductProductIdIn(List<Long> productIds);
+
     Optional<ProductSearchKeyword> findByProductProductIdAndKeyword(Long productId, String keyword);
 
     boolean existsByProductProductIdAndKeyword(Long productId, String keyword);

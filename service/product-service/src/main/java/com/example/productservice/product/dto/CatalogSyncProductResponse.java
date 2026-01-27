@@ -43,13 +43,16 @@ public class CatalogSyncProductResponse {
     @Schema(description = "카테고리 ID 목록", example = "[1, 2, 3]")
     private List<Long> categoryIds;
 
+    @Schema(description = "검색 키워드 목록", example = "[\"운동화\", \"나이키\", \"에어맥스\"]")
+    private List<String> searchKeywords;
+
     @Schema(description = "생성일시", example = "2024-01-01T10:00:00")
     private LocalDateTime createdAt;
 
     @Schema(description = "수정일시", example = "2024-01-01T10:00:00")
     private LocalDateTime updatedAt;
 
-    public static CatalogSyncProductResponse from(Product product) {
+    public static CatalogSyncProductResponse from(Product product, List<String> searchKeywords) {
         String primaryImage = product.getImages().stream()
                 .filter(image -> image.getIsPrimary() != null && image.getIsPrimary())
                 .findFirst()
@@ -69,6 +72,7 @@ public class CatalogSyncProductResponse {
                 .status(product.getStatus())
                 .primaryImageUrl(primaryImage)
                 .categoryIds(categoryIds)
+                .searchKeywords(searchKeywords)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();

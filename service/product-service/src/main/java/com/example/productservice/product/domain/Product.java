@@ -76,4 +76,8 @@ public class Product {
     )
     @Builder.Default
     private Set<Category> categories = new HashSet<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProductSearchKeyword> searchKeywords = new ArrayList<>();
 }
