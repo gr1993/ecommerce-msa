@@ -9,6 +9,7 @@ catalog-service는 사용자에게 상품 정보를 제공하는 검색 전용 �
   * 상품 목록 정렬: 판매량 순과 같은 정보는 실시간성보다 정합성이 중요하므로 ES에 저장하고, 하루 단위 배치로 갱신
 * Redis
   * 카테고리 캐싱: 카테고리 관련 정보도 Redis에 캐싱하여, product-service API 호출 없이 빠르게 조회
+  * 상품 상세 캐싱: 상품 상세 조회 API 호출시 Cache-Aside 방식을 적용하여, Redis에 데이터가 없으면 Product-Service의 상세 API를 호출하고 결과를 Redis에 캐싱한다. 또한 Kafka 이벤트(product.created, product.updated)의 Consumer는 상품 목록용 Consumer와 상세용 Consumer로 분리하여 등록하였다. 상세용 Consumer는 이벤트 객체가 너무 커지는 문제를 방지하기 위해 Data Enrichment 패턴을 사용한다. 즉, 이벤트 수신 시 이벤트 자체에는 최소한의 정보만 포함하고, 추가 상세 데이터는 Product-Service의 상세 API를 한 번 호출하여 가져온 뒤 Redis에 캐싱한다.
 
 
 ### Full Sync API

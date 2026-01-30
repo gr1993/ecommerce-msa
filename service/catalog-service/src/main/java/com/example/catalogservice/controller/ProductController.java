@@ -5,6 +5,7 @@ import com.example.catalogservice.controller.dto.ProductDetailResponse;
 import com.example.catalogservice.controller.dto.ProductResponse;
 import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
+import com.example.catalogservice.service.ProductDetailService;
 import com.example.catalogservice.service.ProductSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,17 +28,18 @@ import java.util.List;
 public class ProductController {
 
     private final ProductSearchService productSearchService;
+    private final ProductDetailService productDetailService;
 
-    @Operation(summary = "상품 상세 조회", description = "상품 ID로 상품 상세 정보를 조회합니다.")
+    @Operation(summary = "상품 상세 조회", description = "상품 ID로 상품 상세 정보를 조회합니다. Redis 캐시 → product-service API 순으로 조회합니다.")
     @GetMapping("/{productId}")
     public ResponseEntity<ProductDetailResponse> getProductDetail(
-            @Parameter(description = "상품 ID", required = true) @PathVariable("productId") String productId
+            @Parameter(description = "상품 ID", required = true) @PathVariable("productId") Long productId
     ) {
-        ProductDocument document = productSearchService.findProductById(productId);
-        if (document == null) {
+        ProductDetailResponse response = productDetailService.getProductDetail(productId);
+        if (response == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(ProductDetailResponse.from(document));
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "상품명 자동완성", description = "입력된 키워드로 시작하는 상품명을 최대 5개까지 반환합니다.")
