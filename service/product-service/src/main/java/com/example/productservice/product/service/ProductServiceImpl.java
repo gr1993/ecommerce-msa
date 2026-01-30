@@ -440,6 +440,16 @@ public class ProductServiceImpl implements ProductService {
 
             String primaryImageUrl = extractPrimaryImageUrl(product);
 
+            List<ProductCreatedEvent.SkuSnapshot> skuSnapshots = product.getSkus().stream()
+                    .map(sku -> new ProductCreatedEvent.SkuSnapshot(
+                            sku.getSkuId(),
+                            sku.getSkuCode(),
+                            sku.getPrice(),
+                            sku.getStockQty(),
+                            sku.getStatus()
+                    ))
+                    .collect(Collectors.toList());
+
             ProductCreatedEvent event = new ProductCreatedEvent(
                     product.getProductId(),
                     product.getProductName(),
@@ -451,6 +461,7 @@ public class ProductServiceImpl implements ProductService {
                     product.getIsDisplayed(),
                     categoryIds,
                     primaryImageUrl,
+                    skuSnapshots,
                     product.getCreatedAt()
             );
 
@@ -479,6 +490,16 @@ public class ProductServiceImpl implements ProductService {
 
             String primaryImageUrl = extractPrimaryImageUrl(product);
 
+            List<ProductUpdatedEvent.SkuSnapshot> skuSnapshots = product.getSkus().stream()
+                    .map(sku -> new ProductUpdatedEvent.SkuSnapshot(
+                            sku.getSkuId(),
+                            sku.getSkuCode(),
+                            sku.getPrice(),
+                            sku.getStockQty(),
+                            sku.getStatus()
+                    ))
+                    .collect(Collectors.toList());
+
             ProductUpdatedEvent event = new ProductUpdatedEvent(
                     product.getProductId(),
                     product.getProductName(),
@@ -490,6 +511,7 @@ public class ProductServiceImpl implements ProductService {
                     product.getIsDisplayed(),
                     categoryIds,
                     primaryImageUrl,
+                    skuSnapshots,
                     product.getUpdatedAt()
             );
 

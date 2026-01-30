@@ -24,8 +24,20 @@ public class ProductUpdatedEvent {
 	private Boolean isDisplayed;
 	private List<Long> categoryIds;
 	private String primaryImageUrl;
+	private List<SkuSnapshot> skus;
 
 	@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
 	@Schema(description = "수정 일시", example = "2026-01-23T16:58:34.035882", type = "string")
 	private LocalDateTime updatedAt;
+
+	@Getter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class SkuSnapshot {
+		private Long skuId;
+		private String skuCode;
+		private BigDecimal price;
+		private Integer stockQty;
+		private String status;
+	}
 }
