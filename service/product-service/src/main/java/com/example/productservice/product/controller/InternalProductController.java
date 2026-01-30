@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -64,6 +65,24 @@ public class InternalProductController {
 
     @Schema(name = "PageResponseCatalogSyncProductResponse", description = "카탈로그 동기화 상품 페이지 응답")
     private static class PageResponseCatalogSyncProductResponse extends PageResponse<CatalogSyncProductResponse> {
+    }
+
+    @DeleteMapping
+    @Operation(
+            summary = "전체 상품 데이터 삭제",
+            description = "모든 상품 및 관련 데이터(product, product_category, product_search_keyword, outbox, file_upload)를 삭제합니다."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공")
+    })
+    public ResponseEntity<Void> deleteAllProducts() {
+        log.info("DELETE /api/internal/products - Deleting all products");
+
+        productService.deleteAllProducts();
+
+        log.info("All products and related data deleted successfully");
+
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/sample-data")

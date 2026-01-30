@@ -19,4 +19,6 @@ public interface ProductService {
     ProductResponse updateProduct(Long productId, ProductCreateRequest request);
 
     PageResponse<CatalogSyncProductResponse> getProductsForCatalogSync(CatalogSyncRequest request);
+
+    void deleteAllProducts();
 }

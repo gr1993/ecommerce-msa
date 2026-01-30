@@ -2,6 +2,7 @@ package com.example.productservice.product.service;
 
 import com.example.productservice.category.domain.Category;
 import com.example.productservice.category.repository.CategoryRepository;
+import com.example.productservice.file.repository.FileUploadRepository;
 import com.example.productservice.file.service.FileStorageService;
 import com.example.productservice.global.common.EventTypeConstants;
 import com.example.productservice.global.common.dto.PageResponse;
@@ -43,6 +44,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductSearchKeywordRepository productSearchKeywordRepository;
     private final CategoryRepository categoryRepository;
     private final FileStorageService fileStorageService;
+    private final FileUploadRepository fileUploadRepository;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
@@ -368,6 +370,25 @@ public class ProductServiceImpl implements ProductService {
                 responsePage.getTotalPages());
 
         return PageResponse.from(responsePage);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllProducts() {
+        log.info("Deleting all products and related data");
+
+        // Product 삭제 시 cascade로 option_group, option_value, sku, sku_option, image, search_keyword, product_category 모두 삭제됨
+        productRepository.deleteAll();
+        productRepository.flush();
+        log.info("All products deleted");
+
+        // outbox 테이블 삭제
+        outboxRepository.deleteAll();
+        log.info("All outbox records deleted");
+
+        // file_upload 테이블 삭제
+        fileUploadRepository.deleteAll();
+        log.info("All file_upload records deleted");
     }
 
     private Pageable createPageable(ProductSearchRequest request) {
