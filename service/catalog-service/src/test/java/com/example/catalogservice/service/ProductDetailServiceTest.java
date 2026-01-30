@@ -224,6 +224,42 @@ class ProductDetailServiceTest {
         then(valueOperations).should(times(1)).set(eq(cacheKey), eq(fullResponse), eq(Duration.ofMinutes(30)));
     }
 
+    @Test
+    @DisplayName("refreshCache - 정상 캐싱")
+    void refreshCache_success() {
+        // given
+        Long productId = 1L;
+        String cacheKey = "product:detail:" + productId;
+        ProductDetailResponse serviceResponse = createProductDetailResponse(productId, "맥북 프로");
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(productServiceClient.getProductDetail(productId)).willReturn(serviceResponse);
+
+        // when
+        productDetailService.refreshCache(productId);
+
+        // then
+        then(productServiceClient).should(times(1)).getProductDetail(productId);
+        then(redisTemplate).should(times(1)).opsForValue();
+        then(valueOperations).should(times(1)).set(eq(cacheKey), eq(serviceResponse), eq(Duration.ofMinutes(30)));
+    }
+
+    @Test
+    @DisplayName("refreshCache - product-service가 null 반환 시 캐싱하지 않음")
+    void refreshCache_serviceReturnsNull_notCached() {
+        // given
+        Long productId = 999L;
+
+        given(productServiceClient.getProductDetail(productId)).willReturn(null);
+
+        // when
+        productDetailService.refreshCache(productId);
+
+        // then
+        then(productServiceClient).should(times(1)).getProductDetail(productId);
+        then(redisTemplate).should(never()).opsForValue();
+    }
+
     private ProductDetailResponse createProductDetailResponse(Long productId, String productName) {
         return ProductDetailResponse.builder()
                 .productId(productId)

@@ -20,6 +20,22 @@ public class ProductDetailService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ProductServiceClient productServiceClient;
 
+    /**
+     * Data Enrichment 패턴: 이벤트 수신 시 product-service API를 호출하여
+     * 상세 데이터를 가져온 뒤 Redis에 캐싱한다.
+     */
+    public void refreshCache(Long productId) {
+        String cacheKey = CACHE_KEY_PREFIX + productId;
+
+        log.info("Refreshing product detail cache: productId={}", productId);
+        ProductDetailResponse response = productServiceClient.getProductDetail(productId);
+
+        if (response != null) {
+            redisTemplate.opsForValue().set(cacheKey, response, CACHE_TTL);
+            log.info("Product detail cache refreshed: productId={}", productId);
+        }
+    }
+
     public ProductDetailResponse getProductDetail(Long productId) {
         String cacheKey = CACHE_KEY_PREFIX + productId;
 
