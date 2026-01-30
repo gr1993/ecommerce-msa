@@ -204,6 +204,13 @@ class ProductSyncServiceTest {
         ReflectionTestUtils.setField(product, "createdAt", now);
         ReflectionTestUtils.setField(product, "updatedAt", now);
 
+        // SKU 정보 추가
+        List<CatalogSyncProductResponse.SkuSnapshot> skus = List.of(
+                new CatalogSyncProductResponse.SkuSnapshot(1L, "SKU-001", java.math.BigDecimal.valueOf(15000), 100, "ACTIVE"),
+                new CatalogSyncProductResponse.SkuSnapshot(2L, "SKU-002", java.math.BigDecimal.valueOf(18000), 50, "ACTIVE")
+        );
+        ReflectionTestUtils.setField(product, "skus", skus);
+
         PageResponse<CatalogSyncProductResponse> page = createPageResponse(
                 List.of(product),
                 0, 100, 1, 1, true, true
@@ -235,6 +242,20 @@ class ProductSyncServiceTest {
         assertThat(doc.getCategoryIds()).containsExactly(10L, 20L, 30L);
         assertThat(doc.getCreatedAt()).isEqualTo(now);
         assertThat(doc.getUpdatedAt()).isEqualTo(now);
+
+        // SKU 매핑 검증
+        assertThat(doc.getSkus()).hasSize(2);
+        assertThat(doc.getSkus().get(0).getSkuId()).isEqualTo(1L);
+        assertThat(doc.getSkus().get(0).getSkuCode()).isEqualTo("SKU-001");
+        assertThat(doc.getSkus().get(0).getPrice()).isEqualTo(15000L);
+        assertThat(doc.getSkus().get(0).getStockQty()).isEqualTo(100);
+        assertThat(doc.getSkus().get(0).getStatus()).isEqualTo("ACTIVE");
+
+        assertThat(doc.getSkus().get(1).getSkuId()).isEqualTo(2L);
+        assertThat(doc.getSkus().get(1).getSkuCode()).isEqualTo("SKU-002");
+        assertThat(doc.getSkus().get(1).getPrice()).isEqualTo(18000L);
+        assertThat(doc.getSkus().get(1).getStockQty()).isEqualTo(50);
+        assertThat(doc.getSkus().get(1).getStatus()).isEqualTo("ACTIVE");
 
         // IndexCoordinates가 새 인덱스를 가리키는지 확인
         IndexCoordinates indexCoordinates = indexCoordinatesCaptor.getValue();
@@ -399,6 +420,15 @@ class ProductSyncServiceTest {
                 .isDisplayed(true)
                 .primaryImageUrl("https://example.com/new.jpg")
                 .categoryIds(List.of(10L, 20L))
+                .skus(List.of(
+                        ProductCreatedEvent.SkuSnapshot.builder()
+                                .skuId(1L)
+                                .skuCode("SKU-001")
+                                .price(java.math.BigDecimal.valueOf(15000))
+                                .stockQty(100)
+                                .status("ACTIVE")
+                                .build()
+                ))
                 .createdAt(createdAt)
                 .build();
 
@@ -421,6 +451,14 @@ class ProductSyncServiceTest {
         assertThat(savedDoc.getCategoryIds()).containsExactly(10L, 20L);
         assertThat(savedDoc.getCreatedAt()).isEqualTo(createdAt);
         assertThat(savedDoc.getUpdatedAt()).isNull();
+
+        // SKU 매핑 검증
+        assertThat(savedDoc.getSkus()).hasSize(1);
+        assertThat(savedDoc.getSkus().get(0).getSkuId()).isEqualTo(1L);
+        assertThat(savedDoc.getSkus().get(0).getSkuCode()).isEqualTo("SKU-001");
+        assertThat(savedDoc.getSkus().get(0).getPrice()).isEqualTo(15000L);
+        assertThat(savedDoc.getSkus().get(0).getStockQty()).isEqualTo(100);
+        assertThat(savedDoc.getSkus().get(0).getStatus()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -440,6 +478,15 @@ class ProductSyncServiceTest {
                 .status("ACTIVE")
                 .primaryImageUrl("https://example.com/old.jpg")
                 .categoryIds(List.of(1L, 2L))
+                .skus(List.of(
+                        ProductDocument.SkuInfo.builder()
+                                .skuId(1L)
+                                .skuCode("SKU-OLD")
+                                .price(8000L)
+                                .stockQty(50)
+                                .status("ACTIVE")
+                                .build()
+                ))
                 .createdAt(originalCreatedAt)
                 .updatedAt(LocalDateTime.of(2024, 1, 10, 9, 0))
                 .build();
@@ -456,6 +503,22 @@ class ProductSyncServiceTest {
                 .isDisplayed(true)
                 .primaryImageUrl("https://example.com/updated.jpg")
                 .categoryIds(List.of(10L, 20L, 30L))
+                .skus(List.of(
+                        ProductUpdatedEvent.SkuSnapshot.builder()
+                                .skuId(1L)
+                                .skuCode("SKU-NEW")
+                                .price(java.math.BigDecimal.valueOf(20000))
+                                .stockQty(100)
+                                .status("ACTIVE")
+                                .build(),
+                        ProductUpdatedEvent.SkuSnapshot.builder()
+                                .skuId(2L)
+                                .skuCode("SKU-NEW-2")
+                                .price(java.math.BigDecimal.valueOf(22000))
+                                .stockQty(75)
+                                .status("ACTIVE")
+                                .build()
+                ))
                 .updatedAt(updatedAt)
                 .build();
 
@@ -487,6 +550,18 @@ class ProductSyncServiceTest {
                 .isEqualTo(originalCreatedAt);
 
         assertThat(savedDoc.getUpdatedAt()).isEqualTo(updatedAt);
+
+        // SKU 업데이트 검증
+        assertThat(savedDoc.getSkus()).hasSize(2);
+        assertThat(savedDoc.getSkus().get(0).getSkuId()).isEqualTo(1L);
+        assertThat(savedDoc.getSkus().get(0).getSkuCode()).isEqualTo("SKU-NEW");
+        assertThat(savedDoc.getSkus().get(0).getPrice()).isEqualTo(20000L);
+        assertThat(savedDoc.getSkus().get(0).getStockQty()).isEqualTo(100);
+
+        assertThat(savedDoc.getSkus().get(1).getSkuId()).isEqualTo(2L);
+        assertThat(savedDoc.getSkus().get(1).getSkuCode()).isEqualTo("SKU-NEW-2");
+        assertThat(savedDoc.getSkus().get(1).getPrice()).isEqualTo(22000L);
+        assertThat(savedDoc.getSkus().get(1).getStockQty()).isEqualTo(75);
     }
 
     @Test
@@ -569,5 +644,145 @@ class ProductSyncServiceTest {
         assertThat(savedDoc.getBasePrice()).isNull();
         assertThat(savedDoc.getSalePrice()).isNull();
         assertThat(savedDoc.getCreatedAt()).isEqualTo(originalCreatedAt);
+    }
+
+    @Test
+    @DisplayName("전체 동기화 - SKU가 null인 경우 빈 리스트 처리")
+    void fullSync_WithNullSkus_EmptyList() throws IOException {
+        // Given
+        CatalogSyncProductResponse product = createMockProduct(100L, "Product without SKUs");
+        ReflectionTestUtils.setField(product, "skus", null);
+
+        PageResponse<CatalogSyncProductResponse> page = createPageResponse(
+                List.of(product),
+                0, 100, 1, 1, true, true
+        );
+
+        when(elasticsearchIndexService.createNewIndex()).thenReturn(TEST_INDEX_NAME);
+        when(productServiceClient.getProductsForSync(0, 100)).thenReturn(page);
+
+        // When
+        productSyncService.fullSync();
+
+        // Then
+        verify(elasticsearchOperations).bulkIndex(indexQueriesCaptor.capture(), any(IndexCoordinates.class));
+
+        List<IndexQuery> indexQueries = indexQueriesCaptor.getValue();
+        ProductDocument doc = (ProductDocument) indexQueries.get(0).getObject();
+
+        assertThat(doc.getSkus()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("전체 동기화 - SKU가 빈 리스트인 경우 빈 리스트 처리")
+    void fullSync_WithEmptySkus_EmptyList() throws IOException {
+        // Given
+        CatalogSyncProductResponse product = createMockProduct(100L, "Product with empty SKUs");
+        ReflectionTestUtils.setField(product, "skus", List.of());
+
+        PageResponse<CatalogSyncProductResponse> page = createPageResponse(
+                List.of(product),
+                0, 100, 1, 1, true, true
+        );
+
+        when(elasticsearchIndexService.createNewIndex()).thenReturn(TEST_INDEX_NAME);
+        when(productServiceClient.getProductsForSync(0, 100)).thenReturn(page);
+
+        // When
+        productSyncService.fullSync();
+
+        // Then
+        verify(elasticsearchOperations).bulkIndex(indexQueriesCaptor.capture(), any(IndexCoordinates.class));
+
+        List<IndexQuery> indexQueries = indexQueriesCaptor.getValue();
+        ProductDocument doc = (ProductDocument) indexQueries.get(0).getObject();
+
+        assertThat(doc.getSkus()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품 생성 이벤트 - SKU가 null인 경우 빈 리스트 처리")
+    void indexProduct_WithNullSkus_EmptyList() {
+        // Given
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(100L)
+                .productName("Product without SKUs")
+                .skus(null)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.indexProduct(event);
+
+        // Then
+        verify(productSearchRepository).save(documentCaptor.capture());
+        ProductDocument savedDoc = documentCaptor.getValue();
+
+        assertThat(savedDoc.getSkus()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품 수정 이벤트 - SKU가 null인 경우 빈 리스트 처리")
+    void updateProduct_WithNullSkus_EmptyList() {
+        // Given
+        ProductDocument existingDocument = ProductDocument.builder()
+                .productId("100")
+                .productName("Product")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(100L)
+                .productName("Updated Product")
+                .skus(null)
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(productSearchRepository.findById("100"))
+                .thenReturn(java.util.Optional.of(existingDocument));
+
+        ArgumentCaptor<ProductDocument> documentCaptor = ArgumentCaptor.forClass(ProductDocument.class);
+
+        // When
+        productSyncService.updateProduct(event);
+
+        // Then
+        verify(productSearchRepository).save(documentCaptor.capture());
+        ProductDocument savedDoc = documentCaptor.getValue();
+
+        assertThat(savedDoc.getSkus()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("전체 동기화 - SKU BigDecimal 가격이 null인 경우 null로 변환")
+    void fullSync_WithNullSkuPrice() throws IOException {
+        // Given
+        CatalogSyncProductResponse product = createMockProduct(100L, "Product");
+        List<CatalogSyncProductResponse.SkuSnapshot> skus = List.of(
+                new CatalogSyncProductResponse.SkuSnapshot(1L, "SKU-001", null, 100, "ACTIVE")
+        );
+        ReflectionTestUtils.setField(product, "skus", skus);
+
+        PageResponse<CatalogSyncProductResponse> page = createPageResponse(
+                List.of(product),
+                0, 100, 1, 1, true, true
+        );
+
+        when(elasticsearchIndexService.createNewIndex()).thenReturn(TEST_INDEX_NAME);
+        when(productServiceClient.getProductsForSync(0, 100)).thenReturn(page);
+
+        // When
+        productSyncService.fullSync();
+
+        // Then
+        verify(elasticsearchOperations).bulkIndex(indexQueriesCaptor.capture(), any(IndexCoordinates.class));
+
+        List<IndexQuery> indexQueries = indexQueriesCaptor.getValue();
+        ProductDocument doc = (ProductDocument) indexQueries.get(0).getObject();
+
+        assertThat(doc.getSkus()).hasSize(1);
+        assertThat(doc.getSkus().get(0).getPrice()).isNull();
     }
 }

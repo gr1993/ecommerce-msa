@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,11 +47,36 @@ public class CatalogSyncProductResponse {
     @Schema(description = "검색 키워드 목록", example = "[\"운동화\", \"나이키\", \"에어맥스\"]")
     private List<String> searchKeywords;
 
+    @Schema(description = "SKU 목록")
+    private List<SkuSnapshot> skus;
+
     @Schema(description = "생성일시", example = "2024-01-01T10:00:00")
     private LocalDateTime createdAt;
 
     @Schema(description = "수정일시", example = "2024-01-01T10:00:00")
     private LocalDateTime updatedAt;
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "SKU 스냅샷")
+    public static class SkuSnapshot {
+        @Schema(description = "SKU ID", example = "1")
+        private Long skuId;
+
+        @Schema(description = "SKU 코드", example = "SKU-001")
+        private String skuCode;
+
+        @Schema(description = "가격", example = "120000")
+        private BigDecimal price;
+
+        @Schema(description = "재고 수량", example = "50")
+        private Integer stockQty;
+
+        @Schema(description = "상태", example = "ACTIVE")
+        private String status;
+    }
 
     public static CatalogSyncProductResponse from(Product product, List<String> searchKeywords) {
         String primaryImage = product.getImages().stream()
@@ -63,6 +89,16 @@ public class CatalogSyncProductResponse {
                 .map(Category::getCategoryId)
                 .collect(Collectors.toList());
 
+        List<SkuSnapshot> skuSnapshots = product.getSkus().stream()
+                .map(sku -> SkuSnapshot.builder()
+                        .skuId(sku.getSkuId())
+                        .skuCode(sku.getSkuCode())
+                        .price(sku.getPrice())
+                        .stockQty(sku.getStockQty())
+                        .status(sku.getStatus())
+                        .build())
+                .collect(Collectors.toList());
+
         return CatalogSyncProductResponse.builder()
                 .productId(product.getProductId())
                 .productName(product.getProductName())
@@ -73,6 +109,7 @@ public class CatalogSyncProductResponse {
                 .primaryImageUrl(primaryImage)
                 .categoryIds(categoryIds)
                 .searchKeywords(searchKeywords)
+                .skus(skuSnapshots)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();

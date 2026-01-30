@@ -59,9 +59,34 @@ public class ProductDocument {
     @Field(type = FieldType.Keyword)
     private List<String> searchKeywords;
 
+    @Field(type = FieldType.Nested)
+    private List<SkuInfo> skus;
+
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second_millis)
     private LocalDateTime createdAt;
 
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second_millis)
     private LocalDateTime updatedAt;
+
+    @Getter
+    @Builder
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    public static class SkuInfo {
+
+        @Field(type = FieldType.Long)
+        private Long skuId;
+
+        @Field(type = FieldType.Keyword)
+        private String skuCode;
+
+        @Field(type = FieldType.Long)
+        private Long price;
+
+        @Field(type = FieldType.Integer)
+        private Integer stockQty;
+
+        @Field(type = FieldType.Keyword)
+        private String status;
+    }
 }

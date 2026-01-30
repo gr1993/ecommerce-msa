@@ -4,6 +4,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import lombok.AllArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,6 +23,18 @@ public class CatalogSyncProductResponse {
     private String primaryImageUrl;
     private List<Long> categoryIds;
     private List<String> searchKeywords;
+    private List<SkuSnapshot> skus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Getter
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    public static class SkuSnapshot {
+        private Long skuId;
+        private String skuCode;
+        private BigDecimal price;
+        private Integer stockQty;
+        private String status;
+    }
 }

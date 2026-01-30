@@ -16,6 +16,7 @@ import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -124,9 +125,55 @@ public class ProductSyncService {
                 .primaryImageUrl(product.getPrimaryImageUrl())
                 .categoryIds(product.getCategoryIds())
                 .searchKeywords(product.getSearchKeywords())
+                .skus(toSkuInfoListFromSync(product.getSkus()))
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
+    }
+
+    private List<ProductDocument.SkuInfo> toSkuInfoListFromSync(List<CatalogSyncProductResponse.SkuSnapshot> skus) {
+        if (skus == null || skus.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return skus.stream()
+                .map(s -> ProductDocument.SkuInfo.builder()
+                        .skuId(s.getSkuId())
+                        .skuCode(s.getSkuCode())
+                        .price(convertToLong(s.getPrice()))
+                        .stockQty(s.getStockQty())
+                        .status(s.getStatus())
+                        .build())
+                .toList();
+    }
+
+    private List<ProductDocument.SkuInfo> toSkuInfoListFromCreatedEvent(List<ProductCreatedEvent.SkuSnapshot> skus) {
+        if (skus == null || skus.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return skus.stream()
+                .map(s -> ProductDocument.SkuInfo.builder()
+                        .skuId(s.getSkuId())
+                        .skuCode(s.getSkuCode())
+                        .price(convertToLong(s.getPrice()))
+                        .stockQty(s.getStockQty())
+                        .status(s.getStatus())
+                        .build())
+                .toList();
+    }
+
+    private List<ProductDocument.SkuInfo> toSkuInfoListFromUpdatedEvent(List<ProductUpdatedEvent.SkuSnapshot> skus) {
+        if (skus == null || skus.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return skus.stream()
+                .map(s -> ProductDocument.SkuInfo.builder()
+                        .skuId(s.getSkuId())
+                        .skuCode(s.getSkuCode())
+                        .price(convertToLong(s.getPrice()))
+                        .stockQty(s.getStockQty())
+                        .status(s.getStatus())
+                        .build())
+                .toList();
     }
 
     /**
@@ -167,6 +214,7 @@ public class ProductSyncService {
                 .status(event.getStatus())
                 .primaryImageUrl(event.getPrimaryImageUrl())
                 .categoryIds(event.getCategoryIds())
+                .skus(toSkuInfoListFromCreatedEvent(event.getSkus()))
                 .createdAt(event.getCreatedAt())
                 .build();
     }
@@ -181,6 +229,7 @@ public class ProductSyncService {
                 .status(event.getStatus())
                 .primaryImageUrl(event.getPrimaryImageUrl())
                 .categoryIds(event.getCategoryIds())
+                .skus(toSkuInfoListFromUpdatedEvent(event.getSkus()))
                 .createdAt(existingDocument != null ? existingDocument.getCreatedAt() : null)
                 .updatedAt(event.getUpdatedAt())
                 .build();

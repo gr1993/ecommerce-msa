@@ -25,5 +25,18 @@ public class ProductCreatedEvent {
     private Boolean isDisplayed;
     private String primaryImageUrl;
     private List<Long> categoryIds;
+    private List<SkuSnapshot> skus;
     private LocalDateTime createdAt;
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SkuSnapshot {
+        private Long skuId;
+        private String skuCode;
+        private BigDecimal price;
+        private Integer stockQty;
+        private String status;
+    }
 }
