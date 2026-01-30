@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.example.catalogservice.controller.dto.ProductSearchRequest;
 import com.example.catalogservice.domain.document.ProductDocument;
+import com.example.catalogservice.repository.ProductSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +26,11 @@ public class ProductSearchService {
 
     private final ElasticsearchOperations elasticsearchOperations;
     private final CategorySyncService categorySyncService;
+    private final ProductSearchRepository productSearchRepository;
+
+    public ProductDocument findProductById(String productId) {
+        return productSearchRepository.findById(productId).orElse(null);
+    }
 
     public List<String> autocompleteProductName(String keyword) {
         if (!hasText(keyword)) {

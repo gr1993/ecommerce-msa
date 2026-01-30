@@ -475,6 +475,130 @@ class ProductControllerTest {
         verify(productSearchService).autocompleteProductName(keyword);
     }
 
+    @Test
+    @DisplayName("GET /api/catalog/products/{productId} - 상품 상세 조회 성공")
+    void getProductDetail_success() throws Exception {
+        // given
+        String productId = "1";
+        ProductDocument product = ProductDocument.builder()
+                .productId(productId)
+                .productName("맥북 프로 16인치")
+                .description("M3 Max 칩이 탑재된 맥북 프로")
+                .basePrice(4500000L)
+                .salePrice(4300000L)
+                .status("ACTIVE")
+                .primaryImageUrl("https://example.com/macbook.jpg")
+                .categoryIds(List.of(1L, 10L))
+                .searchKeywords(List.of("맥북", "노트북", "애플"))
+                .skus(List.of(
+                        ProductDocument.SkuInfo.builder()
+                                .skuId(1L)
+                                .skuCode("MACBOOK-PRO-16-M3-SILVER")
+                                .price(4300000L)
+                                .stockQty(10)
+                                .status("ACTIVE")
+                                .build(),
+                        ProductDocument.SkuInfo.builder()
+                                .skuId(2L)
+                                .skuCode("MACBOOK-PRO-16-M3-GRAY")
+                                .price(4300000L)
+                                .stockQty(5)
+                                .status("ACTIVE")
+                                .build()
+                ))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        given(productSearchService.findProductById(productId))
+                .willReturn(product);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/{productId}", productId))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(productId))
+                .andExpect(jsonPath("$.productName").value("맥북 프로 16인치"))
+                .andExpect(jsonPath("$.description").value("M3 Max 칩이 탑재된 맥북 프로"))
+                .andExpect(jsonPath("$.basePrice").value(4500000))
+                .andExpect(jsonPath("$.salePrice").value(4300000))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.primaryImageUrl").value("https://example.com/macbook.jpg"))
+                .andExpect(jsonPath("$.categoryIds").isArray())
+                .andExpect(jsonPath("$.categoryIds.length()").value(2))
+                .andExpect(jsonPath("$.categoryIds[0]").value(1))
+                .andExpect(jsonPath("$.categoryIds[1]").value(10))
+                .andExpect(jsonPath("$.searchKeywords").isArray())
+                .andExpect(jsonPath("$.searchKeywords.length()").value(3))
+                .andExpect(jsonPath("$.searchKeywords[0]").value("맥북"))
+                .andExpect(jsonPath("$.searchKeywords[1]").value("노트북"))
+                .andExpect(jsonPath("$.searchKeywords[2]").value("애플"))
+                .andExpect(jsonPath("$.skus").isArray())
+                .andExpect(jsonPath("$.skus.length()").value(2))
+                .andExpect(jsonPath("$.skus[0].skuId").value(1))
+                .andExpect(jsonPath("$.skus[0].skuCode").value("MACBOOK-PRO-16-M3-SILVER"))
+                .andExpect(jsonPath("$.skus[0].price").value(4300000))
+                .andExpect(jsonPath("$.skus[0].stockQty").value(10))
+                .andExpect(jsonPath("$.skus[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.skus[1].skuId").value(2))
+                .andExpect(jsonPath("$.skus[1].skuCode").value("MACBOOK-PRO-16-M3-GRAY"))
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.updatedAt").exists());
+
+        verify(productSearchService).findProductById(productId);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/{productId} - 존재하지 않는 상품 조회 시 404 반환")
+    void getProductDetail_notFound() throws Exception {
+        // given
+        String productId = "999";
+
+        given(productSearchService.findProductById(productId))
+                .willReturn(null);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/{productId}", productId))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(productSearchService).findProductById(productId);
+    }
+
+    @Test
+    @DisplayName("GET /api/catalog/products/{productId} - SKU 정보가 없는 상품 조회")
+    void getProductDetail_withoutSkus() throws Exception {
+        // given
+        String productId = "2";
+        ProductDocument product = ProductDocument.builder()
+                .productId(productId)
+                .productName("갤럭시 S24")
+                .description("삼성의 최신 플래그십 스마트폰")
+                .basePrice(1500000L)
+                .salePrice(1400000L)
+                .status("ACTIVE")
+                .primaryImageUrl("https://example.com/galaxy.jpg")
+                .categoryIds(List.of(2L, 20L))
+                .searchKeywords(List.of("갤럭시", "스마트폰", "삼성"))
+                .skus(null)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        given(productSearchService.findProductById(productId))
+                .willReturn(product);
+
+        // when & then
+        mockMvc.perform(get("/api/catalog/products/{productId}", productId))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productId").value(productId))
+                .andExpect(jsonPath("$.productName").value("갤럭시 S24"))
+                .andExpect(jsonPath("$.skus").isEmpty());
+
+        verify(productSearchService).findProductById(productId);
+    }
+
     private ProductDocument createProduct(String id, String name, Long salePrice) {
         return createProduct(id, name, salePrice, "ACTIVE");
     }
