@@ -4,7 +4,6 @@ import com.example.catalogservice.consumer.event.CategoryCreatedEvent;
 import com.example.catalogservice.consumer.event.CategoryDeletedEvent;
 import com.example.catalogservice.consumer.event.CategoryUpdatedEvent;
 import com.example.catalogservice.service.CategorySyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
 import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
@@ -39,7 +38,6 @@ import org.springframework.stereotype.Component;
 public class CategoryEventConsumer {
 
     private final CategorySyncService categorySyncService;
-    private final ObjectMapper objectMapper;
 
     @AsyncListener(
             operation = @AsyncOperation(
@@ -167,7 +165,7 @@ public class CategoryEventConsumer {
      */
     @DltHandler
     public void handleDlt(
-            @Payload String message,
+            @Payload Object payload,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(value = KafkaHeaders.OFFSET, required = false) Long offset,
             @Header(value = KafkaHeaders.ORIGINAL_TOPIC, required = false) String originalTopic,
@@ -180,27 +178,22 @@ public class CategoryEventConsumer {
                 DLT Topic: {}
                 Original Topic: {}
                 Offset: {}
-                Message: {}
+                Payload: {}
                 Exception: {}
                 ========================================
-                """, topic, originalTopic, offset, message, exceptionMessage);
+                """, topic, originalTopic, offset, payload, exceptionMessage);
 
-        try {
-            if (originalTopic != null && originalTopic.contains("category.created")) {
-                CategoryCreatedEvent event = objectMapper.readValue(message, CategoryCreatedEvent.class);
-                log.error("DLQ 처리 필요 - category.created 실패: categoryId={}, categoryName={}",
-                        event.getCategoryId(), event.getCategoryName());
-            } else if (originalTopic != null && originalTopic.contains("category.updated")) {
-                CategoryUpdatedEvent event = objectMapper.readValue(message, CategoryUpdatedEvent.class);
-                log.error("DLQ 처리 필요 - category.updated 실패: categoryId={}, categoryName={}",
-                        event.getCategoryId(), event.getCategoryName());
-            } else if (originalTopic != null && originalTopic.contains("category.deleted")) {
-                CategoryDeletedEvent event = objectMapper.readValue(message, CategoryDeletedEvent.class);
-                log.error("DLQ 처리 필요 - category.deleted 실패: categoryId={}",
-                        event.getCategoryId());
-            }
-        } catch (Exception e) {
-            log.error("DLQ 메시지 파싱 실패: {}", message, e);
+        if (payload instanceof CategoryCreatedEvent event) {
+            log.error("DLQ 처리 필요 - category.created 실패: categoryId={}, categoryName={}",
+                    event.getCategoryId(), event.getCategoryName());
+        } else if (payload instanceof CategoryUpdatedEvent event) {
+            log.error("DLQ 처리 필요 - category.updated 실패: categoryId={}, categoryName={}",
+                    event.getCategoryId(), event.getCategoryName());
+        } else if (payload instanceof CategoryDeletedEvent event) {
+            log.error("DLQ 처리 필요 - category.deleted 실패: categoryId={}",
+                    event.getCategoryId());
+        } else {
+            log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
         }
     }
 }

@@ -3,13 +3,11 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.ProductCreatedEvent;
 import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.service.ProductDetailService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -26,9 +24,6 @@ class ProductDetailEventConsumerTest {
 
     @Mock
     private ProductDetailService productDetailService;
-
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private ProductDetailEventConsumer productDetailEventConsumer;
@@ -143,16 +138,20 @@ class ProductDetailEventConsumerTest {
 
     @Test
     @DisplayName("DLT 핸들러 - product.created 이벤트 처리")
-    void handleDlt_ProductCreatedEvent() throws Exception {
+    void handleDlt_ProductCreatedEvent() {
         // Given
-        String message = """
-                {"productId":1,"productCode":"P001","productName":"테스트 상품","status":"ACTIVE","createdAt":"2024-01-01T10:00:00"}
-                """;
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(1L)
+                .productCode("P001")
+                .productName("테스트 상품")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When - DLQ 핸들러는 예외를 던지지 않고 로그만 남김
         productDetailEventConsumer.handleDlt(
-                message,
-                "product.created-dlt",
+                event,
+                "product.created-detail-dlt",
                 100L,
                 "product.created",
                 "Redis connection timeout"
@@ -163,16 +162,20 @@ class ProductDetailEventConsumerTest {
 
     @Test
     @DisplayName("DLT 핸들러 - product.updated 이벤트 처리")
-    void handleDlt_ProductUpdatedEvent() throws Exception {
+    void handleDlt_ProductUpdatedEvent() {
         // Given
-        String message = """
-                {"productId":2,"productCode":"P002","productName":"수정된 상품","status":"ON_SALE","updatedAt":"2024-01-01T10:00:00"}
-                """;
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(2L)
+                .productCode("P002")
+                .productName("수정된 상품")
+                .status("ON_SALE")
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         // When
         productDetailEventConsumer.handleDlt(
-                message,
-                "product.updated-dlt",
+                event,
+                "product.updated-detail-dlt",
                 200L,
                 "product.updated",
                 "Product service unavailable"
@@ -182,15 +185,15 @@ class ProductDetailEventConsumerTest {
     }
 
     @Test
-    @DisplayName("DLT 핸들러 - 파싱 실패 시에도 예외 없이 처리")
-    void handleDlt_ParsingFailure() {
+    @DisplayName("DLT 핸들러 - 알 수 없는 payload 타입")
+    void handleDlt_UnknownPayloadType() {
         // Given
-        String invalidMessage = "invalid json message";
+        Object unknownPayload = new Object();
 
-        // When & Then - 파싱 실패해도 예외 없이 로그만 남김
+        // When & Then - 알 수 없는 타입도 예외 없이 로그만 남김
         productDetailEventConsumer.handleDlt(
-                invalidMessage,
-                "product.created-dlt",
+                unknownPayload,
+                "product.created-detail-dlt",
                 300L,
                 "product.created",
                 "Original exception"
@@ -201,13 +204,17 @@ class ProductDetailEventConsumerTest {
     @DisplayName("DLT 핸들러 - originalTopic이 null인 경우")
     void handleDlt_NullOriginalTopic() {
         // Given
-        String message = """
-                {"productId":1,"productCode":"P001","productName":"테스트 상품","status":"ACTIVE"}
-                """;
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(1L)
+                .productCode("P001")
+                .productName("테스트 상품")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When & Then
         productDetailEventConsumer.handleDlt(
-                message,
+                event,
                 "unknown-dlt",
                 400L,
                 null,

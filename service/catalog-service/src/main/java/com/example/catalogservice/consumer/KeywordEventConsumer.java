@@ -3,7 +3,6 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.KeywordCreatedEvent;
 import com.example.catalogservice.consumer.event.KeywordDeletedEvent;
 import com.example.catalogservice.service.KeywordSyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
 import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
@@ -38,7 +37,6 @@ import org.springframework.stereotype.Component;
 public class KeywordEventConsumer {
 
     private final KeywordSyncService keywordSyncService;
-    private final ObjectMapper objectMapper;
 
     @AsyncListener(
             operation = @AsyncOperation(
@@ -124,7 +122,7 @@ public class KeywordEventConsumer {
 
     @DltHandler
     public void handleDlt(
-            @Payload String message,
+            @Payload Object payload,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(value = KafkaHeaders.OFFSET, required = false) Long offset,
             @Header(value = KafkaHeaders.ORIGINAL_TOPIC, required = false) String originalTopic,
@@ -137,23 +135,19 @@ public class KeywordEventConsumer {
                 DLT Topic: {}
                 Original Topic: {}
                 Offset: {}
-                Message: {}
+                Payload: {}
                 Exception: {}
                 ========================================
-                """, topic, originalTopic, offset, message, exceptionMessage);
+                """, topic, originalTopic, offset, payload, exceptionMessage);
 
-        try {
-            if (originalTopic != null && originalTopic.contains("keyword.created")) {
-                KeywordCreatedEvent event = objectMapper.readValue(message, KeywordCreatedEvent.class);
-                log.error("DLQ 처리 필요 - keyword.created 실패: keywordId={}, productId={}, keyword={}",
-                        event.getKeywordId(), event.getProductId(), event.getKeyword());
-            } else if (originalTopic != null && originalTopic.contains("keyword.deleted")) {
-                KeywordDeletedEvent event = objectMapper.readValue(message, KeywordDeletedEvent.class);
-                log.error("DLQ 처리 필요 - keyword.deleted 실패: keywordId={}, productId={}, keyword={}",
-                        event.getKeywordId(), event.getProductId(), event.getKeyword());
-            }
-        } catch (Exception e) {
-            log.error("DLQ 메시지 파싱 실패: {}", message, e);
+        if (payload instanceof KeywordCreatedEvent event) {
+            log.error("DLQ 처리 필요 - keyword.created 실패: keywordId={}, productId={}, keyword={}",
+                    event.getKeywordId(), event.getProductId(), event.getKeyword());
+        } else if (payload instanceof KeywordDeletedEvent event) {
+            log.error("DLQ 처리 필요 - keyword.deleted 실패: keywordId={}, productId={}, keyword={}",
+                    event.getKeywordId(), event.getProductId(), event.getKeyword());
+        } else {
+            log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
         }
     }
 }

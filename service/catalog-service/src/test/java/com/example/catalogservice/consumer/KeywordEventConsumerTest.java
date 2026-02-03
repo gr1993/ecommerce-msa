@@ -3,13 +3,11 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.KeywordCreatedEvent;
 import com.example.catalogservice.consumer.event.KeywordDeletedEvent;
 import com.example.catalogservice.service.KeywordSyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -24,9 +22,6 @@ class KeywordEventConsumerTest {
 
     @Mock
     private KeywordSyncService keywordSyncService;
-
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private KeywordEventConsumer keywordEventConsumer;
@@ -261,15 +256,18 @@ class KeywordEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - keyword.created 이벤트 처리")
-    void handleDlt_KeywordCreatedEvent() throws Exception {
+    void handleDlt_KeywordCreatedEvent() {
         // Given
-        String message = """
-                {"keywordId":100,"productId":1,"keyword":"프리미엄","createdAt":"2024-01-01T00:00:00"}
-                """;
+        KeywordCreatedEvent event = KeywordCreatedEvent.builder()
+                .keywordId(100L)
+                .productId(1L)
+                .keyword("프리미엄")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When - DLQ 핸들러는 예외를 던지지 않고 로그만 남김
         keywordEventConsumer.handleDlt(
-                message,
+                event,
                 "keyword.created-dlt",
                 100L,
                 "keyword.created",
@@ -281,15 +279,18 @@ class KeywordEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - keyword.deleted 이벤트 처리")
-    void handleDlt_KeywordDeletedEvent() throws Exception {
+    void handleDlt_KeywordDeletedEvent() {
         // Given
-        String message = """
-                {"keywordId":100,"productId":1,"keyword":"프리미엄","deletedAt":"2024-01-01T00:00:00"}
-                """;
+        KeywordDeletedEvent event = KeywordDeletedEvent.builder()
+                .keywordId(100L)
+                .productId(1L)
+                .keyword("프리미엄")
+                .deletedAt(LocalDateTime.now())
+                .build();
 
         // When
         keywordEventConsumer.handleDlt(
-                message,
+                event,
                 "keyword.deleted-dlt",
                 200L,
                 "keyword.deleted",
@@ -300,14 +301,14 @@ class KeywordEventConsumerTest {
     }
 
     @Test
-    @DisplayName("DLQ 핸들러 - 파싱 실패 시에도 예외 없이 처리")
-    void handleDlt_ParsingFailure() {
+    @DisplayName("DLQ 핸들러 - 알 수 없는 payload 타입")
+    void handleDlt_UnknownPayloadType() {
         // Given
-        String invalidMessage = "invalid json message";
+        Object unknownPayload = new Object();
 
-        // When & Then - 파싱 실패해도 예외 없이 로그만 남김
+        // When & Then - 알 수 없는 타입도 예외 없이 로그만 남김
         keywordEventConsumer.handleDlt(
-                invalidMessage,
+                unknownPayload,
                 "keyword.created-dlt",
                 300L,
                 "keyword.created",
@@ -319,13 +320,16 @@ class KeywordEventConsumerTest {
     @DisplayName("DLQ 핸들러 - originalTopic이 null인 경우")
     void handleDlt_NullOriginalTopic() {
         // Given
-        String message = """
-                {"keywordId":100,"productId":1,"keyword":"프리미엄"}
-                """;
+        KeywordCreatedEvent event = KeywordCreatedEvent.builder()
+                .keywordId(100L)
+                .productId(1L)
+                .keyword("프리미엄")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When & Then
         keywordEventConsumer.handleDlt(
-                message,
+                event,
                 "unknown-dlt",
                 400L,
                 null,
@@ -334,36 +338,31 @@ class KeywordEventConsumerTest {
     }
 
     @Test
-    @DisplayName("DLQ 핸들러 - 빈 메시지 처리")
-    void handleDlt_EmptyMessage() {
-        // Given
-        String emptyMessage = "";
-
-        // When & Then - 빈 메시지도 예외 없이 로그만 남김
+    @DisplayName("DLQ 핸들러 - null payload 처리")
+    void handleDlt_NullPayload() {
+        // Given & When & Then - null payload도 예외 없이 로그만 남김
         keywordEventConsumer.handleDlt(
-                emptyMessage,
+                null,
                 "keyword.created-dlt",
                 500L,
                 "keyword.created",
-                "Empty message"
+                "Null payload"
         );
     }
 
     @Test
-    @DisplayName("DLQ 핸들러 - originalTopic에 키워드 이벤트 관련 문자열이 없는 경우")
-    void handleDlt_UnknownOriginalTopic() {
+    @DisplayName("DLQ 핸들러 - String payload 처리 (역호환성)")
+    void handleDlt_StringPayload() {
         // Given
-        String message = """
-                {"keywordId":100,"productId":1,"keyword":"프리미엄"}
-                """;
+        String message = "Some legacy string message";
 
-        // When & Then
+        // When & Then - String도 알 수 없는 타입으로 처리
         keywordEventConsumer.handleDlt(
                 message,
-                "some.other.topic-dlt",
+                "keyword.created-dlt",
                 600L,
-                "some.other.topic",
-                "Unknown topic error"
+                "keyword.created",
+                "Legacy message format"
         );
     }
 }

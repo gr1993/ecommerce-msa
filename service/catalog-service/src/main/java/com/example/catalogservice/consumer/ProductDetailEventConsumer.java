@@ -3,7 +3,6 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.ProductCreatedEvent;
 import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.service.ProductDetailService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.DltHandler;
@@ -39,7 +38,6 @@ public class ProductDetailEventConsumer {
     private static final String GROUP_ID = "${spring.kafka.consumer.group-id:catalog-service}-detail";
 
     private final ProductDetailService productDetailService;
-    private final ObjectMapper objectMapper;
 
     @RetryableTopic(
             attempts = "4",
@@ -105,7 +103,7 @@ public class ProductDetailEventConsumer {
 
     @DltHandler
     public void handleDlt(
-            @Payload String message,
+            @Payload Object payload,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(value = KafkaHeaders.OFFSET, required = false) Long offset,
             @Header(value = KafkaHeaders.ORIGINAL_TOPIC, required = false) String originalTopic,
@@ -118,21 +116,17 @@ public class ProductDetailEventConsumer {
                 DLT Topic: {}
                 Original Topic: {}
                 Offset: {}
-                Message: {}
+                Payload: {}
                 Exception: {}
                 ========================================
-                """, topic, originalTopic, offset, message, exceptionMessage);
+                """, topic, originalTopic, offset, payload, exceptionMessage);
 
-        try {
-            if (originalTopic != null && originalTopic.contains("product.created")) {
-                ProductCreatedEvent event = objectMapper.readValue(message, ProductCreatedEvent.class);
-                log.error("[Detail] DLQ 처리 필요 - product.created 캐시 실패: productId={}", event.getProductId());
-            } else if (originalTopic != null && originalTopic.contains("product.updated")) {
-                ProductUpdatedEvent event = objectMapper.readValue(message, ProductUpdatedEvent.class);
-                log.error("[Detail] DLQ 처리 필요 - product.updated 캐시 실패: productId={}", event.getProductId());
-            }
-        } catch (Exception e) {
-            log.error("[Detail] DLQ 메시지 파싱 실패: {}", message, e);
+        if (payload instanceof ProductCreatedEvent event) {
+            log.error("[Detail] DLQ 처리 필요 - product.created 캐시 실패: productId={}", event.getProductId());
+        } else if (payload instanceof ProductUpdatedEvent event) {
+            log.error("[Detail] DLQ 처리 필요 - product.updated 캐시 실패: productId={}", event.getProductId());
+        } else {
+            log.error("[Detail] DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
         }
     }
 }

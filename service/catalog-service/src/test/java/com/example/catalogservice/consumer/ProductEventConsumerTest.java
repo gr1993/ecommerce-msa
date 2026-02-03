@@ -3,13 +3,11 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.ProductCreatedEvent;
 import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.service.ProductSyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -26,9 +24,6 @@ class ProductEventConsumerTest {
 
     @Mock
     private ProductSyncService productSyncService;
-
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private ProductEventConsumer productEventConsumer;
@@ -216,15 +211,19 @@ class ProductEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - product.created 이벤트 처리")
-    void handleDlt_ProductCreatedEvent() throws Exception {
+    void handleDlt_ProductCreatedEvent() {
         // Given
-        String message = """
-                {"productId":1,"productCode":"P001","productName":"테스트 상품","status":"ACTIVE"}
-                """;
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(1L)
+                .productCode("P001")
+                .productName("테스트 상품")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When - DLQ 핸들러는 예외를 던지지 않고 로그만 남김
         productEventConsumer.handleDlt(
-                message,
+                event,
                 "product.created-dlt",
                 100L,
                 "product.created",
@@ -236,15 +235,19 @@ class ProductEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - product.updated 이벤트 처리")
-    void handleDlt_ProductUpdatedEvent() throws Exception {
+    void handleDlt_ProductUpdatedEvent() {
         // Given
-        String message = """
-                {"productId":1,"productCode":"P001","productName":"수정된 상품","status":"ON_SALE"}
-                """;
+        ProductUpdatedEvent event = ProductUpdatedEvent.builder()
+                .productId(1L)
+                .productCode("P001")
+                .productName("수정된 상품")
+                .status("ON_SALE")
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         // When
         productEventConsumer.handleDlt(
-                message,
+                event,
                 "product.updated-dlt",
                 200L,
                 "product.updated",
@@ -255,14 +258,14 @@ class ProductEventConsumerTest {
     }
 
     @Test
-    @DisplayName("DLQ 핸들러 - 파싱 실패 시에도 예외 없이 처리")
-    void handleDlt_ParsingFailure() {
+    @DisplayName("DLQ 핸들러 - 알 수 없는 payload 타입")
+    void handleDlt_UnknownPayloadType() {
         // Given
-        String invalidMessage = "invalid json message";
+        Object unknownPayload = new Object();
 
-        // When & Then - 파싱 실패해도 예외 없이 로그만 남김
+        // When & Then - 알 수 없는 타입도 예외 없이 로그만 남김
         productEventConsumer.handleDlt(
-                invalidMessage,
+                unknownPayload,
                 "product.created-dlt",
                 300L,
                 "product.created",
@@ -274,13 +277,17 @@ class ProductEventConsumerTest {
     @DisplayName("DLQ 핸들러 - originalTopic이 null인 경우")
     void handleDlt_NullOriginalTopic() {
         // Given
-        String message = """
-                {"productId":1,"productCode":"P001","productName":"테스트 상품","status":"ACTIVE"}
-                """;
+        ProductCreatedEvent event = ProductCreatedEvent.builder()
+                .productId(1L)
+                .productCode("P001")
+                .productName("테스트 상품")
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When & Then
         productEventConsumer.handleDlt(
-                message,
+                event,
                 "unknown-dlt",
                 400L,
                 null,

@@ -3,7 +3,6 @@ package com.example.catalogservice.consumer;
 import com.example.catalogservice.consumer.event.ProductCreatedEvent;
 import com.example.catalogservice.consumer.event.ProductUpdatedEvent;
 import com.example.catalogservice.service.ProductSyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
 import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
@@ -38,7 +37,6 @@ import org.springframework.stereotype.Component;
 public class ProductEventConsumer {
 
     private final ProductSyncService productSyncService;
-    private final ObjectMapper objectMapper;
 
     @AsyncListener(
             operation = @AsyncOperation(
@@ -134,7 +132,7 @@ public class ProductEventConsumer {
      */
     @DltHandler
     public void handleDlt(
-            @Payload String message,
+            @Payload Object payload,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(value = KafkaHeaders.OFFSET, required = false) Long offset,
             @Header(value = KafkaHeaders.ORIGINAL_TOPIC, required = false) String originalTopic,
@@ -147,24 +145,19 @@ public class ProductEventConsumer {
                 DLT Topic: {}
                 Original Topic: {}
                 Offset: {}
-                Message: {}
+                Payload: {}
                 Exception: {}
                 ========================================
-                """, topic, originalTopic, offset, message, exceptionMessage);
+                """, topic, originalTopic, offset, payload, exceptionMessage);
 
-        // 이벤트 타입 파악을 위한 파싱 시도
-        try {
-            if (originalTopic != null && originalTopic.contains("product.created")) {
-                ProductCreatedEvent event = objectMapper.readValue(message, ProductCreatedEvent.class);
-                log.error("DLQ 처리 필요 - product.created 실패: productId={}, productName={}",
-                        event.getProductId(), event.getProductName());
-            } else if (originalTopic != null && originalTopic.contains("product.updated")) {
-                ProductUpdatedEvent event = objectMapper.readValue(message, ProductUpdatedEvent.class);
-                log.error("DLQ 처리 필요 - product.updated 실패: productId={}, productName={}",
-                        event.getProductId(), event.getProductName());
-            }
-        } catch (Exception e) {
-            log.error("DLQ 메시지 파싱 실패: {}", message, e);
+        if (payload instanceof ProductCreatedEvent event) {
+            log.error("DLQ 처리 필요 - product.created 실패: productId={}, productName={}",
+                    event.getProductId(), event.getProductName());
+        } else if (payload instanceof ProductUpdatedEvent event) {
+            log.error("DLQ 처리 필요 - product.updated 실패: productId={}, productName={}",
+                    event.getProductId(), event.getProductName());
+        } else {
+            log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
         }
 
         // 참고: RDBMS가 없으므로 DB 저장 대신 로그로 기록

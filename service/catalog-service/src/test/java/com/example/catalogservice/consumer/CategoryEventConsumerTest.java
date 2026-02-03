@@ -4,13 +4,11 @@ import com.example.catalogservice.consumer.event.CategoryCreatedEvent;
 import com.example.catalogservice.consumer.event.CategoryDeletedEvent;
 import com.example.catalogservice.consumer.event.CategoryUpdatedEvent;
 import com.example.catalogservice.service.CategorySyncService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -25,9 +23,6 @@ class CategoryEventConsumerTest {
 
     @Mock
     private CategorySyncService categorySyncService;
-
-    @Spy
-    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private CategoryEventConsumer categoryEventConsumer;
@@ -249,15 +244,20 @@ class CategoryEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - category.created 이벤트 처리")
-    void handleDlt_CategoryCreatedEvent() throws Exception {
+    void handleDlt_CategoryCreatedEvent() {
         // Given
-        String message = """
-                {"categoryId":1,"categoryName":"전자제품","parentId":null,"displayOrder":1,"isDisplayed":true}
-                """;
+        CategoryCreatedEvent event = CategoryCreatedEvent.builder()
+                .categoryId(1L)
+                .categoryName("전자제품")
+                .parentId(null)
+                .displayOrder(1)
+                .isDisplayed(true)
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When - DLQ 핸들러는 예외를 던지지 않고 로그만 남김
         categoryEventConsumer.handleDlt(
-                message,
+                event,
                 "category.created-dlt",
                 100L,
                 "category.created",
@@ -269,15 +269,20 @@ class CategoryEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - category.updated 이벤트 처리")
-    void handleDlt_CategoryUpdatedEvent() throws Exception {
+    void handleDlt_CategoryUpdatedEvent() {
         // Given
-        String message = """
-                {"categoryId":1,"categoryName":"전자제품 (수정됨)","parentId":null,"displayOrder":1,"isDisplayed":true}
-                """;
+        CategoryUpdatedEvent event = CategoryUpdatedEvent.builder()
+                .categoryId(1L)
+                .categoryName("전자제품 (수정됨)")
+                .parentId(null)
+                .displayOrder(1)
+                .isDisplayed(true)
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         // When
         categoryEventConsumer.handleDlt(
-                message,
+                event,
                 "category.updated-dlt",
                 200L,
                 "category.updated",
@@ -289,15 +294,16 @@ class CategoryEventConsumerTest {
 
     @Test
     @DisplayName("DLQ 핸들러 - category.deleted 이벤트 처리")
-    void handleDlt_CategoryDeletedEvent() throws Exception {
+    void handleDlt_CategoryDeletedEvent() {
         // Given
-        String message = """
-                {"categoryId":1}
-                """;
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(1L)
+                .deletedAt(LocalDateTime.now())
+                .build();
 
         // When
         categoryEventConsumer.handleDlt(
-                message,
+                event,
                 "category.deleted-dlt",
                 300L,
                 "category.deleted",
@@ -308,14 +314,14 @@ class CategoryEventConsumerTest {
     }
 
     @Test
-    @DisplayName("DLQ 핸들러 - 파싱 실패 시에도 예외 없이 처리")
-    void handleDlt_ParsingFailure() {
+    @DisplayName("DLQ 핸들러 - 알 수 없는 payload 타입")
+    void handleDlt_UnknownPayloadType() {
         // Given
-        String invalidMessage = "invalid json message";
+        Object unknownPayload = new Object();
 
-        // When & Then - 파싱 실패해도 예외 없이 로그만 남김
+        // When & Then - 알 수 없는 타입도 예외 없이 로그만 남김
         categoryEventConsumer.handleDlt(
-                invalidMessage,
+                unknownPayload,
                 "category.created-dlt",
                 400L,
                 "category.created",
@@ -327,13 +333,15 @@ class CategoryEventConsumerTest {
     @DisplayName("DLQ 핸들러 - originalTopic이 null인 경우")
     void handleDlt_NullOriginalTopic() {
         // Given
-        String message = """
-                {"categoryId":1,"categoryName":"전자제품"}
-                """;
+        CategoryCreatedEvent event = CategoryCreatedEvent.builder()
+                .categoryId(1L)
+                .categoryName("전자제품")
+                .createdAt(LocalDateTime.now())
+                .build();
 
         // When & Then
         categoryEventConsumer.handleDlt(
-                message,
+                event,
                 "unknown-dlt",
                 500L,
                 null,
