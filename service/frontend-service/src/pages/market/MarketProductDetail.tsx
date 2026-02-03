@@ -1,111 +1,98 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Card, Row, Col, InputNumber, Space, Divider, Tag, Image, message } from 'antd'
+import { Button, Card, InputNumber, Space, Divider, Tag, Image, message } from 'antd'
 import { ShoppingCartOutlined, ArrowLeftOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
-import { useCartStore, type CartItem } from '../../stores/cartStore'
+import { useCartStore } from '../../stores/cartStore'
+import type { CartItem } from '../../stores/cartStore'
+import { getProductDetail } from '../../api/catalogApi'
+import type { ProductDetailResponse, SkuResponse, OptionGroupResponse } from '../../api/catalogApi'
 import './MarketProductDetail.css'
-
-interface Product {
-  product_id: string
-  product_name: string
-  product_code: string
-  base_price: number
-  category_id: string
-  category_name: string
-  sales_count: number
-  stock: number
-  description: string
-  created_at: string
-  image_url?: string
-  images?: string[]
-}
 
 function MarketProductDetail() {
   const { productId } = useParams<{ productId: string }>()
   const navigate = useNavigate()
   const addToCart = useCartStore((state) => state.addToCart)
 
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<ProductDetailResponse | null>(null)
   const [quantity, setQuantity] = useState<number>(1)
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
+  // 선택된 옵션값 ID를 옵션그룹별로 관리: { optionGroupId: optionValueId }
+  const [selectedOptions, setSelectedOptions] = useState<Record<number, number>>({})
+
+  // 옵션 그룹을 displayOrder 순으로 정렬
+  const sortedOptionGroups = useMemo(() => {
+    if (!product?.optionGroups) return []
+    return [...product.optionGroups].sort((a, b) => a.displayOrder - b.displayOrder)
+  }, [product?.optionGroups])
+
+  // 현재 선택된 옵션에 매칭되는 SKU 찾기
+  const selectedSku = useMemo((): SkuResponse | null => {
+    if (!product?.skus || !product?.optionGroups) return null
+    if (product.optionGroups.length === 0) {
+      // 옵션이 없으면 첫 번째 SKU 반환
+      return product.skus[0] || null
+    }
+    // 모든 옵션그룹에 대해 선택이 완료되었는지 확인
+    const allSelected = sortedOptionGroups.every((g) => selectedOptions[g.id] !== undefined)
+    if (!allSelected) return null
+
+    const selectedValueIds = Object.values(selectedOptions)
+    return product.skus.find((sku) => {
+      if (sku.optionValueIds.length !== selectedValueIds.length) return false
+      return selectedValueIds.every((vid) => sku.optionValueIds.includes(vid))
+    }) || null
+  }, [product?.skus, product?.optionGroups, selectedOptions, sortedOptionGroups])
+
+  // 특정 옵션그룹의 옵션값이 선택 가능한지 확인 (재고 있는 SKU가 존재하는지)
+  const isOptionValueAvailable = (groupId: number, valueId: number): boolean => {
+    if (!product?.skus) return false
+    // 현재 선택된 옵션 + 이 값으로 조합했을 때 유효한 SKU가 있는지 확인
+    const testOptions = { ...selectedOptions, [groupId]: valueId }
+    const selectedValueIds = Object.values(testOptions)
+    return product.skus.some((sku) => {
+      return selectedValueIds.every((vid) => sku.optionValueIds.includes(vid)) &&
+        sku.status === 'ACTIVE' && sku.stockQty > 0
+    })
+  }
+
+  // 표시할 가격 (SKU 선택 시 SKU 가격, 아니면 base/sale price)
+  const displayPrice = useMemo(() => {
+    if (selectedSku) return selectedSku.price
+    if (product?.salePrice) return product.salePrice
+    return product?.basePrice ?? 0
+  }, [selectedSku, product])
+
+  // 표시할 재고
+  const displayStock = useMemo(() => {
+    if (selectedSku) return selectedSku.stockQty
+    if (!product?.skus || product.skus.length === 0) return 0
+    // SKU 선택 전이면 전체 재고 합산
+    return product.skus.reduce((sum, s) => sum + s.stockQty, 0)
+  }, [selectedSku, product?.skus])
+
+  // 이미지 목록 (displayOrder 순)
+  const sortedImages = useMemo(() => {
+    if (!product?.images) return []
+    return [...product.images].sort((a, b) => a.displayOrder - b.displayOrder)
+  }, [product?.images])
+
+  const hasOptions = (product?.optionGroups?.length ?? 0) > 0
 
   // 상품 데이터 로드
   useEffect(() => {
-    // TODO: API 호출로 상품 상세 데이터 로드
     const loadProduct = async () => {
       setLoading(true)
       try {
-        // 샘플 데이터
-        const sampleProducts: Product[] = [
-          {
-            product_id: '1',
-            product_name: '프리미엄 노트북',
-            product_code: 'PRD-001',
-            base_price: 1200000,
-            category_id: '1-1',
-            category_name: '노트북',
-            sales_count: 150,
-            stock: 50,
-            description: '최신 기술이 적용된 프리미엄 노트북입니다. 고성능 프로세서와 대용량 메모리로 업무와 게임 모두 완벽하게 지원합니다. 슬림한 디자인과 긴 배터리 수명으로 어디서나 편리하게 사용할 수 있습니다.',
-            created_at: '2024-01-01 10:00:00',
-            image_url: 'https://via.placeholder.com/600x600?text=노트북',
-            images: [
-              'https://via.placeholder.com/600x600?text=노트북1',
-              'https://via.placeholder.com/600x600?text=노트북2',
-              'https://via.placeholder.com/600x600?text=노트북3',
-              'https://via.placeholder.com/600x600?text=노트북4'
-            ]
-          },
-          {
-            product_id: '2',
-            product_name: '최신 스마트폰',
-            product_code: 'PRD-002',
-            base_price: 800000,
-            category_id: '1-2',
-            category_name: '스마트폰',
-            sales_count: 230,
-            stock: 100,
-            description: '혁신적인 카메라 시스템과 강력한 성능을 갖춘 최신 스마트폰입니다. 5G 네트워크를 지원하며, 빠른 충전과 긴 배터리 수명을 자랑합니다.',
-            created_at: '2024-01-05 14:30:00',
-            image_url: 'https://via.placeholder.com/600x600?text=스마트폰',
-            images: [
-              'https://via.placeholder.com/600x600?text=스마트폰1',
-              'https://via.placeholder.com/600x600?text=스마트폰2',
-              'https://via.placeholder.com/600x600?text=스마트폰3'
-            ]
-          }
-        ]
-
-        const foundProduct = sampleProducts.find(p => p.product_id === productId)
-        
-        if (!foundProduct) {
-          // 실제로는 API에서 가져오기
-          // 샘플 데이터로 대체
-          const defaultProduct: Product = {
-            product_id: productId || '1',
-            product_name: '상품명',
-            product_code: `PRD-${productId?.padStart(3, '0') || '001'}`,
-            base_price: 100000,
-            category_id: '1',
-            category_name: '카테고리',
-            sales_count: 0,
-            stock: 10,
-            description: '상품 설명이 여기에 표시됩니다.',
-            created_at: '2024-01-01 10:00:00',
-            image_url: 'https://via.placeholder.com/600x600?text=상품',
-            images: [
-              'https://via.placeholder.com/600x600?text=상품1',
-              'https://via.placeholder.com/600x600?text=상품2'
-            ]
-          }
-          setProduct(foundProduct || defaultProduct)
-        } else {
-          setProduct(foundProduct)
-        }
+        const data = await getProductDetail(Number(productId))
+        setProduct(data)
+        setSelectedOptions({})
+        setQuantity(1)
+        setSelectedImageIndex(0)
       } catch (error) {
+        console.error('상품 상세 조회 실패:', error)
         message.error('상품 정보를 불러오는데 실패했습니다.')
       } finally {
         setLoading(false)
@@ -117,58 +104,81 @@ function MarketProductDetail() {
     }
   }, [productId])
 
+  const handleOptionSelect = (groupId: number, valueId: number) => {
+    setSelectedOptions((prev) => {
+      const next = { ...prev }
+      if (next[groupId] === valueId) {
+        delete next[groupId]
+      } else {
+        next[groupId] = valueId
+      }
+      return next
+    })
+    setQuantity(1)
+  }
+
   const handleQuantityChange = (value: number | null) => {
-    if (value && value > 0 && product && value <= product.stock) {
+    const maxStock = selectedSku?.stockQty ?? displayStock
+    if (value && value > 0 && value <= maxStock) {
       setQuantity(value)
     }
   }
 
+  const canAddToCart = (): boolean => {
+    if (!product) return false
+    if (hasOptions && !selectedSku) return false
+    if (selectedSku && (selectedSku.stockQty === 0 || selectedSku.status !== 'ACTIVE')) return false
+    if (!hasOptions && displayStock === 0) return false
+    return true
+  }
+
+  const getOptionLabel = (): string => {
+    if (!hasOptions || !selectedSku) return ''
+    return sortedOptionGroups
+      .map((g) => {
+        const val = g.optionValues.find((v) => v.id === selectedOptions[g.id])
+        return val ? val.optionValueName : ''
+      })
+      .filter(Boolean)
+      .join(' / ')
+  }
+
   const handleAddToCart = () => {
-    if (!product) return
+    if (!product || !canAddToCart()) return
 
-    if (product.stock === 0) {
-      message.warning('재고가 없습니다.')
-      return
-    }
+    const sku = selectedSku
+    const price = sku ? sku.price : displayPrice
+    const stock = sku ? sku.stockQty : displayStock
+    const optionLabel = getOptionLabel()
+    const cartProductId = sku ? `${product.productId}-${sku.id}` : String(product.productId)
 
-    if (quantity > product.stock) {
-      message.warning(`재고가 부족합니다. (최대 ${product.stock}개)`)
-      return
-    }
-
-    // Zustand store를 통해 장바구니에 추가
     addToCart({
-      product_id: product.product_id,
-      product_name: product.product_name,
-      product_code: product.product_code,
-      base_price: product.base_price,
-      image_url: product.image_url,
-      stock: product.stock
+      product_id: cartProductId,
+      product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
+      product_code: sku ? sku.skuCode : product.productCode,
+      base_price: price,
+      image_url: sortedImages[0]?.imageUrl,
+      stock: stock
     }, quantity)
   }
 
   const handleBuyNow = () => {
-    if (!product) return
-    
-    if (product.stock === 0) {
-      message.warning('재고가 없습니다.')
-      return
-    }
+    if (!product || !canAddToCart()) return
 
-    if (quantity > product.stock) {
-      message.warning(`재고가 부족합니다. (최대 ${product.stock}개)`)
-      return
-    }
+    const sku = selectedSku
+    const price = sku ? sku.price : displayPrice
+    const stock = sku ? sku.stockQty : displayStock
+    const optionLabel = getOptionLabel()
+    const cartProductId = sku ? `${product.productId}-${sku.id}` : String(product.productId)
 
-    // 바로구매: 주문 페이지로 이동
     const orderItem: CartItem = {
-      product_id: product.product_id,
-      product_name: product.product_name,
-      product_code: product.product_code,
-      base_price: product.base_price,
-      image_url: product.image_url,
+      product_id: cartProductId,
+      product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
+      product_code: sku ? sku.skuCode : product.productCode,
+      base_price: price,
+      image_url: sortedImages[0]?.imageUrl,
       quantity: quantity,
-      stock: product.stock
+      stock: stock
     }
 
     navigate('/market/order', {
@@ -178,7 +188,6 @@ function MarketProductDetail() {
       }
     })
   }
-
 
   if (loading) {
     return (
@@ -205,12 +214,12 @@ function MarketProductDetail() {
     )
   }
 
-  const totalPrice = product.base_price * quantity
+  const totalPrice = displayPrice * quantity
 
   return (
     <div className="market-product-detail">
       <MarketHeader />
-      
+
       <div className="product-detail-container">
         <Button
           type="text"
@@ -226,21 +235,21 @@ function MarketProductDetail() {
           <div className="product-images-section">
             <div className="main-image">
               <Image
-                src={product.images?.[selectedImageIndex] || product.image_url || 'https://via.placeholder.com/600x600'}
-                alt={product.product_name}
+                src={sortedImages[selectedImageIndex]?.imageUrl || 'https://via.placeholder.com/600x600?text=No+Image'}
+                alt={product.productName}
                 preview={false}
                 className="main-product-image"
               />
             </div>
-            {product.images && product.images.length > 1 && (
+            {sortedImages.length > 1 && (
               <div className="thumbnail-images">
-                {product.images.map((image, index) => (
+                {sortedImages.map((img, index) => (
                   <div
-                    key={index}
+                    key={img.id}
                     className={`thumbnail-item ${selectedImageIndex === index ? 'active' : ''}`}
                     onClick={() => setSelectedImageIndex(index)}
                   >
-                    <img src={image} alt={`${product.product_name} ${index + 1}`} />
+                    <img src={img.imageUrl} alt={`${product.productName} ${index + 1}`} />
                   </div>
                 ))}
               </div>
@@ -250,9 +259,11 @@ function MarketProductDetail() {
           {/* 상품 정보 영역 */}
           <div className="product-info-section">
             <div className="product-header">
-              <Tag color="blue">{product.category_name}</Tag>
-              <h1 className="product-title">{product.product_name}</h1>
-              <p className="product-code">상품 코드: {product.product_code}</p>
+              {product.categories.map((cat) => (
+                <Tag color="blue" key={cat.categoryId}>{cat.categoryName}</Tag>
+              ))}
+              <h1 className="product-title">{product.productName}</h1>
+              <p className="product-code">상품 코드: {product.productCode}</p>
             </div>
 
             <Divider />
@@ -260,18 +271,67 @@ function MarketProductDetail() {
             <div className="product-price-section">
               <div className="price-info">
                 <span className="price-label">판매가격</span>
-                <span className="product-price">{product.base_price.toLocaleString()}원</span>
+                {product.salePrice && product.salePrice < product.basePrice ? (
+                  <>
+                    <span className="product-price-original">{product.basePrice.toLocaleString()}원</span>
+                    <span className="product-price">{displayPrice.toLocaleString()}원</span>
+                  </>
+                ) : (
+                  <span className="product-price">{displayPrice.toLocaleString()}원</span>
+                )}
               </div>
-              {quantity > 1 && (
-                <div className="total-price-info">
-                  <span className="total-label">총 상품금액</span>
-                  <span className="total-price">{totalPrice.toLocaleString()}원</span>
-                </div>
-              )}
             </div>
 
             <Divider />
 
+            {/* 옵션 선택 영역 */}
+            {hasOptions && (
+              <>
+                <div className="product-options">
+                  {sortedOptionGroups.map((group) => (
+                    <OptionGroupSelector
+                      key={group.id}
+                      group={group}
+                      selectedValueId={selectedOptions[group.id]}
+                      onSelect={(valueId) => handleOptionSelect(group.id, valueId)}
+                      isValueAvailable={(valueId) => isOptionValueAvailable(group.id, valueId)}
+                    />
+                  ))}
+                </div>
+                <Divider />
+              </>
+            )}
+
+            {/* 선택된 SKU 정보 */}
+            {selectedSku && (
+              <>
+                <div className="selected-sku-info">
+                  <div className="sku-detail">
+                    <span className="sku-label">선택 옵션</span>
+                    <span className="sku-value">{getOptionLabel()}</span>
+                  </div>
+                  <div className="sku-detail">
+                    <span className="sku-label">SKU</span>
+                    <span className="sku-value">{selectedSku.skuCode}</span>
+                  </div>
+                  <div className="sku-detail">
+                    <span className="sku-label">재고</span>
+                    <span className={`sku-value ${selectedSku.stockQty <= 5 ? 'low-stock' : ''}`}>
+                      {selectedSku.stockQty > 0 ? `${selectedSku.stockQty}개` : '품절'}
+                    </span>
+                  </div>
+                  {selectedSku.price !== product.basePrice && (
+                    <div className="sku-detail">
+                      <span className="sku-label">옵션 가격</span>
+                      <span className="sku-value sku-price">{selectedSku.price.toLocaleString()}원</span>
+                    </div>
+                  )}
+                </div>
+                <Divider />
+              </>
+            )}
+
+            {/* 수량 선택 */}
             <div className="product-options">
               <div className="option-row">
                 <span className="option-label">수량</span>
@@ -279,37 +339,41 @@ function MarketProductDetail() {
                   <Button
                     icon={<MinusOutlined />}
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
+                    disabled={quantity <= 1 || !canAddToCart()}
                   />
                   <InputNumber
                     min={1}
-                    max={product.stock}
+                    max={selectedSku?.stockQty ?? displayStock}
                     value={quantity}
                     onChange={handleQuantityChange}
                     className="quantity-input"
+                    disabled={!canAddToCart()}
                   />
                   <Button
                     icon={<PlusOutlined />}
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= product.stock}
+                    disabled={quantity >= (selectedSku?.stockQty ?? displayStock) || !canAddToCart()}
                   />
-                  <span className="stock-info">(재고: {product.stock}개)</span>
+                  <span className="stock-info">(재고: {selectedSku?.stockQty ?? displayStock}개)</span>
                 </div>
               </div>
             </div>
 
-            <Divider />
+            {/* 총 금액 */}
+            {canAddToCart() && quantity > 0 && (
+              <>
+                <Divider />
+                <div className="total-price-info">
+                  <span className="total-label">총 상품금액</span>
+                  <span className="total-price">{totalPrice.toLocaleString()}원</span>
+                </div>
+              </>
+            )}
 
-            <div className="product-meta">
-              <div className="meta-item">
-                <span className="meta-label">판매량</span>
-                <span className="meta-value">{product.sales_count}개</span>
-              </div>
-              <div className="meta-item">
-                <span className="meta-label">재고</span>
-                <span className="meta-value">{product.stock > 0 ? `${product.stock}개` : '품절'}</span>
-              </div>
-            </div>
+            {/* 옵션 미선택 안내 */}
+            {hasOptions && !selectedSku && (
+              <p className="option-guide-msg">옵션을 선택해주세요.</p>
+            )}
 
             <Divider />
 
@@ -321,7 +385,7 @@ function MarketProductDetail() {
                   size="large"
                   onClick={handleAddToCart}
                   className="cart-btn"
-                  disabled={product.stock === 0}
+                  disabled={!canAddToCart()}
                 >
                   장바구니
                 </Button>
@@ -330,7 +394,7 @@ function MarketProductDetail() {
                   size="large"
                   onClick={handleBuyNow}
                   className="buy-btn"
-                  disabled={product.stock === 0}
+                  disabled={!canAddToCart()}
                 >
                   바로구매
                 </Button>
@@ -343,19 +407,54 @@ function MarketProductDetail() {
         <div className="product-description-section">
           <Card title="상품 상세 정보" className="description-card">
             <div className="product-description">
-              <p>{product.description}</p>
-              <div className="description-details">
-                <h3>상품 특징</h3>
-                <ul>
-                  <li>고품질 소재 사용</li>
-                  <li>엄격한 품질 검사</li>
-                  <li>안전한 배송</li>
-                  <li>만족도 보장</li>
-                </ul>
-              </div>
+              <div dangerouslySetInnerHTML={{ __html: product.description || '' }} />
             </div>
           </Card>
         </div>
+
+        {/* SKU 옵션별 재고 현황 */}
+        {hasOptions && product.skus.length > 0 && (
+          <div className="product-description-section">
+            <Card title="옵션별 재고 현황" className="description-card">
+              <div className="sku-stock-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>옵션</th>
+                      <th>SKU 코드</th>
+                      <th>가격</th>
+                      <th>재고</th>
+                      <th>상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {product.skus.map((sku) => (
+                      <tr key={sku.id} className={sku.status !== 'ACTIVE' || sku.stockQty === 0 ? 'sku-row-disabled' : ''}>
+                        <td>{getSkuOptionLabel(sku, product.optionGroups)}</td>
+                        <td>{sku.skuCode}</td>
+                        <td>{sku.price.toLocaleString()}원</td>
+                        <td className={sku.stockQty <= 5 && sku.stockQty > 0 ? 'low-stock' : ''}>
+                          {sku.stockQty}개
+                        </td>
+                        <td>
+                          {sku.status !== 'ACTIVE' ? (
+                            <Tag color="default">비활성</Tag>
+                          ) : sku.stockQty === 0 ? (
+                            <Tag color="red">품절</Tag>
+                          ) : sku.stockQty <= 5 ? (
+                            <Tag color="orange">품절임박</Tag>
+                          ) : (
+                            <Tag color="green">판매중</Tag>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       <MarketFooter />
@@ -363,5 +462,56 @@ function MarketProductDetail() {
   )
 }
 
-export default MarketProductDetail
+// SKU의 옵션값 이름 조합 반환
+function getSkuOptionLabel(sku: SkuResponse, optionGroups: OptionGroupResponse[]): string {
+  return sku.optionValueIds
+    .map((vid) => {
+      for (const g of optionGroups) {
+        const val = g.optionValues.find((v) => v.id === vid)
+        if (val) return val.optionValueName
+      }
+      return ''
+    })
+    .filter(Boolean)
+    .join(' / ')
+}
 
+// 옵션 그룹 선택 컴포넌트
+function OptionGroupSelector({
+  group,
+  selectedValueId,
+  onSelect,
+  isValueAvailable
+}: {
+  group: OptionGroupResponse
+  selectedValueId: number | undefined
+  onSelect: (valueId: number) => void
+  isValueAvailable: (valueId: number) => boolean
+}) {
+  const sortedValues = [...group.optionValues].sort((a, b) => a.displayOrder - b.displayOrder)
+
+  return (
+    <div className="option-group">
+      <span className="option-label">{group.optionGroupName}</span>
+      <div className="option-values">
+        {sortedValues.map((val) => {
+          const available = isValueAvailable(val.id)
+          const selected = selectedValueId === val.id
+          return (
+            <button
+              key={val.id}
+              className={`option-value-btn ${selected ? 'selected' : ''} ${!available ? 'unavailable' : ''}`}
+              onClick={() => onSelect(val.id)}
+              disabled={!available}
+            >
+              {val.optionValueName}
+              {!available && <span className="sold-out-badge">품절</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default MarketProductDetail

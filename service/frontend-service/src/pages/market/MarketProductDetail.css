@@ -354,6 +354,141 @@
   font-weight: 700;
 }
 
+/* 원가 취소선 */
+.product-price-original {
+  font-size: 1.2rem;
+  color: #95a5a6;
+  text-decoration: line-through;
+  margin-right: 0.5rem;
+}
+
+/* 옵션 그룹 선택 */
+.option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.option-value-btn {
+  position: relative;
+  padding: 0.5rem 1.2rem;
+  border: 2px solid #d9d9d9;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #2c3e50;
+  transition: all 0.2s;
+}
+
+.option-value-btn:hover:not(:disabled) {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.option-value-btn.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea10, #764ba210);
+  color: #667eea;
+  font-weight: 600;
+}
+
+.option-value-btn.unavailable {
+  border-color: #e8e8e8;
+  background: #f5f5f5;
+  color: #bfbfbf;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.sold-out-badge {
+  display: block;
+  font-size: 0.7rem;
+  color: #ff4d4f;
+  text-decoration: none;
+}
+
+/* 선택된 SKU 정보 */
+.selected-sku-info {
+  background: #f8f9ff;
+  border: 1px solid #e6e8ff;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sku-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sku-label {
+  font-size: 0.9rem;
+  color: #8c8c8c;
+}
+
+.sku-value {
+  font-size: 0.95rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.sku-value.sku-price {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.sku-value.low-stock,
+.low-stock {
+  color: #fa8c16;
+  font-weight: 600;
+}
+
+/* 옵션 미선택 안내 */
+.option-guide-msg {
+  text-align: center;
+  color: #fa8c16;
+  font-size: 0.95rem;
+  margin: 0.5rem 0 0;
+}
+
+/* SKU 재고 현황 테이블 */
+.sku-stock-table {
+  overflow-x: auto;
+}
+
+.sku-stock-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sku-stock-table th,
+.sku-stock-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+.sku-stock-table th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #555;
+}
+
+.sku-stock-table .sku-row-disabled {
+  opacity: 0.5;
+}
+
 /* 반응형 */
 @media (max-width: 1024px) {
   .product-detail-content {
