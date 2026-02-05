@@ -1,0 +1,39 @@
+# order-service
+주문 데이터를 생성하고 관리를 담당하는 MSA 서비스
+
+
+### 프로젝트 패키지 구조
+```
+com.example.authservice
+├── common              # 유틸리티, 공통 상수
+├── config              # 설정 클래스 (Security, JWT, CORS, Swagger 등)
+├── consumer            # Kafka 이벤트 컨슈머
+├── controller          # API 엔드포인트 (REST Controller)
+├── domain
+│   ├── entity/         # DB와 매핑되는 JPA 엔티티
+│   └── event/          # 도메인 이벤트 클래스
+├── dto                 # Request/Response 데이터 전송 객체
+│   ├── request
+│   └── response
+├── exception           # 커스텀 예외 처리 및 Global Handler
+├── repository          # DB 접근 (Spring Data JPA Interface)
+└── service             # 비즈니스 로직 (JWT 토큰 생성/검증, 인증 처리)
+```
+
+
+### 백엔드 기술
+* Spring Boot 3.5.10 (JDK 17)
+* spring-boot-starter-web
+* spring-boot-starter-data-jpa
+* MySQL : 영속성 저장소
+* springdoc-openapi-starter-webmvc-ui:2.8.9 : Swagger
+* spring-cloud-starter-config : Config Client
+* eureka-client
+
+
+### REST API
+
+REST API 명세는 다음 방법으로 확인할 수 있다.
+
+1. 브라우저에서 Swagger UI 열기: `/swagger-ui.html`
+2. 정적 문서 확인: [`openapi.json`](./openapi.json)
