@@ -101,4 +101,10 @@ public class Order {
         this.orderDelivery = orderDelivery;
         orderDelivery.setOrder(this);
     }
+
+    public void updateTotalAmounts(BigDecimal totalProductAmount, BigDecimal totalDiscountAmount) {
+        this.totalProductAmount = totalProductAmount;
+        this.totalDiscountAmount = totalDiscountAmount != null ? totalDiscountAmount : BigDecimal.ZERO;
+        this.totalPaymentAmount = totalProductAmount.subtract(this.totalDiscountAmount);
+    }
 }
