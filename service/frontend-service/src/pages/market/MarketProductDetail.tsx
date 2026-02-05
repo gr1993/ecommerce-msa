@@ -157,10 +157,10 @@ function MarketProductDetail() {
     const price = sku ? sku.price : displayPrice
     const stock = sku ? sku.stockQty : displayStock
     const optionLabel = getOptionLabel()
-    const cartProductId = sku ? `${product.productId}-${sku.id}` : String(product.productId)
 
     addToCart({
-      product_id: cartProductId,
+      product_id: String(product.productId),
+      sku_id: sku ? String(sku.id) : '',
       product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
       product_code: sku ? sku.skuCode : product.productCode,
       base_price: price,
@@ -176,10 +176,10 @@ function MarketProductDetail() {
     const price = sku ? sku.price : displayPrice
     const stock = sku ? sku.stockQty : displayStock
     const optionLabel = getOptionLabel()
-    const cartProductId = sku ? `${product.productId}-${sku.id}` : String(product.productId)
 
     const orderItem: CartItem = {
-      product_id: cartProductId,
+      product_id: String(product.productId),
+      sku_id: sku ? String(sku.id) : '',
       product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
       product_code: sku ? sku.skuCode : product.productCode,
       base_price: price,

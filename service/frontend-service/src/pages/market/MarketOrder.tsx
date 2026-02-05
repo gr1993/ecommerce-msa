@@ -160,7 +160,7 @@ function MarketOrder() {
 
       // 주문 성공 시 장바구니에서 선택한 상품 제거
       if (location.state?.fromCart) {
-        orderItems.forEach(item => removeFromCart(item.product_id))
+        orderItems.forEach(item => removeFromCart(item.product_id, item.sku_id))
       }
 
       message.success('결제가 완료되었습니다!')

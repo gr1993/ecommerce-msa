@@ -25,6 +25,9 @@ import { useCartStore } from '../../stores/cartStore'
 import type { CartItem } from '../../stores/cartStore'
 import './MarketCart.css'
 
+// 장바구니 아이템 고유 키 생성 (product_id + sku_id 조합)
+const getCartItemKey = (item: CartItem) => `${item.product_id}-${item.sku_id}`
+
 function MarketCart() {
   const navigate = useNavigate()
   const cartItems = useCartStore((state) => state.items)
@@ -36,23 +39,23 @@ function MarketCart() {
   // 장바구니 데이터 로드 시 모든 아이템 선택
   useEffect(() => {
     if (cartItems.length > 0) {
-      setSelectedItems(new Set(cartItems.map((item: CartItem) => item.product_id)))
+      setSelectedItems(new Set(cartItems.map((item: CartItem) => getCartItemKey(item))))
       setIsAllSelected(true)
     }
   }, [])
 
   // 수량 변경
-  const handleQuantityChange = (productId: string, newQuantity: number | null) => {
+  const handleQuantityChange = (productId: string, skuId: string, newQuantity: number | null) => {
     if (!newQuantity || newQuantity < 1) return
-    updateQuantity(productId, newQuantity)
+    updateQuantity(productId, skuId, newQuantity)
   }
 
   // 아이템 삭제
-  const handleRemoveItem = (productId: string) => {
-    removeFromCart(productId)
+  const handleRemoveItem = (productId: string, skuId: string) => {
+    removeFromCart(productId, skuId)
     setSelectedItems(prev => {
       const newSet = new Set(prev)
-      newSet.delete(productId)
+      newSet.delete(`${productId}-${skuId}`)
       return newSet
     })
   }
@@ -64,19 +67,21 @@ function MarketCart() {
       return
     }
 
-    selectedItems.forEach(productId => removeFromCart(productId))
+    cartItems
+      .filter(item => selectedItems.has(getCartItemKey(item)))
+      .forEach(item => removeFromCart(item.product_id, item.sku_id))
     setSelectedItems(new Set())
     setIsAllSelected(false)
     message.success('선택한 상품이 삭제되었습니다.')
   }
 
   // 개별 선택/해제
-  const handleItemSelect = (productId: string, checked: boolean) => {
+  const handleItemSelect = (itemKey: string, checked: boolean) => {
     const newSelected = new Set(selectedItems)
     if (checked) {
-      newSelected.add(productId)
+      newSelected.add(itemKey)
     } else {
-      newSelected.delete(productId)
+      newSelected.delete(itemKey)
     }
     setSelectedItems(newSelected)
     setIsAllSelected(newSelected.size === cartItems.length && cartItems.length > 0)
@@ -85,7 +90,7 @@ function MarketCart() {
   // 전체 선택/해제
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedItems(new Set(cartItems.map(item => item.product_id)))
+      setSelectedItems(new Set(cartItems.map(item => getCartItemKey(item))))
       setIsAllSelected(true)
     } else {
       setSelectedItems(new Set())
@@ -96,7 +101,7 @@ function MarketCart() {
   // 선택된 아이템들의 총 금액 계산
   const calculateTotal = () => {
     return cartItems
-      .filter(item => selectedItems.has(item.product_id))
+      .filter(item => selectedItems.has(getCartItemKey(item)))
       .reduce((sum, item) => sum + (item.base_price * item.quantity), 0)
   }
 
@@ -107,7 +112,7 @@ function MarketCart() {
       return
     }
     // 선택된 아이템들만 주문 페이지로 전달
-    const selectedCartItems = cartItems.filter(item => selectedItems.has(item.product_id))
+    const selectedCartItems = cartItems.filter(item => selectedItems.has(getCartItemKey(item)))
     navigate('/market/order', {
       state: {
         items: selectedCartItems,
@@ -178,10 +183,10 @@ function MarketCart() {
 
               <div className="cart-items-list">
                 {cartItems.map((item) => (
-                  <div key={item.product_id} className="cart-item">
+                  <div key={getCartItemKey(item)} className="cart-item">
                     <Checkbox
-                      checked={selectedItems.has(item.product_id)}
-                      onChange={(e) => handleItemSelect(item.product_id, e.target.checked)}
+                      checked={selectedItems.has(getCartItemKey(item))}
+                      onChange={(e) => handleItemSelect(getCartItemKey(item), e.target.checked)}
                       className="item-checkbox"
                     />
                     <div 
@@ -213,20 +218,20 @@ function MarketCart() {
                       <Space>
                         <Button
                           icon={<MinusOutlined />}
-                          onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)}
+                          onClick={() => handleQuantityChange(item.product_id, item.sku_id, item.quantity - 1)}
                           disabled={item.quantity <= 1}
                         />
                         <InputNumber
                           min={1}
                           max={item.stock}
                           value={item.quantity}
-                          onChange={(value) => handleQuantityChange(item.product_id, value)}
+                          onChange={(value) => handleQuantityChange(item.product_id, item.sku_id, value)}
                           controls={false}
                           style={{ width: 80, textAlign: 'center' }}
                         />
                         <Button
                           icon={<PlusOutlined />}
-                          onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)}
+                          onClick={() => handleQuantityChange(item.product_id, item.sku_id, item.quantity + 1)}
                           disabled={item.quantity >= item.stock}
                         />
                       </Space>
@@ -236,7 +241,7 @@ function MarketCart() {
                     </div>
                     <Popconfirm
                       title="이 상품을 삭제하시겠습니까?"
-                      onConfirm={() => handleRemoveItem(item.product_id)}
+                      onConfirm={() => handleRemoveItem(item.product_id, item.sku_id)}
                       okText="삭제"
                       cancelText="취소"
                     >

@@ -12,6 +12,7 @@ import { message } from 'antd'
 // 장바구니 아이템 인터페이스
 export interface CartItem {
   product_id: string
+  sku_id: string
   product_name: string
   product_code: string
   base_price: number
@@ -26,8 +27,8 @@ interface CartState {
 
   // 액션
   addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => boolean
-  removeFromCart: (productId: string) => void
-  updateQuantity: (productId: string, quantity: number) => void
+  removeFromCart: (productId: string, skuId: string) => void
+  updateQuantity: (productId: string, skuId: string, quantity: number) => void
   clearCart: () => void
   getCartItemCount: () => number
   getTotalPrice: () => number
@@ -52,7 +53,9 @@ export const useCartStore = create<CartState>()(
         try {
           const currentItems = get().items
           const existingItemIndex = currentItems.findIndex(
-            (cartItem) => cartItem.product_id === item.product_id
+            (cartItem) =>
+              cartItem.product_id === item.product_id &&
+              cartItem.sku_id === item.sku_id
           )
 
           if (existingItemIndex >= 0) {
@@ -99,25 +102,28 @@ export const useCartStore = create<CartState>()(
       },
 
       // 장바구니에서 아이템 제거
-      removeFromCart: (productId) => {
+      removeFromCart: (productId, skuId) => {
         set({
-          items: get().items.filter((item) => item.product_id !== productId),
+          items: get().items.filter(
+            (item) => !(item.product_id === productId && item.sku_id === skuId)
+          ),
         })
         message.success('장바구니에서 제거되었습니다.')
       },
 
       // 수량 업데이트
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, skuId, quantity) => {
         const currentItems = get().items
         const itemIndex = currentItems.findIndex(
-          (item) => item.product_id === productId
+          (item) =>
+            item.product_id === productId && item.sku_id === skuId
         )
 
         if (itemIndex >= 0) {
           const item = currentItems[itemIndex]
 
           if (quantity <= 0) {
-            get().removeFromCart(productId)
+            get().removeFromCart(productId, skuId)
             return
           }
 
