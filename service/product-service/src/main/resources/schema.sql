@@ -181,3 +181,22 @@ CREATE TABLE outbox (
     published_at TIMESTAMP NULL COMMENT '발행 일시',
     INDEX idx_event_type_status (event_type, status) COMMENT '이벤트 타입과 상태 인덱스'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='이벤트 메시지 테이블';
+
+
+-- 재고 변동 이력 테이블
+CREATE TABLE product_sku_history (
+    history_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '이력 ID',
+    sku_id BIGINT NOT NULL COMMENT 'SKU ID',
+    order_id VARCHAR(50) NULL COMMENT '주문 번호 (주문/취소 시 사용)',
+    change_type VARCHAR(20) NOT NULL COMMENT '변동 유형: INITIAL, DEDUCTION, RESTORE, MANUAL_EDIT',
+    amount INT NOT NULL COMMENT '변동량 (예: -1, +10)',
+    result_stock_qty INT NOT NULL COMMENT '변동 후 최종 재고 수량',
+    reason VARCHAR(255) NULL COMMENT '사유 (관리자 수정 시 입력)',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '기록 일시',
+    INDEX idx_sku_id (sku_id),
+    INDEX idx_order_id (order_id),
+    CONSTRAINT fk_history_sku
+        FOREIGN KEY (sku_id)
+        REFERENCES product_sku (sku_id)
+        ON DELETE CASCADE
+) COMMENT='SKU 재고 변동 이력을 저장하는 테이블';
