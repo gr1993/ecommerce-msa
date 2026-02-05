@@ -22,6 +22,7 @@ import {
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { useCartStore, type CartItem } from '../../stores/cartStore'
+import { useAuthStore } from '../../stores/authStore'
 import { requestPayment, type PaymentRequest } from '../../utils/paymentUtils'
 import './MarketOrder.css'
 
@@ -46,6 +47,20 @@ function MarketOrder() {
   const [loading, setLoading] = useState(false)
   const cartItems = useCartStore((state) => state.items)
   const removeFromCart = useCartStore((state) => state.removeFromCart)
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+
+  // 비로그인 상태면 로그인 페이지로 이동
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      message.warning('주문하려면 로그인이 필요합니다.')
+      navigate('/market/login', {
+        state: {
+          from: location.pathname,
+          orderItems: location.state
+        }
+      })
+    }
+  }, [isLoggedIn, navigate, location])
 
   // URL 파라미터나 location state에서 주문할 상품 가져오기
   useEffect(() => {
@@ -183,6 +198,11 @@ function MarketOrder() {
   const totalPrice = calculateTotal()
   const shippingFee = calculateShippingFee()
   const finalTotal = calculateFinalTotal()
+
+  // 비로그인 상태면 렌더링하지 않음 (로그인 페이지로 리다이렉트 중)
+  if (!isLoggedIn()) {
+    return null
+  }
 
   if (orderItems.length === 0) {
     return (

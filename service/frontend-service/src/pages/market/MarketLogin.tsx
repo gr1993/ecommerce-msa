@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Form, Input, Button, Checkbox, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { useAuthStore } from '../../stores/authStore'
@@ -10,9 +10,14 @@ import './MarketLogin.css'
 
 function MarketLogin() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const loginAction = useAuthStore((state) => state.login)
+
+  // 로그인 후 리다이렉트할 경로 (로그인 유도된 페이지 또는 기본값)
+  const redirectPath = location.state?.from || '/market'
+  const redirectState = location.state?.orderItems
 
   // JWT 토큰에서 사용자 정보 추출
   const decodeToken = (token: string) => {
@@ -50,7 +55,8 @@ function MarketLogin() {
       )
 
       message.success('로그인되었습니다.')
-      navigate('/market')
+      // 로그인 유도된 페이지가 있으면 해당 페이지로, 없으면 메인으로 이동
+      navigate(redirectPath, { state: redirectState })
     } catch (error: any) {
       console.error('Login error:', error)
       message.error(error.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
