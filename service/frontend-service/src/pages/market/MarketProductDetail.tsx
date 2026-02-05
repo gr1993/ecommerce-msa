@@ -8,7 +8,14 @@ import { useCartStore } from '../../stores/cartStore'
 import type { CartItem } from '../../stores/cartStore'
 import { getProductDetail } from '../../api/catalogApi'
 import type { ProductDetailResponse, SkuResponse, OptionGroupResponse } from '../../api/catalogApi'
+import { PRODUCT_FILE_URL } from '../../config/env'
 import './MarketProductDetail.css'
+
+// 이미지 URL 빌드 헬퍼
+const buildImageUrl = (imageUrl?: string): string => {
+  if (!imageUrl) return 'https://via.placeholder.com/600x600?text=No+Image'
+  return `${PRODUCT_FILE_URL}${imageUrl}`
+}
 
 function MarketProductDetail() {
   const { productId } = useParams<{ productId: string }>()
@@ -157,7 +164,7 @@ function MarketProductDetail() {
       product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
       product_code: sku ? sku.skuCode : product.productCode,
       base_price: price,
-      image_url: sortedImages[0]?.imageUrl,
+      image_url: buildImageUrl(sortedImages[0]?.imageUrl),
       stock: stock
     }, quantity)
   }
@@ -176,7 +183,7 @@ function MarketProductDetail() {
       product_name: optionLabel ? `${product.productName} (${optionLabel})` : product.productName,
       product_code: sku ? sku.skuCode : product.productCode,
       base_price: price,
-      image_url: sortedImages[0]?.imageUrl,
+      image_url: buildImageUrl(sortedImages[0]?.imageUrl),
       quantity: quantity,
       stock: stock
     }
@@ -235,7 +242,7 @@ function MarketProductDetail() {
           <div className="product-images-section">
             <div className="main-image">
               <Image
-                src={sortedImages[selectedImageIndex]?.imageUrl || 'https://via.placeholder.com/600x600?text=No+Image'}
+                src={buildImageUrl(sortedImages[selectedImageIndex]?.imageUrl)}
                 alt={product.productName}
                 preview={false}
                 className="main-product-image"
@@ -249,7 +256,7 @@ function MarketProductDetail() {
                     className={`thumbnail-item ${selectedImageIndex === index ? 'active' : ''}`}
                     onClick={() => setSelectedImageIndex(index)}
                   >
-                    <img src={img.imageUrl} alt={`${product.productName} ${index + 1}`} />
+                    <img src={buildImageUrl(img.imageUrl)} alt={`${product.productName} ${index + 1}`} />
                   </div>
                 ))}
               </div>
