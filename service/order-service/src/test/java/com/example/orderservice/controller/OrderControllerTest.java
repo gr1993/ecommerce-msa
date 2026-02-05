@@ -1,9 +1,9 @@
 package com.example.orderservice.controller;
 
 import com.example.orderservice.domain.entity.OrderStatus;
+import com.example.orderservice.dto.request.DeliveryInfoRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
-import com.example.orderservice.dto.response.OrderItemResponse;
 import com.example.orderservice.dto.response.OrderResponse;
 import com.example.orderservice.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,11 +16,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -41,47 +41,35 @@ class OrderControllerTest {
 
     private OrderResponse orderResponse;
     private OrderCreateRequest createRequest;
+    private DeliveryInfoRequest deliveryInfoRequest;
 
     @BeforeEach
     void setUp() {
-        OrderItemResponse itemResponse = OrderItemResponse.builder()
-                .orderItemId(1L)
-                .productId(100L)
-                .skuId(1001L)
-                .productName("테스트 상품")
-                .productCode("PROD-001")
-                .quantity(2)
-                .unitPrice(new BigDecimal("25000.00"))
-                .totalPrice(new BigDecimal("50000.00"))
-                .build();
-
         orderResponse = OrderResponse.builder()
                 .orderId(1L)
                 .orderNumber("ORD-20240101-ABCD1234")
-                .userId(1L)
                 .orderStatus(OrderStatus.CREATED)
-                .totalProductAmount(new BigDecimal("50000.00"))
-                .totalDiscountAmount(new BigDecimal("5000.00"))
-                .totalPaymentAmount(new BigDecimal("45000.00"))
-                .orderMemo("테스트 주문")
                 .orderedAt(LocalDateTime.now())
-                .orderItems(List.of(itemResponse))
+                .build();
+
+        deliveryInfoRequest = DeliveryInfoRequest.builder()
+                .receiverName("홍길동")
+                .receiverPhone("010-1234-5678")
+                .zipcode("12345")
+                .address("서울특별시 강남구 테헤란로 123")
+                .addressDetail("아파트 101동 202호")
+                .deliveryMemo("문 앞에 놓아주세요.")
                 .build();
 
         OrderItemRequest itemRequest = OrderItemRequest.builder()
-                .productId(100L)
-                .skuId(1001L)
-                .productName("테스트 상품")
-                .productCode("PROD-001")
+                .productId(456L)
+                .skuId(789L)
                 .quantity(2)
-                .unitPrice(new BigDecimal("25000.00"))
                 .build();
 
         createRequest = OrderCreateRequest.builder()
-                .userId(1L)
                 .orderItems(List.of(itemRequest))
-                .discountAmount(new BigDecimal("5000.00"))
-                .orderMemo("테스트 주문")
+                .deliveryInfo(deliveryInfoRequest)
                 .build();
     }
 
@@ -89,43 +77,28 @@ class OrderControllerTest {
     @DisplayName("POST /api/orders - 주문 생성 성공")
     void createOrder_Success() throws Exception {
         // given
-        given(orderService.createOrder(any(OrderCreateRequest.class))).willReturn(orderResponse);
+        given(orderService.createOrder(eq(1L), any(OrderCreateRequest.class))).willReturn(orderResponse);
 
         // when & then
         mockMvc.perform(post("/api/orders")
+                        .header("X-User-Id", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.orderId").value(1))
                 .andExpect(jsonPath("$.orderNumber").value("ORD-20240101-ABCD1234"))
-                .andExpect(jsonPath("$.userId").value(1))
                 .andExpect(jsonPath("$.orderStatus").value("CREATED"))
-                .andExpect(jsonPath("$.totalProductAmount").value(50000.00))
-                .andExpect(jsonPath("$.totalDiscountAmount").value(5000.00))
-                .andExpect(jsonPath("$.totalPaymentAmount").value(45000.00))
-                .andExpect(jsonPath("$.orderItems").isArray())
-                .andExpect(jsonPath("$.orderItems[0].productName").value("테스트 상품"));
+                .andExpect(jsonPath("$.orderedAt").exists());
     }
 
     @Test
-    @DisplayName("POST /api/orders - 유효성 검증 실패 (userId 누락)")
-    void createOrder_ValidationFail_MissingUserId() throws Exception {
-        // given
-        OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
-                .orderItems(List.of(OrderItemRequest.builder()
-                        .productId(100L)
-                        .skuId(1001L)
-                        .productName("상품")
-                        .quantity(1)
-                        .unitPrice(new BigDecimal("10000"))
-                        .build()))
-                .build();
-
+    @DisplayName("POST /api/orders - 유효성 검증 실패 (X-User-Id 헤더 누락)")
+    void createOrder_ValidationFail_MissingUserIdHeader() throws Exception {
         // when & then
         mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                        .content(objectMapper.writeValueAsString(createRequest)))
                 .andDo(print())
                 .andExpect(status().isBadRequest());
     }
@@ -135,12 +108,13 @@ class OrderControllerTest {
     void createOrder_ValidationFail_EmptyOrderItems() throws Exception {
         // given
         OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
-                .userId(1L)
                 .orderItems(List.of())
+                .deliveryInfo(deliveryInfoRequest)
                 .build();
 
         // when & then
         mockMvc.perform(post("/api/orders")
+                        .header("X-User-Id", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andDo(print())
@@ -152,18 +126,67 @@ class OrderControllerTest {
     void createOrder_ValidationFail_InvalidQuantity() throws Exception {
         // given
         OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
-                .userId(1L)
                 .orderItems(List.of(OrderItemRequest.builder()
-                        .productId(100L)
-                        .skuId(1001L)
-                        .productName("상품")
+                        .productId(456L)
+                        .skuId(789L)
                         .quantity(0)
-                        .unitPrice(new BigDecimal("10000"))
                         .build()))
+                .deliveryInfo(deliveryInfoRequest)
                 .build();
 
         // when & then
         mockMvc.perform(post("/api/orders")
+                        .header("X-User-Id", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/orders - 유효성 검증 실패 (배송 정보 누락)")
+    void createOrder_ValidationFail_MissingDeliveryInfo() throws Exception {
+        // given
+        OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
+                .orderItems(List.of(OrderItemRequest.builder()
+                        .productId(456L)
+                        .skuId(789L)
+                        .quantity(2)
+                        .build()))
+                .deliveryInfo(null)
+                .build();
+
+        // when & then
+        mockMvc.perform(post("/api/orders")
+                        .header("X-User-Id", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/orders - 유효성 검증 실패 (수령인 이름 누락)")
+    void createOrder_ValidationFail_MissingReceiverName() throws Exception {
+        // given
+        DeliveryInfoRequest invalidDeliveryInfo = DeliveryInfoRequest.builder()
+                .receiverPhone("010-1234-5678")
+                .zipcode("12345")
+                .address("서울특별시 강남구 테헤란로 123")
+                .build();
+
+        OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
+                .orderItems(List.of(OrderItemRequest.builder()
+                        .productId(456L)
+                        .skuId(789L)
+                        .quantity(2)
+                        .build()))
+                .deliveryInfo(invalidDeliveryInfo)
+                .build();
+
+        // when & then
+        mockMvc.perform(post("/api/orders")
+                        .header("X-User-Id", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andDo(print())

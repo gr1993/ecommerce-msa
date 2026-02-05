@@ -5,5 +5,5 @@ import com.example.orderservice.dto.response.OrderResponse;
 
 public interface OrderService {
 
-    OrderResponse createOrder(OrderCreateRequest request);
+    OrderResponse createOrder(Long userId, OrderCreateRequest request);
 }

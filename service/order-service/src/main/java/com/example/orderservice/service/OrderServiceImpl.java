@@ -1,8 +1,10 @@
 package com.example.orderservice.service;
 
 import com.example.orderservice.domain.entity.Order;
+import com.example.orderservice.domain.entity.OrderDelivery;
 import com.example.orderservice.domain.entity.OrderItem;
 import com.example.orderservice.domain.entity.OrderStatus;
+import com.example.orderservice.dto.request.DeliveryInfoRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
 import com.example.orderservice.dto.response.OrderResponse;
@@ -25,46 +27,51 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponse createOrder(OrderCreateRequest request) {
-        BigDecimal totalProductAmount = calculateTotalProductAmount(request);
-        BigDecimal discountAmount = request.getDiscountAmount() != null
-                ? request.getDiscountAmount()
-                : BigDecimal.ZERO;
-        BigDecimal totalPaymentAmount = totalProductAmount.subtract(discountAmount);
+    public OrderResponse createOrder(Long userId, OrderCreateRequest request) {
+        // TODO: product-service에서 상품 정보(productName, unitPrice 등) 조회
+        // 현재는 임시값 사용
+        BigDecimal totalProductAmount = BigDecimal.ZERO;
 
         Order order = Order.builder()
                 .orderNumber(generateOrderNumber())
-                .userId(request.getUserId())
+                .userId(userId)
                 .orderStatus(OrderStatus.CREATED)
                 .totalProductAmount(totalProductAmount)
-                .totalDiscountAmount(discountAmount)
-                .totalPaymentAmount(totalPaymentAmount)
-                .orderMemo(request.getOrderMemo())
+                .totalDiscountAmount(BigDecimal.ZERO)
+                .totalPaymentAmount(totalProductAmount)
                 .build();
 
         for (OrderItemRequest itemRequest : request.getOrderItems()) {
+            // TODO: product-service에서 상품 정보 조회 후 설정
+            BigDecimal unitPrice = BigDecimal.ZERO;
+            BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(itemRequest.getQuantity()));
+
             OrderItem orderItem = OrderItem.builder()
                     .productId(itemRequest.getProductId())
                     .skuId(itemRequest.getSkuId())
-                    .productName(itemRequest.getProductName())
-                    .productCode(itemRequest.getProductCode())
+                    .productName("") // TODO: product-service에서 조회
                     .quantity(itemRequest.getQuantity())
-                    .unitPrice(itemRequest.getUnitPrice())
-                    .totalPrice(itemRequest.getUnitPrice()
-                            .multiply(BigDecimal.valueOf(itemRequest.getQuantity())))
+                    .unitPrice(unitPrice)
+                    .totalPrice(totalPrice)
                     .build();
             order.addOrderItem(orderItem);
+
+            totalProductAmount = totalProductAmount.add(totalPrice);
         }
+
+        DeliveryInfoRequest deliveryInfo = request.getDeliveryInfo();
+        OrderDelivery orderDelivery = OrderDelivery.builder()
+                .receiverName(deliveryInfo.getReceiverName())
+                .receiverPhone(deliveryInfo.getReceiverPhone())
+                .zipcode(deliveryInfo.getZipcode())
+                .address(deliveryInfo.getAddress())
+                .addressDetail(deliveryInfo.getAddressDetail())
+                .deliveryMemo(deliveryInfo.getDeliveryMemo())
+                .build();
+        order.setOrderDelivery(orderDelivery);
 
         Order savedOrder = orderRepository.save(order);
         return OrderResponse.from(savedOrder);
-    }
-
-    private BigDecimal calculateTotalProductAmount(OrderCreateRequest request) {
-        return request.getOrderItems().stream()
-                .map(item -> item.getUnitPrice()
-                        .multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private String generateOrderNumber() {

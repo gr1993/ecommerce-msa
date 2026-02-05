@@ -56,6 +56,9 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderPayment> orderPayments = new ArrayList<>();
 
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private OrderDelivery orderDelivery;
+
     @Builder
     public Order(String orderNumber, Long userId, OrderStatus orderStatus,
                  BigDecimal totalProductAmount, BigDecimal totalDiscountAmount,
@@ -92,5 +95,10 @@ public class Order {
     public void addOrderPayment(OrderPayment orderPayment) {
         this.orderPayments.add(orderPayment);
         orderPayment.setOrder(this);
+    }
+
+    public void setOrderDelivery(OrderDelivery orderDelivery) {
+        this.orderDelivery = orderDelivery;
+        orderDelivery.setOrder(this);
     }
 }

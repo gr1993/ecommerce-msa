@@ -2,42 +2,35 @@ package com.example.orderservice.dto.response;
 
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
+@Schema(description = "주문 생성 응답")
 @Getter
 @Builder
 public class OrderResponse {
 
+    @Schema(description = "주문 ID", example = "1")
     private Long orderId;
+
+    @Schema(description = "주문 번호", example = "ORD-20240101-ABCD1234")
     private String orderNumber;
-    private Long userId;
+
+    @Schema(description = "주문 상태", example = "CREATED")
     private OrderStatus orderStatus;
-    private BigDecimal totalProductAmount;
-    private BigDecimal totalDiscountAmount;
-    private BigDecimal totalPaymentAmount;
-    private String orderMemo;
+
+    @Schema(description = "주문 일시", example = "2024-01-01T10:00:00")
     private LocalDateTime orderedAt;
-    private List<OrderItemResponse> orderItems;
 
     public static OrderResponse from(Order order) {
         return OrderResponse.builder()
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
-                .userId(order.getUserId())
                 .orderStatus(order.getOrderStatus())
-                .totalProductAmount(order.getTotalProductAmount())
-                .totalDiscountAmount(order.getTotalDiscountAmount())
-                .totalPaymentAmount(order.getTotalPaymentAmount())
-                .orderMemo(order.getOrderMemo())
                 .orderedAt(order.getOrderedAt())
-                .orderItems(order.getOrderItems().stream()
-                        .map(OrderItemResponse::from)
-                        .toList())
                 .build();
     }
 }
