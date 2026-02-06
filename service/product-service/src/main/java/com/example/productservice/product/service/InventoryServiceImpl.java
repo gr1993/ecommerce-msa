@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryServiceImpl implements InventoryService {
 
     private final ProductSkuRepository productSkuRepository;
+    private final ProductSkuHistoryService productSkuHistoryService;
 
     @Override
     @Transactional
@@ -35,12 +36,16 @@ public class InventoryServiceImpl implements InventoryService {
                         item.getSkuId(), currentStock, requestedQty));
             }
 
-            sku.setStockQty(currentStock - requestedQty);
+            int newStock = currentStock - requestedQty;
+            sku.setStockQty(newStock);
             productSkuRepository.save(sku);
+
+            // 재고 차감 이력 기록
+            productSkuHistoryService.recordDeduction(sku, event.getOrderNumber(), requestedQty, newStock);
 
             log.info("Stock decreased: skuId={}, productName={}, before={}, after={}, quantity={}",
                     item.getSkuId(), item.getProductName(), currentStock,
-                    sku.getStockQty(), requestedQty);
+                    newStock, requestedQty);
         }
 
         log.info("Completed stock decrease for orderId={}, itemCount={}",

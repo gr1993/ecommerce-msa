@@ -47,6 +47,7 @@ public class ProductServiceImpl implements ProductService {
     private final FileUploadRepository fileUploadRepository;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final ProductSkuHistoryService productSkuHistoryService;
 
     @Override
     public PageResponse<ProductResponse> searchProducts(ProductSearchRequest request) {
@@ -181,7 +182,10 @@ public class ProductServiceImpl implements ProductService {
         // 7. 저장
         Product savedProduct = productRepository.save(product);
 
-        // 8. 이벤트 생성 및 Outbox에 저장
+        // 8. SKU 초기 재고 이력 기록
+        productSkuHistoryService.recordInitialBatch(savedProduct.getSkus());
+
+        // 9. 이벤트 생성 및 Outbox에 저장
         saveProductCreatedEvent(savedProduct);
 
         log.info("Product created successfully with ID: {}", savedProduct.getProductId());
@@ -216,7 +220,16 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(request.getStatus());
         product.setIsDisplayed(request.getIsDisplayed());
 
-        // 2. 기존 옵션 그룹, SKU, 이미지 삭제
+        // 2. 기존 SKU 재고 정보 저장 (skuCode -> stockQty)
+        Map<String, Integer> previousStockBySkuCode = product.getSkus().stream()
+                .filter(sku -> sku.getSkuCode() != null)
+                .collect(Collectors.toMap(
+                        ProductSku::getSkuCode,
+                        ProductSku::getStockQty,
+                        (existing, replacement) -> existing
+                ));
+
+        // 3. 기존 옵션 그룹, SKU, 이미지 삭제
         product.getOptionGroups().clear();
         product.getSkus().clear();
 
@@ -321,12 +334,35 @@ public class ProductServiceImpl implements ProductService {
         // 8. 저장
         Product savedProduct = productRepository.save(product);
 
-        // 9. 이벤트 생성 및 Outbox에 저장
+        // 9. SKU 재고 이력 기록 (새 SKU 또는 재고 변동 SKU)
+        recordSkuStockHistory(savedProduct.getSkus(), previousStockBySkuCode);
+
+        // 10. 이벤트 생성 및 Outbox에 저장
         saveProductUpdatedEvent(savedProduct);
 
         log.info("Product updated successfully: productId={}", savedProduct.getProductId());
 
         return ProductResponse.from(savedProduct);
+    }
+
+    /**
+     * SKU 재고 이력을 기록합니다.
+     * - 기존에 없던 skuCode: INITIAL로 기록
+     * - 기존 skuCode가 있고 재고 변동: MANUAL_EDIT로 기록
+     */
+    private void recordSkuStockHistory(List<ProductSku> newSkus, Map<String, Integer> previousStockBySkuCode) {
+        for (ProductSku sku : newSkus) {
+            String skuCode = sku.getSkuCode();
+            Integer previousStock = skuCode != null ? previousStockBySkuCode.get(skuCode) : null;
+
+            if (previousStock == null) {
+                // 새로운 SKU - INITIAL로 기록
+                productSkuHistoryService.recordInitial(sku, sku.getStockQty());
+            } else if (!previousStock.equals(sku.getStockQty())) {
+                // 기존 SKU, 재고 변동 - MANUAL_EDIT로 기록
+                productSkuHistoryService.recordManualEdit(sku, previousStock, sku.getStockQty());
+            }
+        }
     }
 
     @Override
