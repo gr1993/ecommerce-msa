@@ -98,6 +98,32 @@ Payment-Service는 외부 PG사 연동, 결제 승인 및 상태 관리, 결제 
 Order-Service로부터 결제 로직을 분리하여 서비스 간 응집도를 높였다. 재고 관리는 주문 생성 시점에  
 선차감을 수행하며, 결제 실패 시 보상 트랜잭션을 통해 재고를 복구하는 방식으로 설계하였다.  
 
+```mermaid
+sequenceDiagram
+    participant User
+    participant Order as Order Service (MySQL)
+    participant Kafka
+    participant Product as Product Service (MySQL)
+    participant Payment as Payment Service (MongoDB)
+
+    User->>Order: 1. 주문 생성 요청
+    Order->>Order: 주문 정보 저장 (Pending)
+    Order-->>Kafka: 2. OrderCreated 이벤트 발행
+    
+    par 이벤트 구독 및 처리
+        Kafka->>Product: OrderCreated 구독
+        Product->>Product: 재고 차감 처리
+    and
+        Kafka->>Payment: OrderCreated 구독
+        Payment->>Payment: 주문 정보 복제 (MongoDB)
+    end
+
+    User->>Payment: 3. 최종 결제 승인 요청
+    Payment->>Payment: MongoDB 데이터 검증
+    Payment->>Payment: PG 결제 처리
+    Payment-->>Kafka: 4. PaymentConfirmed 이벤트 발행
+```
+
 #### 주문 단계
 1. 주문 생성 및 재고 선점 : Order-Service에서 주문 데이터를 생성하고 상태를 PENDING으로 설정한다. 이와 동시에 Product-Service에서 order.created 이벤트를 구독하여 해당 상품의 SKU 재고를 즉시 차감하여 구매 권한을 선점한다.
 2. 결제 승인 및 검증 : 클라이언트가 PG사를 통해 결제를 완료하면, 서버는 실제 주문 금액과 PG 승인 금액의 일치 여부를 검증한다. 검증 결과에 따라 주문 상태를 PAID 또는 FILED로 전환한다.
