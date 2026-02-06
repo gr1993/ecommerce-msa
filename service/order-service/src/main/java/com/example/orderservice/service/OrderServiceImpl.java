@@ -1,19 +1,26 @@
 package com.example.orderservice.service;
 
 import com.example.orderservice.client.ProductServiceClient;
+import com.example.orderservice.client.dto.ProductDetailResponse;
+import com.example.orderservice.client.dto.ProductDetailResponse.OptionValueResponse;
+import com.example.orderservice.client.dto.ProductDetailResponse.SkuResponse;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderDelivery;
 import com.example.orderservice.domain.entity.OrderItem;
 import com.example.orderservice.domain.entity.OrderStatus;
+import com.example.orderservice.domain.entity.Outbox;
+import com.example.orderservice.domain.event.OrderCreatedEvent;
 import com.example.orderservice.dto.request.DeliveryInfoRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
 import com.example.orderservice.dto.response.OrderResponse;
-import com.example.orderservice.client.dto.ProductDetailResponse;
-import com.example.orderservice.client.dto.ProductDetailResponse.OptionValueResponse;
-import com.example.orderservice.client.dto.ProductDetailResponse.SkuResponse;
+import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.repository.OrderRepository;
+import com.example.orderservice.repository.OutboxRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +32,16 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final OutboxRepository outboxRepository;
     private final ProductServiceClient productServiceClient;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -83,7 +93,58 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderDelivery(orderDelivery);
 
         Order savedOrder = orderRepository.save(order);
+
+        saveOrderCreatedOutbox(savedOrder);
+
         return OrderResponse.from(savedOrder);
+    }
+
+    private void saveOrderCreatedOutbox(Order order) {
+        OrderCreatedEvent event = OrderCreatedEvent.builder()
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .userId(order.getUserId())
+                .orderStatus(order.getOrderStatus().name())
+                .totalProductAmount(order.getTotalProductAmount())
+                .totalDiscountAmount(order.getTotalDiscountAmount())
+                .totalPaymentAmount(order.getTotalPaymentAmount())
+                .orderItems(order.getOrderItems().stream()
+                        .map(item -> OrderCreatedEvent.OrderItemSnapshot.builder()
+                                .orderItemId(item.getId())
+                                .productId(item.getProductId())
+                                .skuId(item.getSkuId())
+                                .productName(item.getProductName())
+                                .productCode(item.getProductCode())
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .totalPrice(item.getTotalPrice())
+                                .build())
+                        .toList())
+                .delivery(OrderCreatedEvent.DeliverySnapshot.builder()
+                        .receiverName(order.getOrderDelivery().getReceiverName())
+                        .receiverPhone(order.getOrderDelivery().getReceiverPhone())
+                        .zipcode(order.getOrderDelivery().getZipcode())
+                        .address(order.getOrderDelivery().getAddress())
+                        .addressDetail(order.getOrderDelivery().getAddressDetail())
+                        .deliveryMemo(order.getOrderDelivery().getDeliveryMemo())
+                        .build())
+                .orderedAt(order.getOrderedAt())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Order")
+                    .aggregateId(String.valueOf(order.getId()))
+                    .eventType(EventTypeConstants.TOPIC_ORDER_CREATED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("Outbox 저장 완료: orderId={}", order.getId());
+        } catch (JsonProcessingException e) {
+            log.error("OrderCreatedEvent 직렬화 실패: orderId={}", order.getId(), e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
     }
 
     private SkuResponse findSkuById(List<SkuResponse> skus, Long skuId) {

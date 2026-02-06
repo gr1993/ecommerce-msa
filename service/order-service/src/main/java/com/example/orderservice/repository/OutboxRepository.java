@@ -16,4 +16,6 @@ public interface OutboxRepository extends JpaRepository<Outbox, Long> {
     List<Outbox> findByAggregateTypeAndAggregateId(String aggregateType, String aggregateId);
 
     List<Outbox> findByStatusAndCreatedAtBefore(OutboxStatus status, LocalDateTime dateTime);
+
+    List<Outbox> findByStatusOrderByCreatedAtAsc(OutboxStatus status);
 }
