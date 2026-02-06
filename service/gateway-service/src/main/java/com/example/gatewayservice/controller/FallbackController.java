@@ -60,4 +60,16 @@ public class FallbackController {
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
+
+    @RequestMapping("/order")
+    public ResponseEntity<Map<String, Object>>orderServiceFallback() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        response.put("error", "Service Unavailable");
+        response.put("message", "Order Service is temporarily unavailable. Please try again later.");
+        response.put("service", "order-service");
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
 }
