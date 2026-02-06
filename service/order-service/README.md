@@ -26,6 +26,9 @@ com.example.authservice
 * spring-boot-starter-web
 * spring-boot-starter-data-jpa
 * MySQL : 영속성 저장소
+* Spring Kafka : 이벤트 메시징
+* openfeign : Http Client
+* Springwolf 1.20.0 : AsyncAPI 문서 자동 생성
 * springdoc-openapi-starter-webmvc-ui:2.8.9 : Swagger
 * spring-cloud-starter-config : Config Client
 * eureka-client
