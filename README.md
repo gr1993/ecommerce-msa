@@ -91,6 +91,31 @@ Product-Service는 관리자가 상품을 등록·수정·삭제하는 원본 �
 Catalog-Service는 이를 구독하여 전시용 데이터에 반영한다. 이를 통해 Redis 캐싱, Elasticsearch 검색  
 등 다양한 저장소를 활용한 조회 최적화를 수행할 수 있다.  
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Admin
+    participant PS as Product Service (Write)
+    participant Kafka
+    participant CS as Catalog Service (Read)
+    participant ES as Elasticsearch
+    participant Redis
+
+    Admin->>PS: 상품 정보 수정 (가격, 재고 등)
+    PS->>PS: DB 업데이트 (MySQL)
+    PS-->>Kafka: product.updated 이벤트 발행 (최소 정보 포함)
+
+    par 목록용 Consumer
+        Kafka->>CS: 이벤트 수신
+        CS->>ES: Upsert (검색 인덱스 갱신)
+    and 상세용 Consumer (Data Enrichment)
+        Kafka->>CS: 이벤트 수신
+        CS->>PS: Product 상세 API 호출 (Full Data 요청)
+        PS-->>CS: 상세 데이터 응답
+        CS->>Redis: Redis 캐시 갱신 (Cache-Aside용)
+    end
+```
+
 
 ### 주문 / 결제 서비스
 
