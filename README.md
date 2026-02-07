@@ -16,66 +16,46 @@ flowchart TD
     FE --> GW[gateway-service]
 
     %% 인프라 서비스
-    subgraph Infrastructure
+    subgraph Infrastructure ["Infrastructure"]
         Config[config-server]
         Discovery[discovery-service]
     end
 
-    GW -.-> Discovery
-    GW -.-> Config
+    GW -.-> Infrastructure
 
-    %% 비즈니스 서비스 및 DB
-    subgraph Core_Services
+    %% 비즈니스 서비스 그룹 (박스 자체와 연결)
+    subgraph Core_Services ["Core Business Services"]
         direction TB
         Auth[auth-service] --- AuthDB[(MySQL)]
         UserS[user-service] --- UserDB[(MySQL)]
         Prod[product-service] --- ProdDB[(MySQL)]
-        Cat[catalog-service] --- CatES[(Elasticsearch)]
-        Cat --- CatRedis[(Redis)]
+        Cat[catalog-service] --- CatES[(ES / Redis)]
         Order[order-service] --- OrderDB[(MySQL)]
         Pay[payment-service] --- PayDB[(MongoDB)]
     end
 
-    %% API 라우팅
-    GW --> Auth
-    GW --> UserS
-    GW --> Prod
-    GW --> Cat
-    GW --> Order
-    GW --> Pay
-
-    %% 메시지 브로커 (Kafka) 연결: 비즈니스 로직을 배제한 구조적 연결
+    %% 중앙 메시지 브로커
     Kafka{{"Kafka (Message Broker)"}}
 
-    %% 발행(Pub) 측면
-    Auth --- Kafka
-    UserS --- Kafka
-    Prod --- Kafka
-    Order --- Kafka
-    
-    %% 구독(Sub) 측면
-    Kafka --- Cat
-    Kafka --- Pay
-    Kafka --- Prod
-    Kafka --- Order
+    %% 개별 서비스가 아닌 박스(그룹) 단위로 연결
+    GW ===> Core_Services
+    Core_Services <===> Kafka
 
     %% 스타일 설정
     style Kafka fill:#231F20,stroke:#FFF,color:#FFF
-    style Discovery fill:#f9f,stroke:#333
-    style Config fill:#f9f,stroke:#333
+    style Infrastructure fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
     style GW fill:#bbf,stroke:#333
-    
-    %% GitHub 레포지토리 풀 경로 링크 설정
-    click FE "https://github.com/gr1993/ecommerce-msa/tree/main/service/frontend-service" "Go to Frontend"
-    click GW "https://github.com/gr1993/ecommerce-msa/tree/main/service/gateway-service" "Go to Gateway"
-    click Config "https://github.com/gr1993/ecommerce-msa/tree/main/service/config-server" "Go to Config"
-    click Discovery "https://github.com/gr1993/ecommerce-msa/tree/main/service/discovery-service" "Go to Discovery"
-    click Auth "https://github.com/gr1993/ecommerce-msa/tree/main/service/auth-service" "Go to Auth"
-    click UserS "https://github.com/gr1993/ecommerce-msa/tree/main/service/user-service" "Go to User"
-    click Prod "https://github.com/gr1993/ecommerce-msa/tree/main/service/product-service" "Go to Product"
-    click Cat "https://github.com/gr1993/ecommerce-msa/tree/main/service/catalog-service" "Go to Catalog"
-    click Order "https://github.com/gr1993/ecommerce-msa/tree/main/service/order-service" "Go to Order"
-    click Pay "https://github.com/gr1993/ecommerce-msa/tree/main/service/payment-service" "Go to Payment"
+    style Core_Services fill:#fff,stroke:#333,stroke-width:2px
+
+    %% 클릭 링크
+    click FE "https://github.com/gr1993/ecommerce-msa/tree/main/service/frontend-service"
+    click GW "https://github.com/gr1993/ecommerce-msa/tree/main/service/gateway-service"
+    click Auth "https://github.com/gr1993/ecommerce-msa/tree/main/service/auth-service"
+    click UserS "https://github.com/gr1993/ecommerce-msa/tree/main/service/user-service"
+    click Prod "https://github.com/gr1993/ecommerce-msa/tree/main/service/product-service"
+    click Cat "https://github.com/gr1993/ecommerce-msa/tree/main/service/catalog-service"
+    click Order "https://github.com/gr1993/ecommerce-msa/tree/main/service/order-service"
+    click Pay "https://github.com/gr1993/ecommerce-msa/tree/main/service/payment-service"
 ```
 
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
