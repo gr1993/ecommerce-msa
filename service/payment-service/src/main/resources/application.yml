@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: payment-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/payment-service
+
+toss:
+  payments:
+    api:
+      base-url: https://api.tosspayments.com
+      secret-key: test_sk_PLACEHOLDER_CHANGE_THIS_VALUE

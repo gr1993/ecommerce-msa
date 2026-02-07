@@ -1,0 +1,71 @@
+package com.example.paymentservice.service;
+
+import com.example.paymentservice.client.TossPaymentsClient;
+import com.example.paymentservice.domain.Order;
+import com.example.paymentservice.dto.PaymentConfirmRequest;
+import com.example.paymentservice.dto.PaymentConfirmResponse;
+import com.example.paymentservice.dto.TossPaymentConfirmRequest;
+import com.example.paymentservice.dto.TossPaymentResponse;
+import com.example.paymentservice.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentService {
+
+    private final OrderRepository orderRepository;
+    private final TossPaymentsClient tossPaymentsClient;
+
+    /**
+     * 결제 승인 처리
+     * 1. 주문 정보 조회
+     * 2. 결제 금액과 주문 금액 검증
+     * 3. 토스페이먼츠 결제 승인 API 호출
+     * 4. 주문 상태 업데이트
+     */
+    @Transactional
+    public PaymentConfirmResponse confirmPayment(PaymentConfirmRequest request) {
+        log.info("결제 승인 요청 - orderId: {}, paymentKey: {}, amount: {}",
+                request.getOrderId(), request.getPaymentKey(), request.getAmount());
+
+        // 1. 주문 정보 조회
+        Order order = orderRepository.findByOrderId(request.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. orderId: " + request.getOrderId()));
+
+        // 2. 결제 금액과 주문 금액 검증 (위변조 방지)
+        if (!order.getAmount().equals(request.getAmount())) {
+            log.error("결제 금액 불일치 - 주문 금액: {}, 요청 금액: {}", order.getAmount(), request.getAmount());
+            order.fail();
+            orderRepository.save(order);
+            throw new IllegalArgumentException("결제 금액이 일치하지 않습니다.");
+        }
+
+        // 3. 토스페이먼츠 결제 승인 API 호출
+        TossPaymentConfirmRequest tossRequest = TossPaymentConfirmRequest.builder()
+                .paymentKey(request.getPaymentKey())
+                .orderId(request.getOrderId())
+                .amount(request.getAmount())
+                .build();
+
+        TossPaymentResponse tossResponse = tossPaymentsClient.confirmPayment(tossRequest);
+
+        log.info("토스페이먼츠 결제 승인 완료 - orderId: {}, status: {}",
+                tossResponse.getOrderId(), tossResponse.getStatus());
+
+        // 4. 주문 상태 업데이트
+        order.approve(request.getPaymentKey());
+        orderRepository.save(order);
+
+        return PaymentConfirmResponse.builder()
+                .orderId(tossResponse.getOrderId())
+                .paymentKey(tossResponse.getPaymentKey())
+                .amount(tossResponse.getTotalAmount())
+                .status(tossResponse.getStatus())
+                .approvedAt(tossResponse.getApprovedAt())
+                .build();
+    }
+}
