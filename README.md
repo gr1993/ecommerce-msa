@@ -9,26 +9,66 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 
 ### 아키텍처 구성도
 
-```
-docs/
-infra/
-  docker-compose.yml         # 모든 서비스 실행 설정
-  docker-compose.infra.yml   # 저장소(인프라) 구축 설정
-service/
-  config-server/
-  discovery-service/
-  gateway-service/
-  frontend-service/
-  auth-service/
-  user-service/
-  product-service/
-  catalog-service/
-  order-service/
-  payment-service/
-  promotion-service/
-  delivery-service/
-  settlement-service/
-  return-service/
+```mermaid
+flowchart TD
+    %% 사용자 및 프론트엔드
+    User((User)) --> FE[frontend-service]
+    FE --> GW[gateway-service]
+
+    %% 인프라 서비스
+    subgraph Infrastructure
+        Config[config-server]
+        Discovery[discovery-service]
+    end
+
+    GW -.-> Discovery
+    GW -.-> Config
+
+    %% 비즈니스 서비스 및 DB
+    subgraph Core_Services
+        direction TB
+        Auth[auth-service] --- AuthDB[(MySQL)]
+        UserS[user-service] --- UserDB[(MySQL)]
+        Prod[product-service] --- ProdDB[(MySQL)]
+        Cat[catalog-service] --- CatES[(Elasticsearch)]
+        Cat --- CatRedis[(Redis)]
+        Order[order-service] --- OrderDB[(MySQL)]
+        Pay[payment-service] --- PayDB[(MongoDB)]
+    end
+
+    %% API 라우팅
+    GW --> Auth
+    GW --> UserS
+    GW --> Prod
+    GW --> Cat
+    GW --> Order
+    GW --> Pay
+
+    %% 메시지 브로커 (Kafka)
+    Kafka{{"Kafka (Message Broker)"}}
+
+    Prod -.->|Events| Kafka
+    Order -.->|Events| Kafka
+    Kafka -.-> Cat
+    Kafka -.-> Pay
+
+    %% 스타일 설정
+    style Kafka fill:#231F20,stroke:#FFF,color:#FFF
+    style Discovery fill:#f9f,stroke:#333
+    style Config fill:#f9f,stroke:#333
+    style GW fill:#bbf,stroke:#333
+    
+    %% 서비스 노드 클릭 시 디렉토리로 이동하는 링크 설정
+    click FE "./service/frontend-service" "Go to Frontend Service"
+    click GW "./service/gateway-service" "Go to Gateway Service"
+    click Config "./service/config-server" "Go to Config Server"
+    click Discovery "./service/discovery-service" "Go to Discovery Service"
+    click Auth "./service/auth-service" "Go to Auth Service"
+    click UserS "./service/user-service" "Go to User Service"
+    click Prod "./service/product-service" "Go to Product Service"
+    click Cat "./service/catalog-service" "Go to Catalog Service"
+    click Order "./service/order-service" "Go to Order Service"
+    click Pay "./service/payment-service" "Go to Payment Service"
 ```
 
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
