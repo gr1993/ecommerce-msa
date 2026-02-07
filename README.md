@@ -79,7 +79,7 @@ Saga Pattern은 하나의 비즈니스 행위가 여러 서비스에 걸쳐 수�
 * Config-Server
   * Spring Boot 기반 서비스들의 설정 서버이며 [해당 Git 저장소](https://github.com/gr1993/ecommerce-msa-config)에서 설정 정보를 로딩한다.
 * discovery-service
-  * 각 마이크로서비스의 등록 및 위치 정보를 관리하고, 다른 서비스들이 이를 통해 동적으로 서로를 찾을 수 있도록 지원하는 서비스
+  * 각 마이크로서비스의 등록 및 위치 정보를 관리(다른 서비스들이 이를 통해 동적으로 서로를 찾을 수 있도록 지원)
 * Gateway-Service
   * 토큰 검증 기반 인가
   * 로깅
