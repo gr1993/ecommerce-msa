@@ -1,7 +1,7 @@
 package com.example.paymentservice.client;
 
-import com.example.paymentservice.dto.TossPaymentConfirmRequest;
-import com.example.paymentservice.dto.TossPaymentResponse;
+import com.example.paymentservice.dto.request.TossPaymentConfirmRequest;
+import com.example.paymentservice.dto.response.TossPaymentResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

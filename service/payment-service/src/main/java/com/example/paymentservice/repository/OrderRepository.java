@@ -1,6 +1,6 @@
 package com.example.paymentservice.repository;
 
-import com.example.paymentservice.domain.Order;
+import com.example.paymentservice.domain.entity.Order;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;

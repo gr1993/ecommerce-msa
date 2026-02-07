@@ -18,6 +18,25 @@ payment-service는 토스페이먼츠를 이용한 결제 서비스이며, 결�
 4. **주문 상태 업데이트**: 결제 승인 완료 상태로 변경
 
 
+### 프로젝트 패키지 구조
+
+```
+com.example.paymentservice
+├── client              # 토스페이먼츠 API Feign 클라이언트 및 인증 설정
+├── config              # 설정 클래스 (Swagger 등)
+├── controller          # API 엔드포인트 (REST Controller)
+├── domain
+│   ├── entity/         # MongoDB Document 엔티티
+│   └── event/          # 도메인 이벤트 클래스
+├── dto                 # Request/Response 데이터 전송 객체
+│   ├── request/
+│   └── response/
+├── exception           # 커스텀 예외 처리 및 Global Handler
+├── repository          # DB 접근 (Spring Data MongoDB Interface)
+└── service             # 비즈니스 로직 (결제 승인 처리)
+```
+
+
 ### 백엔드 기술
 
 * Java 17

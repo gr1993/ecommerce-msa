@@ -1,4 +1,4 @@
-package com.example.paymentservice.domain;
+package com.example.paymentservice.domain.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

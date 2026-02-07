@@ -1,4 +1,4 @@
-package com.example.paymentservice.dto;
+package com.example.paymentservice.dto.response;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

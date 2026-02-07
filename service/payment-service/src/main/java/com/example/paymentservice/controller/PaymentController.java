@@ -1,7 +1,7 @@
 package com.example.paymentservice.controller;
 
-import com.example.paymentservice.dto.PaymentConfirmRequest;
-import com.example.paymentservice.dto.PaymentConfirmResponse;
+import com.example.paymentservice.dto.request.PaymentConfirmRequest;
+import com.example.paymentservice.dto.response.PaymentConfirmResponse;
 import com.example.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

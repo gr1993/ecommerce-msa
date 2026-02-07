@@ -1,11 +1,11 @@
 package com.example.paymentservice.service;
 
 import com.example.paymentservice.client.TossPaymentsClient;
-import com.example.paymentservice.domain.Order;
-import com.example.paymentservice.dto.PaymentConfirmRequest;
-import com.example.paymentservice.dto.PaymentConfirmResponse;
-import com.example.paymentservice.dto.TossPaymentConfirmRequest;
-import com.example.paymentservice.dto.TossPaymentResponse;
+import com.example.paymentservice.domain.entity.Order;
+import com.example.paymentservice.dto.request.PaymentConfirmRequest;
+import com.example.paymentservice.dto.request.TossPaymentConfirmRequest;
+import com.example.paymentservice.dto.response.PaymentConfirmResponse;
+import com.example.paymentservice.dto.response.TossPaymentResponse;
 import com.example.paymentservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
