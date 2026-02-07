@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
  *
  * 지원 이벤트:
  * - ORDER_CREATED: 주문 생성 (재고 차감)
- * - STOCK_REJECTED: 재고 부족 (보상 트랜잭션)
+ * - ORDER_CANCELLED: 주문 취소 (재고 복구 보상 트랜잭션)
+ * - PAYMENT_CANCELLED: 결제 취소 (재고 복구 보상 트랜잭션)
  * - 향후 확장 가능
  */
 @Entity
@@ -39,7 +40,7 @@ public class ProcessedEvent {
     private Long id;
 
     @Column(name = "event_type", nullable = false, length = 50)
-    @Comment("이벤트 타입 (ORDER_CREATED, STOCK_REJECTED 등)")
+    @Comment("이벤트 타입 (ORDER_CREATED, ORDER_CANCELLED, PAYMENT_CANCELLED 등)")
     private String eventType;
 
     @Column(name = "aggregate_id", nullable = false, length = 100)
@@ -67,13 +68,25 @@ public class ProcessedEvent {
     }
 
     /**
-     * 재고 거부 이벤트 처리 이력 생성
+     * 주문 취소 이벤트 처리 이력 생성 (보상 트랜잭션)
      */
-    public static ProcessedEvent ofStockRejected(Long skuId, String reason) {
+    public static ProcessedEvent ofOrderCancelled(Long orderId, String reason) {
         return ProcessedEvent.builder()
-                .eventType("STOCK_REJECTED")
-                .aggregateId(skuId.toString())
-                .eventPayload(String.format("{\"skuId\":%d,\"reason\":\"%s\"}", skuId, reason))
+                .eventType("ORDER_CANCELLED")
+                .aggregateId(orderId.toString())
+                .eventPayload(String.format("{\"orderId\":%d,\"reason\":\"%s\"}", orderId, reason))
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * 결제 취소 이벤트 처리 이력 생성 (보상 트랜잭션)
+     */
+    public static ProcessedEvent ofPaymentCancelled(Long orderId, Long paymentId, String reason) {
+        return ProcessedEvent.builder()
+                .eventType("PAYMENT_CANCELLED")
+                .aggregateId(orderId.toString())
+                .eventPayload(String.format("{\"orderId\":%d,\"paymentId\":%d,\"reason\":\"%s\"}", orderId, paymentId, reason))
                 .processedAt(LocalDateTime.now())
                 .build();
     }

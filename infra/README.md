@@ -33,4 +33,6 @@ docker exec -it kafka1 kafka-topics --create --topic category.deleted --bootstra
 docker exec -it kafka1 kafka-topics --create --topic keyword.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 docker exec -it kafka1 kafka-topics --create --topic keyword.deleted --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 docker exec -it kafka1 kafka-topics --create --topic order.created --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic payment.cancelled --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
+docker exec -it kafka1 kafka-topics --create --topic order.cancelled --bootstrap-server kafka1:9091 --partitions 3 --replication-factor 3
 ```

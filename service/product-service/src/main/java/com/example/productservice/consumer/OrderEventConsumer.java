@@ -1,5 +1,6 @@
 package com.example.productservice.consumer;
 
+import com.example.productservice.consumer.event.OrderCancelledEvent;
 import com.example.productservice.consumer.event.OrderCreatedEvent;
 import com.example.productservice.product.service.InventoryService;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
@@ -26,9 +27,9 @@ import org.springframework.stereotype.Component;
  * - 지수 백오프: 1초 -> 2초 -> 4초
  * - 모든 재시도 실패 시 DLQ(Dead Letter Queue)로 전송
  *
- * 주문 생성 이벤트 처리:
- * - 주문 항목의 SKU별 재고를 선차감
- * - 결제 실패 시 보상 트랜잭션을 통해 재고 복구 (추후 구현)
+ * 구독 이벤트:
+ * - order.created: 주문 생성 시 SKU별 재고 선차감
+ * - order.cancelled: 사용자 취소 시 재고 복구 (보상 트랜잭션)
  */
 @Slf4j
 @Component
@@ -79,13 +80,55 @@ public class OrderEventConsumer {
         }
     }
 
+    @AsyncListener(
+            operation = @AsyncOperation(
+                    channelName = "order.cancelled",
+                    description = "주문 취소 이벤트 구독 - 재고 복구 보상 트랜잭션",
+                    message = @AsyncMessage(
+                            messageId = "orderCancelledEvent",
+                            name = "OrderCancelledEvent"
+                    )
+            )
+    )
+    @KafkaAsyncOperationBinding
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(
+                    delay = 1000,
+                    multiplier = 2.0,
+                    maxDelay = 10000
+            ),
+            autoCreateTopics = "false",
+            include = {Exception.class},
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
+    )
+    @KafkaListener(topics = "order.cancelled", groupId = "${spring.kafka.consumer.group-id:product-service}")
+    public void consumeOrderCancelledEvent(
+            @Payload OrderCancelledEvent event,
+            @Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
+            @Header(value = KafkaHeaders.OFFSET, required = false) Long offset
+    ) {
+        log.info("Received order.cancelled event: orderId={}, orderNumber={}, reason={}, topic={}, offset={}",
+                event.getOrderId(), event.getOrderNumber(), event.getCancellationReason(), topic, offset);
+
+        try {
+            inventoryService.restoreStockForOrderCancelled(event);
+            log.info("Successfully processed order.cancelled event (compensation): orderId={}, orderNumber={}, reason={}",
+                    event.getOrderId(), event.getOrderNumber(), event.getCancellationReason());
+        } catch (Exception e) {
+            log.error("Failed to process order.cancelled event: orderId={}, orderNumber={}, reason={}",
+                    event.getOrderId(), event.getOrderNumber(), event.getCancellationReason(), e);
+            throw e;
+        }
+    }
+
     /**
      * DLQ(Dead Letter Queue) 핸들러
      * 모든 재시도가 실패한 후 호출됩니다.
      *
-     * 재고 차감 실패 원인:
+     * 실패 가능 원인:
      * - SKU를 찾을 수 없음
-     * - 재고 부족
+     * - 재고 부족 (order.created)
      * - DB 장애
      *
      * DLQ 메시지는 Kafka UI 또는 모니터링 도구를 통해 확인하고
@@ -114,6 +157,9 @@ public class OrderEventConsumer {
         if (payload instanceof OrderCreatedEvent event) {
             log.error("DLQ 처리 필요 - order.created 실패: orderId={}, orderNumber={}, itemCount={}",
                     event.getOrderId(), event.getOrderNumber(), event.getOrderItems().size());
+        } else if (payload instanceof OrderCancelledEvent event) {
+            log.error("DLQ 처리 필요 - order.cancelled 실패: orderId={}, orderNumber={}, reason={}, itemCount={}",
+                    event.getOrderId(), event.getOrderNumber(), event.getCancellationReason(), event.getCancelledItems().size());
         } else {
             log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
         }
