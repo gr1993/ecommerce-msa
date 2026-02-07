@@ -44,13 +44,20 @@ flowchart TD
     GW --> Order
     GW --> Pay
 
-    %% 메시지 브로커 (Kafka)
+    %% 메시지 브로커 (Kafka) 연결: 비즈니스 로직을 배제한 구조적 연결
     Kafka{{"Kafka (Message Broker)"}}
 
-    Prod -.->|Events| Kafka
-    Order -.->|Events| Kafka
-    Kafka -.-> Cat
-    Kafka -.-> Pay
+    %% 발행(Pub) 측면
+    Auth --- Kafka
+    UserS --- Kafka
+    Prod --- Kafka
+    Order --- Kafka
+    
+    %% 구독(Sub) 측면
+    Kafka --- Cat
+    Kafka --- Pay
+    Kafka --- Prod
+    Kafka --- Order
 
     %% 스타일 설정
     style Kafka fill:#231F20,stroke:#FFF,color:#FFF
@@ -58,17 +65,17 @@ flowchart TD
     style Config fill:#f9f,stroke:#333
     style GW fill:#bbf,stroke:#333
     
-    %% 서비스 노드 클릭 시 디렉토리로 이동하는 링크 설정
-    click FE "./service/frontend-service" "Go to Frontend Service"
-    click GW "./service/gateway-service" "Go to Gateway Service"
-    click Config "./service/config-server" "Go to Config Server"
-    click Discovery "./service/discovery-service" "Go to Discovery Service"
-    click Auth "./service/auth-service" "Go to Auth Service"
-    click UserS "./service/user-service" "Go to User Service"
-    click Prod "./service/product-service" "Go to Product Service"
-    click Cat "./service/catalog-service" "Go to Catalog Service"
-    click Order "./service/order-service" "Go to Order Service"
-    click Pay "./service/payment-service" "Go to Payment Service"
+    %% GitHub 레포지토리 풀 경로 링크 설정
+    click FE "https://github.com/gr1993/ecommerce-msa/tree/main/service/frontend-service" "Go to Frontend"
+    click GW "https://github.com/gr1993/ecommerce-msa/tree/main/service/gateway-service" "Go to Gateway"
+    click Config "https://github.com/gr1993/ecommerce-msa/tree/main/service/config-server" "Go to Config"
+    click Discovery "https://github.com/gr1993/ecommerce-msa/tree/main/service/discovery-service" "Go to Discovery"
+    click Auth "https://github.com/gr1993/ecommerce-msa/tree/main/service/auth-service" "Go to Auth"
+    click UserS "https://github.com/gr1993/ecommerce-msa/tree/main/service/user-service" "Go to User"
+    click Prod "https://github.com/gr1993/ecommerce-msa/tree/main/service/product-service" "Go to Product"
+    click Cat "https://github.com/gr1993/ecommerce-msa/tree/main/service/catalog-service" "Go to Catalog"
+    click Order "https://github.com/gr1993/ecommerce-msa/tree/main/service/order-service" "Go to Order"
+    click Pay "https://github.com/gr1993/ecommerce-msa/tree/main/service/payment-service" "Go to Payment"
 ```
 
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
