@@ -81,42 +81,42 @@ Saga Pattern은 하나의 비즈니스 행위가 여러 서비스에 걸쳐 수�
 * discovery-service
   * 각 마이크로서비스의 등록 및 위치 정보를 관리하고, 다른 서비스들이 이를 통해 동적으로 서로를 찾을 수 있도록 지원하는 서비스
 * Gateway-Service
-  * 인증/인가(토큰 검증)
+  * 토큰 검증 기반 인가
   * 로깅
   * RateLimit
   * 모니터링
   * CORS
   * 서비스 장애 시 CircuitBreaker
-* Auth-Service
-  * 로그인, 토큰 발급·갱신
-  * JWT 서명(Signing Key) 관리
-  * 토큰 유효성 검증(또는 검증용 공개키 제공)
 
 
-### 사용자 서비스
+### 사용자 / 인증 서비스
 
-* 사용자 프로필 관리
-* 회원 등급, 적립 포인트, 쿠폰 소유 목록 등 도메인 데이터
-* 주문자 정보 제공
-* 회원 정보 수정 등 사용자 중심 기능
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User
+    participant US as User-Service (MySQL)
+    participant Kafka
+    participant AS as Auth-Service (MySQL)
 
+    User->>US: 회원가입 요청 (ID, PW, Profile 등)
+    US->>US: 회원 정보 저장
+    US-->>Kafka: user.registered 이벤트 발행 (ID, PW 등)
+    
+    Note over AS: Auth-Service는 인증에 필요한<br/>최소 정보만 구독하여 저장
+    Kafka->>AS: user.registered 구독
+    AS->>AS: 인증용 사용자 정보 저장 (ID, PW)
+    
+    US-->>User: 회원가입 완료 응답
+```
+
+Auth-Service는 인증과 관련된 책임만을 가지며, 로그인 시 JWT 토큰을 발급하는 역할을 수행한다.  
+토큰의 검증 및 인가 처리는 Gateway-Service에서 담당하여, 인증과 인가의 책임을 명확히 분리한다.  
+User-Service는 회원가입을 포함한 사용자 관련 API와 관리자 페이지에서의 회원 정보 관리 기능을 담당한다.  
+회원가입 또는 회원 정보 수정 요청이 User-Service로 유입되면, user.registered 등 같은 도메인 이벤트가 발행된다.  
+Auth-Service는 해당 이벤트를 구독하여 인증에 필요한 사용자 정보를 자체 인증 저장소에 반영한다.  
 
 ### 상품 / 카탈로그 서비스
-
-상품(Product)과 카탈로그(Catalog)는 역할과 데이터 구조가 다르기 때문에 별도의 서비스로 분리하였다.  
-Product-Service는 관리자가 상품을 등록·수정·삭제하는 원본 데이터 관리 영역이며, 옵션·SKU·재고·가격 등  
-상품의 실제 속성과 운영 정보가 이곳에서 관리된다.  
-  
-반면 Catalog-Service는 고객이 사용하는 상품 전시 전용 서비스로, 목록 조회·검색·필터링 등  
-읽기 중심의 고성능 기능을 담당한다. 고객 트래픽이 집중되는 영역이기 때문에 성능 최적화, 캐싱, 검색  
-구조가 중요하며 이를 위해 서비스 분리가 필요하다.  
-  
-여기서 SKU(Stock Keeping Unit)는 재고를 관리하는 최소 단위로, 단순 상품이 아니라 색상·사이즈 등  
-옵션 조합을 포함한 실제 판매 단위를 의미한다. 재고는 SKU 단위로 관리된다.  
-  
-상품 정보(재고, 할인, 품절 여부 등)가 변경되면 Product-Service가 Kafka 이벤트를 발행하고,  
-Catalog-Service는 이를 구독하여 전시용 데이터에 반영한다. 이를 통해 Redis 캐싱, Elasticsearch 검색  
-등 다양한 저장소를 활용한 조회 최적화를 수행할 수 있다.  
 
 ```mermaid
 sequenceDiagram
@@ -143,12 +143,23 @@ sequenceDiagram
     end
 ```
 
+상품(Product)과 카탈로그(Catalog)는 역할과 데이터 구조가 다르기 때문에 별도의 서비스로 분리하였다.  
+Product-Service는 관리자가 상품을 등록·수정·삭제하는 원본 데이터 관리 영역이며, 옵션·SKU·재고·가격 등  
+상품의 실제 속성과 운영 정보가 이곳에서 관리된다.  
+  
+반면 Catalog-Service는 고객이 사용하는 상품 전시 전용 서비스로, 목록 조회·검색·필터링 등  
+읽기 중심의 고성능 기능을 담당한다. 고객 트래픽이 집중되는 영역이기 때문에 성능 최적화, 캐싱, 검색  
+구조가 중요하며 이를 위해 서비스 분리가 필요하다.  
+  
+여기서 SKU(Stock Keeping Unit)는 재고를 관리하는 최소 단위로, 단순 상품이 아니라 색상·사이즈 등  
+옵션 조합을 포함한 실제 판매 단위를 의미한다. 재고는 SKU 단위로 관리된다.  
+  
+상품 정보(재고, 할인, 품절 여부 등)가 변경되면 Product-Service가 Kafka 이벤트를 발행하고,  
+Catalog-Service는 이를 구독하여 전시용 데이터에 반영한다. 이를 통해 Redis 캐싱, Elasticsearch 검색  
+등 다양한 저장소를 활용한 조회 최적화를 수행할 수 있다.  
+
 
 ### 주문 / 결제 서비스
-
-Payment-Service는 외부 PG사 연동, 결제 승인 및 상태 관리, 결제 이력 저장을 전담하며,  
-Order-Service로부터 결제 로직을 분리하여 서비스 간 응집도를 높였다. 재고 관리는 주문 생성 시점에  
-선차감을 수행하며, 결제 실패 시 보상 트랜잭션을 통해 재고를 복구하는 방식으로 설계하였다.  
 
 ```mermaid
 sequenceDiagram
@@ -175,6 +186,10 @@ sequenceDiagram
     Payment->>Payment: PG 결제 처리
     Payment-->>Kafka: 4. PaymentConfirmed 이벤트 발행
 ```
+
+Payment-Service는 외부 PG사 연동, 결제 승인 및 상태 관리, 결제 이력 저장을 전담하며,  
+Order-Service로부터 결제 로직을 분리하여 서비스 간 응집도를 높였다. 재고 관리는 주문 생성 시점에  
+선차감을 수행하며, 결제 실패 시 보상 트랜잭션을 통해 재고를 복구하는 방식으로 설계하였다.  
 
 #### 주문 단계
 1. 주문 생성 및 재고 선점 : Order-Service에서 주문 데이터를 생성하고 상태를 PENDING으로 설정한다. 이와 동시에 Product-Service에서 order.created 이벤트를 구독하여 해당 상품의 SKU 재고를 즉시 차감하여 구매 권한을 선점한다.
