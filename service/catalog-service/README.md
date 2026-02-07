@@ -12,6 +12,25 @@ catalog-service는 사용자에게 상품 정보를 제공하는 검색 전용 �
   * 상품 상세 캐싱: 상품 상세 조회 API 호출시 Cache-Aside 방식을 적용하여, Redis에 데이터가 없으면 Product-Service의 상세 API를 호출하고 결과를 Redis에 캐싱한다. 또한 Kafka 이벤트(product.created, product.updated)의 Consumer는 상품 목록용 Consumer와 상세용 Consumer로 분리하여 등록하였다. 상세용 Consumer는 이벤트 객체가 너무 커지는 문제를 방지하기 위해 Data Enrichment 패턴을 사용한다. 즉, 이벤트 수신 시 이벤트 자체에는 최소한의 정보만 포함하고, 추가 상세 데이터는 Product-Service의 상세 API를 한 번 호출하여 가져온 뒤 Redis에 캐싱한다.
 
 
+### 프로젝트 패키지 구조
+```
+com.example.catalogservice
+├── client              # 외부 서비스 호출 (Product-Service API 클라이언트)
+│   └── dto/            # 외부 API 응답 매핑 DTO
+├── config              # 설정 클래스 (OpenAPI, Redis 등)
+├── consumer            # Kafka 이벤트 컨슈머
+│   └── event/          # 이벤트 페이로드 클래스
+├── controller          # API 엔드포인트 (REST Controller)
+│   └── dto/            # Request/Response 데이터 전송 객체
+├── domain              # 도메인 모델
+│   └── document/       # Elasticsearch 문서 매핑 엔티티
+├── exception           # 커스텀 예외 처리 및 Global Handler
+├── infrastructure      # 인프라 설정 (Elasticsearch 인덱스 초기화)
+├── repository          # 데이터 접근 (Spring Data Elasticsearch Repository)
+└── service             # 비즈니스 로직 (검색, 동기화, 캐싱)
+```
+
+
 ### Full Sync API
 Full Sync API는 catalog-service 프로젝트가 처음 생성될 때, 초기 데이터 이관용으로 사용된다.  
 또한, catalog-service의 Elasticsearch 데이터가 꼬이거나 이벤트 누락이 발생했을 경우 복구용으로도 활용할 수 있다.  
