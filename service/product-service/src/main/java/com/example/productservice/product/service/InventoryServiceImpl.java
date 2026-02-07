@@ -1,6 +1,8 @@
 package com.example.productservice.product.service;
 
+import com.example.productservice.consumer.domain.ProcessedEvent;
 import com.example.productservice.consumer.event.OrderCreatedEvent;
+import com.example.productservice.consumer.repository.ProcessedEventRepository;
 import com.example.productservice.product.domain.ProductSku;
 import com.example.productservice.product.repository.ProductSkuRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,14 +15,26 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
 
+    private static final String EVENT_TYPE_ORDER_CREATED = "ORDER_CREATED";
+
     private final ProductSkuRepository productSkuRepository;
     private final ProductSkuHistoryService productSkuHistoryService;
+    private final ProcessedEventRepository processedEventRepository;
 
     @Override
     @Transactional
     public void decreaseStock(OrderCreatedEvent event) {
         log.info("Starting stock decrease for orderId={}, orderNumber={}",
                 event.getOrderId(), event.getOrderNumber());
+
+        String aggregateId = event.getOrderId().toString();
+
+        // 멱등성 체크: 이미 처리된 주문인지 확인
+        if (processedEventRepository.existsByEventTypeAndAggregateId(EVENT_TYPE_ORDER_CREATED, aggregateId)) {
+            log.warn("Order already processed (idempotency check): eventType={}, orderId={}, orderNumber={} - skipping",
+                    EVENT_TYPE_ORDER_CREATED, event.getOrderId(), event.getOrderNumber());
+            return;
+        }
 
         for (OrderCreatedEvent.OrderItemSnapshot item : event.getOrderItems()) {
             ProductSku sku = productSkuRepository.findById(item.getSkuId())
@@ -48,7 +62,14 @@ public class InventoryServiceImpl implements InventoryService {
                     newStock, requestedQty);
         }
 
-        log.info("Completed stock decrease for orderId={}, itemCount={}",
+        // 처리 완료 기록 (멱등성 보장)
+        ProcessedEvent processedEvent = ProcessedEvent.ofOrderCreated(
+                event.getOrderId(),
+                event.getOrderNumber()
+        );
+        processedEventRepository.save(processedEvent);
+
+        log.info("Completed stock decrease for orderId={}, itemCount={} - marked as processed",
                 event.getOrderId(), event.getOrderItems().size());
     }
 }

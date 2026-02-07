@@ -200,3 +200,18 @@ CREATE TABLE product_sku_history (
         REFERENCES product_sku (sku_id)
         ON DELETE CASCADE
 ) COMMENT='SKU 재고 변동 이력을 저장하는 테이블';
+
+
+-- 처리된 이벤트 추적 테이블 (멱등성 보장)
+-- 지원 이벤트: ORDER_CREATED, STOCK_REJECTED, 향후 확장 가능
+CREATE TABLE processed_events (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '처리 이력 ID',
+    event_type VARCHAR(50) NOT NULL COMMENT '이벤트 타입 (ORDER_CREATED, STOCK_REJECTED 등)',
+    aggregate_id VARCHAR(100) NOT NULL COMMENT '이벤트 대상 ID (주문 ID, SKU ID 등)',
+    event_payload TEXT COMMENT '이벤트 페이로드 (선택사항, 디버깅용)',
+    processed_at DATETIME NOT NULL COMMENT '처리 완료 시각',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_event_type_aggregate_id (event_type, aggregate_id),
+    INDEX idx_processed_at (processed_at),
+    INDEX idx_event_type (event_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='처리된 이벤트 이력 (Kafka 메시지 재처리 방지)';
