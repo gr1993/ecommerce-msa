@@ -143,6 +143,14 @@ services:
     networks:
       - ecommerce-net
 
+  mongodb:
+    image: mongo:8
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    networks:
+      - ecommerce-net
+
 
 networks:
   ecommerce-net:
