@@ -5,12 +5,22 @@ import com.example.productservice.consumer.event.OrderCancelledEvent;
 import com.example.productservice.consumer.event.OrderCreatedEvent;
 import com.example.productservice.consumer.event.PaymentCancelledEvent;
 import com.example.productservice.consumer.repository.ProcessedEventRepository;
+import com.example.productservice.global.common.EventTypeConstants;
+import com.example.productservice.global.domain.Outbox;
+import com.example.productservice.global.repository.OutboxRepository;
 import com.example.productservice.product.domain.ProductSku;
+import com.example.productservice.product.domain.event.StockRejectedEvent;
 import com.example.productservice.product.repository.ProductSkuRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -24,6 +34,8 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductSkuRepository productSkuRepository;
     private final ProductSkuHistoryService productSkuHistoryService;
     private final ProcessedEventRepository processedEventRepository;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -40,6 +52,9 @@ public class InventoryServiceImpl implements InventoryService {
             return;
         }
 
+        // 재고 부족 항목 수집
+        List<StockRejectedEvent.RejectedItem> rejectedItems = new ArrayList<>();
+
         for (OrderCreatedEvent.OrderItemSnapshot item : event.getOrderItems()) {
             ProductSku sku = productSkuRepository.findById(item.getSkuId())
                     .orElseThrow(() -> new IllegalArgumentException(
@@ -48,12 +63,26 @@ public class InventoryServiceImpl implements InventoryService {
             int currentStock = sku.getStockQty();
             int requestedQty = item.getQuantity();
 
+            // 재고 부족 시 거부 항목에 추가
             if (currentStock < requestedQty) {
-                throw new IllegalStateException(String.format(
-                        "Insufficient stock: skuId=%d, currentStock=%d, requestedQty=%d",
-                        item.getSkuId(), currentStock, requestedQty));
+                log.warn("Insufficient stock detected: skuId={}, currentStock={}, requestedQty={}",
+                        item.getSkuId(), currentStock, requestedQty);
+
+                rejectedItems.add(StockRejectedEvent.RejectedItem.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .productId(item.getProductId())
+                        .skuId(item.getSkuId())
+                        .productName(item.getProductName())
+                        .productCode(item.getProductCode())
+                        .requestedQuantity(requestedQty)
+                        .availableStock(currentStock)
+                        .unitPrice(item.getUnitPrice())
+                        .totalPrice(item.getTotalPrice())
+                        .build());
+                continue;
             }
 
+            // 재고 충분: 차감 처리
             int newStock = currentStock - requestedQty;
             sku.setStockQty(newStock);
             productSkuRepository.save(sku);
@@ -64,6 +93,14 @@ public class InventoryServiceImpl implements InventoryService {
             log.info("Stock decreased: skuId={}, productName={}, before={}, after={}, quantity={}",
                     item.getSkuId(), item.getProductName(), currentStock,
                     newStock, requestedQty);
+        }
+
+        // 재고 부족 항목이 있으면 stock.rejected 이벤트 발행
+        if (!rejectedItems.isEmpty()) {
+            publishStockRejectedEvent(event, rejectedItems);
+            log.warn("Stock rejected for orderId={}, orderNumber={}, rejectedItemCount={}",
+                    event.getOrderId(), event.getOrderNumber(), rejectedItems.size());
+            return; // 재고 부족이므로 처리 중단 (ProcessedEvent 저장 안 함)
         }
 
         // 처리 완료 기록 (멱등성 보장)
@@ -170,5 +207,39 @@ public class InventoryServiceImpl implements InventoryService {
 
         log.info("Completed stock restore (payment.cancelled) for orderId={}, itemCount={} - marked as processed",
                 event.getOrderId(), event.getItems().size());
+    }
+
+    /**
+     * 재고 부족 이벤트 발행 (Outbox 패턴)
+     */
+    private void publishStockRejectedEvent(OrderCreatedEvent orderEvent, List<StockRejectedEvent.RejectedItem> rejectedItems) {
+        try {
+            StockRejectedEvent stockRejectedEvent = StockRejectedEvent.builder()
+                    .orderId(orderEvent.getOrderId())
+                    .orderNumber(orderEvent.getOrderNumber())
+                    .rejectionReason("INSUFFICIENT_STOCK")
+                    .userId(orderEvent.getUserId())
+                    .rejectedItems(rejectedItems)
+                    .rejectedAt(LocalDateTime.now())
+                    .build();
+
+            String payload = objectMapper.writeValueAsString(stockRejectedEvent);
+
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Order")
+                    .aggregateId(orderEvent.getOrderId().toString())
+                    .eventType(EventTypeConstants.TOPIC_STOCK_REJECTED)
+                    .payload(payload)
+                    .build();
+
+            outboxRepository.save(outbox);
+
+            log.info("StockRejectedEvent saved to outbox: orderId={}, orderNumber={}, rejectedItemCount={}",
+                    orderEvent.getOrderId(), orderEvent.getOrderNumber(), rejectedItems.size());
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize StockRejectedEvent: orderId={}, orderNumber={}",
+                    orderEvent.getOrderId(), orderEvent.getOrderNumber(), e);
+            throw new RuntimeException("Failed to publish stock.rejected event", e);
+        }
     }
 }

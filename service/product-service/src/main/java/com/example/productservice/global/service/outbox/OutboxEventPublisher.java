@@ -19,6 +19,7 @@ public class OutboxEventPublisher {
 	private final ProductEventPublisher productEventPublisher;
 	private final CategoryEventPublisher categoryEventPublisher;
 	private final KeywordEventPublisher keywordEventPublisher;
+	private final StockEventPublisher stockEventPublisher;
 
 	/**
 	 * DB 트랜잭션으로 Outbox 상태를 관리하고 Kafka 트랜잭션은
@@ -51,7 +52,7 @@ public class OutboxEventPublisher {
 		}
 	}
 
-	private void publishEventByType(Outbox outbox) {
+	private void publishEventByType(Outbox outbox) throws Exception {
 		String eventType = outbox.getEventType();
 
 		switch (eventType) {
@@ -74,6 +75,10 @@ public class OutboxEventPublisher {
 				keywordEventPublisher.publishKeywordCreatedEvent(outbox);
 			case EventTypeConstants.TOPIC_KEYWORD_DELETED ->
 				keywordEventPublisher.publishKeywordDeletedEvent(outbox);
+
+			// Stock Events (Compensation)
+			case EventTypeConstants.TOPIC_STOCK_REJECTED ->
+				stockEventPublisher.publishStockRejectedEvent(outbox);
 
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);
