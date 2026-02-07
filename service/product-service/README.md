@@ -9,6 +9,39 @@ product-service는 e-commerce MSA 시스템에서 **상품 도메인의 쓰기 �
 조회 성능을 위해 catalog-service는 재고 정보를 비동기적으로 복제한다.
 
 
+### 보상 트랜잭션
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Product as Product Service
+    participant Kafka
+    participant Order as Order Service
+    participant Payment as Payment Service
+    participant User as 사용자
+
+    Note over Product, Payment: [실패 상황: 재고 부족 발생]
+    
+    Product->>Product: 재고 부족 확인
+    Product-->>Kafka: StockRejected 이벤트 발행
+    
+    Note right of Kafka: 모든 관련 서비스에 취소 전파
+    
+    par 보상 트랜잭션 병렬 처리
+        Kafka->>Order: StockRejected 구독
+        Order->>Order: 주문 상태 변경 (PENDING -> CANCELLED)
+    and
+        Kafka->>Payment: StockRejected 구독
+        Payment->>Payment: 결제 대기 정보 삭제 또는 상태 변경
+    end
+    
+    Order-->>User: 알림: 재고 부족으로 주문 취소
+```
+Product-Service는 order.created 이벤트를 구독하여 실시간 재고 차감을 수행한다. 만약 재고가 
+부족할 경우 stock.rejected 이벤트를 발행하여 **보상 트랜잭션(Compensation Transaction)**을 
+유도하며, 이를 통해 Order-Service가 주문을 즉시 취소 상태로 변경하도록 설계하였다. 또한, 분산 
+환경에서의 중복 처리를 방지하기 위해 주문 ID 기반의 멱등성 로직을 적용하여 데이터 정합성을 보장한다.
+
+
 ### 프로젝트 패키지 구조
 ```
 com.example.productservice/
