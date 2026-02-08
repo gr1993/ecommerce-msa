@@ -2,6 +2,37 @@
 주문 데이터를 생성하고 관리를 담당하는 MSA 서비스
 
 
+### 주문 취소 프로세스
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 사용자
+    participant Order as Order-Service
+    participant Kafka
+    participant Payment as Payment-Service
+    participant Product as Product-Service
+
+    User->>Order: 주문 취소 요청
+    
+    rect rgb(240, 240, 240)
+        Order->>Order: 1. 주문 상태 변경 (CANCELLED)
+        Order-->>Kafka: 2. order.cancelled 발행 (Outbox)
+    end
+
+    Note right of Kafka: 보상 트랜잭션 시작
+
+    par 병렬 처리
+        Kafka->>Payment: 3a. order.cancelled 구독
+        Payment->>Payment: 4a. 실제 환불/결제 취소 로직
+    and
+        Kafka->>Product: 3b. order.cancelled 구독
+        Product->>Product: 4b. 재고 복구 (멱등성 체크)
+    end
+
+    Payment-->>User: 결제 취소/환불 완료 알림
+```
+
+
 ### 프로젝트 패키지 구조
 ```
 com.example.authservice
