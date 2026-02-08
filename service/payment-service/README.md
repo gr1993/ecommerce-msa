@@ -52,3 +52,19 @@ com.example.paymentservice
 REST API 명세는 다음 방법으로 확인할 수 있다.
 
 1. 브라우저에서 Swagger UI 열기: `/swagger-ui.html`
+
+
+### Events
+
+Producer에서 Transaction Outbox 패턴을 적용하였다.  
+Consumer에서 실패 처리 전략을 적용하여 메시지를 DLQ로 전송하도록 설계하고, 처리된 메시지는  
+processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성을 보장하도록 구성하였다.  
+이벤트 상세 명세는 다음 방법으로 확인할 수 있다.
+
+1. 브라우저에서 Swagger UI 열기: `/springwolf/asyncapi-ui.html`
+2. 정적 문서 확인: [`asyncapi.yaml`](./asyncapi.yaml)
+
+| 구분 | 설명            |
+|-----|---------------|
+| 발행(Published) | payment.cancelled |
+| 구독(Subscribed) | -             |

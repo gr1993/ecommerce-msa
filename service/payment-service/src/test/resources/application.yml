@@ -1,3 +1,13 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+toss:
+  payments:
+    api:
+      base-url: https://api.tosspayments.com
+      secret-key: test_sk_PLACEHOLDER_CHANGE_THIS_VALUE
+
 de:
   flapdoodle:
     mongodb:

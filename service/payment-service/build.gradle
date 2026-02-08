@@ -31,7 +31,11 @@ dependencies {
 	implementation 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
+	// Kafka
+	implementation 'org.springframework.kafka:spring-kafka'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.kafka:spring-kafka-test'
 	testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring3x:4.24.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
