@@ -156,7 +156,7 @@ services:
     image: mongo-express:latest
     container_name: mongo-express
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_PORT: 27017
     ports:
       - "9081:8081"
