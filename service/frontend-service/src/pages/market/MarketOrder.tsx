@@ -24,6 +24,7 @@ import MarketFooter from '../../components/market/MarketFooter'
 import { useCartStore, type CartItem } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { requestPayment, type PaymentRequest } from '../../utils/paymentUtils'
+import { createOrder, type OrderCreateRequest } from '../../api/orderApi'
 import './MarketOrder.css'
 
 const { Step } = Steps
@@ -154,24 +155,32 @@ function MarketOrder() {
       // const bootpay = Bootpay.setApplicationId('YOUR_APPLICATION_ID', 'YOUR_PRIVATE_KEY')
       // const response = await bootpay.request({ ... })
       
+      // 1. 백엔드 API로 주문 생성
+      const orderRequest: OrderCreateRequest = {
+        orderItems: orderItems.map(item => ({
+          productId: Number(item.product_id),
+          skuId: item.sku_id,
+          quantity: item.quantity,
+        })),
+        deliveryInfo: {
+          receiverName: values.receiver_name,
+          receiverPhone: values.receiver_phone,
+          zipcode: values.postal_code,
+          address: values.address,
+          addressDetail: values.address_detail,
+          deliveryMemo: values.delivery_memo,
+        },
+      }
+
+      const orderResponse = await createOrder(orderRequest)
+
+      // 2. 부트페이 SDK로 결제 요청
       const paymentResponse = await requestPayment(paymentRequest)
 
       if (!paymentResponse.success) {
         message.error(paymentResponse.error || '결제 처리 중 오류가 발생했습니다.')
         return
       }
-
-      // TODO: 백엔드 API로 주문 정보 저장
-      // await saveOrder({
-      //   orderId: paymentResponse.orderId,
-      //   paymentId: paymentResponse.paymentId,
-      //   receiptId: paymentResponse.receiptId,
-      //   items: orderItems,
-      //   shipping: paymentRequest.shippingInfo,
-      //   payment: {
-      //     amount: calculateFinalTotal()
-      //   }
-      // })
 
       // 주문 성공 시 장바구니에서 선택한 상품 제거
       if (location.state?.fromCart) {
@@ -181,7 +190,8 @@ function MarketOrder() {
       message.success('결제가 완료되었습니다!')
       navigate('/market/order/complete', {
         state: {
-          orderId: paymentResponse.orderId || orderId,
+          orderId: orderResponse.orderId,
+          orderNumber: orderResponse.orderNumber,
           paymentId: paymentResponse.paymentId,
           receiptId: paymentResponse.receiptId,
           totalAmount: calculateFinalTotal()
