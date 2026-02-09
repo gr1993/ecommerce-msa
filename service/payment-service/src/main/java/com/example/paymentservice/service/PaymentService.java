@@ -4,6 +4,7 @@ import com.example.paymentservice.client.TossPaymentsClient;
 import com.example.paymentservice.domain.entity.Order;
 import com.example.paymentservice.domain.entity.Outbox;
 import com.example.paymentservice.domain.event.PaymentCancelledEvent;
+import com.example.paymentservice.domain.event.PaymentConfirmedEvent;
 import com.example.paymentservice.dto.request.PaymentConfirmRequest;
 import com.example.paymentservice.dto.request.TossPaymentConfirmRequest;
 import com.example.paymentservice.dto.response.PaymentConfirmResponse;
@@ -71,6 +72,9 @@ public class PaymentService {
         order.approve(request.getPaymentKey());
         orderRepository.save(order);
 
+        // 5. 결제 완료 이벤트 Outbox 저장
+        savePaymentConfirmedOutbox(order, tossResponse);
+
         return PaymentConfirmResponse.builder()
                 .orderId(tossResponse.getOrderId())
                 .paymentKey(tossResponse.getPaymentKey())
@@ -78,6 +82,34 @@ public class PaymentService {
                 .status(tossResponse.getStatus())
                 .approvedAt(tossResponse.getApprovedAt())
                 .build();
+    }
+
+    private void savePaymentConfirmedOutbox(Order order, TossPaymentResponse tossResponse) {
+        PaymentConfirmedEvent event = PaymentConfirmedEvent.builder()
+                .orderId(Long.parseLong(order.getOrderId()))
+                .paymentKey(tossResponse.getPaymentKey())
+                .paymentMethod(tossResponse.getMethod())
+                .paymentAmount(tossResponse.getTotalAmount())
+                .paymentStatus("PAID")
+                .paidAt(tossResponse.getApprovedAt())
+                .customerId(order.getCustomerId())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Order")
+                    .aggregateId(order.getOrderId())
+                    .eventType(EventTypeConstants.TOPIC_PAYMENT_CONFIRMED)
+                    .payload(payload)
+                    .build();
+
+            outboxRepository.save(outbox);
+            log.info("결제 완료 Outbox 이벤트 저장 완료 - orderId: {}", order.getOrderId());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
     }
 
     private void savePaymentCancelledOutbox(Order order, String cancelReason) {

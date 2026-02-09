@@ -8,7 +8,9 @@ public final class EventTypeConstants {
 
 	// Kafka Topics - Payment
 	public static final String TOPIC_PAYMENT_CANCELLED = "payment.cancelled";
+	public static final String TOPIC_PAYMENT_CONFIRMED = "payment.confirmed";
 
 	// Kafka Type IDs
 	public static final String TYPE_ID_PAYMENT_CANCELLED = "paymentCancelledEvent";
+	public static final String TYPE_ID_PAYMENT_CONFIRMED = "paymentConfirmedEvent";
 }

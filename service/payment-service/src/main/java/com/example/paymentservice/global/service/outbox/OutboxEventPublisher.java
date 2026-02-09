@@ -53,6 +53,9 @@ public class OutboxEventPublisher {
 			case EventTypeConstants.TOPIC_PAYMENT_CANCELLED ->
 				paymentEventPublisher.publishPaymentCancelledEvent(outbox);
 
+			case EventTypeConstants.TOPIC_PAYMENT_CONFIRMED ->
+				paymentEventPublisher.publishPaymentConfirmedEvent(outbox);
+
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);
 				throw new IllegalArgumentException("알 수 없는 이벤트 타입: " + eventType);
