@@ -1,17 +1,7 @@
 spring:
   application:
     name: payment-service
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/payment-service
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9091,localhost:9092,localhost:9094}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-
-toss:
-  payments:
-    api:
-      base-url: https://api.tosspayments.com
-      secret-key: test_sk_PLACEHOLDER_CHANGE_THIS_VALUE
+  profiles:
+    active: local
+  config:
+    import: "optional:configserver:http://${CONFIG_HOST:localhost}:8888"

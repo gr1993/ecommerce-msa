@@ -1,6 +1,10 @@
 spring:
-  kafka:
-    bootstrap-servers: localhost:9092
+  # Config Server 비활성화 (테스트 환경)
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
 
 toss:
   payments:
@@ -13,3 +17,9 @@ de:
     mongodb:
       embedded:
         version: 7.0.9
+
+springwolf:
+  enabled: false  # 전체 기능 비활성화
+  scanner:
+    async-api-json:
+      enabled: false
