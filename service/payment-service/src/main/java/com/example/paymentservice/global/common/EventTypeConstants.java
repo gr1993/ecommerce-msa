@@ -6,6 +6,9 @@ public final class EventTypeConstants {
 		throw new AssertionError("Utility class should not be instantiated");
 	}
 
+	// Kafka Topics - Order
+	public static final String TOPIC_ORDER_CREATED = "order.created";
+
 	// Kafka Topics - Payment
 	public static final String TOPIC_PAYMENT_CANCELLED = "payment.cancelled";
 	public static final String TOPIC_PAYMENT_CONFIRMED = "payment.confirmed";

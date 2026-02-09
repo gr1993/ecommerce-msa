@@ -83,7 +83,7 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 1. 브라우저에서 Swagger UI 열기: `/springwolf/asyncapi-ui.html`
 2. 정적 문서 확인: [`asyncapi.yaml`](./asyncapi.yaml)
 
-| 구분 | 설명                                   |
-|-----|--------------------------------------|
+| 구분 | 설명                    |
+|-----|-----------------------|
 | 발행(Published) | payment.confirmed, payment.cancelled |
-| 구독(Subscribed) | -                                    |
+| 구독(Subscribed) | order.created |
