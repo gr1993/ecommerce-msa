@@ -5,6 +5,17 @@ spring:
       enabled: false
   config:
     import: ""
+  data:
+    mongodb:
+      database: payment-test
+  kafka:
+    consumer:
+      group-id: payment-service-test
+
+# Eureka 비활성화
+eureka:
+  client:
+    enabled: false
 
 toss:
   payments:
