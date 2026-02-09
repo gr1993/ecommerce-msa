@@ -18,30 +18,52 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+	set('springCloudVersion', "2025.0.1")
+}
+
 dependencies {
 	// Spring Boot Starters
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 
-	// OpenFeign
-	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign:4.1.0'
+	// ShedLock (Distributed Lock for Scheduler)
+	implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
+	implementation 'net.javacrumbs.shedlock:shedlock-provider-mongo:6.3.0'
+
+	// Kafka
+	implementation 'org.springframework.kafka:spring-kafka'
+
+	// OpenAPI/Swagger Documentation
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+	// AsyncAPI/Springwolf Documentation
+	implementation 'io.github.springwolf:springwolf-kafka:1.20.0'
+	runtimeOnly 'io.github.springwolf:springwolf-ui:1.20.0'
+
+	// Config Client
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+	// Eureka Client
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	// OpenFeign
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
 	// Lombok
 	implementation 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-	// Kafka
-	implementation 'org.springframework.kafka:spring-kafka'
-
-	// ShedLock (Distributed Lock for Scheduler)
-	implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
-	implementation 'net.javacrumbs.shedlock:shedlock-provider-mongo:6.3.0'
-
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.kafka:spring-kafka-test'
 	testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo.spring3x:4.24.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
 }
 
 tasks.named('test') {

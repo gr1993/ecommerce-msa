@@ -1,9 +1,7 @@
-package com.example.paymentservice.dto.response;
+package com.example.paymentservice.client.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor
