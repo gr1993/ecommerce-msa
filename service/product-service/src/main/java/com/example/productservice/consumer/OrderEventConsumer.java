@@ -58,7 +58,9 @@ public class OrderEventConsumer {
             ),
             autoCreateTopics = "false",
             include = {Exception.class},
-            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            retryTopicSuffix = "-product-retry",
+            dltTopicSuffix = "-product-dlt"
     )
     @KafkaListener(topics = "order.created", groupId = "${spring.kafka.consumer.group-id:product-service}")
     public void consumeOrderCreatedEvent(
