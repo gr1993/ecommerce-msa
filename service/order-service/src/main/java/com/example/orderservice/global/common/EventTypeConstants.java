@@ -8,7 +8,9 @@ public final class EventTypeConstants {
 
 	// Kafka Topics - Order
 	public static final String TOPIC_ORDER_CREATED = "order.created";
+	public static final String TOPIC_ORDER_CANCELLED = "order.cancelled";
 
 	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Order
 	public static final String TYPE_ID_ORDER_CREATED = "orderCreatedEvent";
+	public static final String TYPE_ID_ORDER_CANCELLED = "orderCancelledEvent";
 }

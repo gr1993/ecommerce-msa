@@ -57,6 +57,8 @@ public class OutboxEventPublisher {
 			// Order Events
 			case EventTypeConstants.TOPIC_ORDER_CREATED ->
 				orderEventPublisher.publishOrderCreatedEvent(outbox);
+			case EventTypeConstants.TOPIC_ORDER_CANCELLED ->
+				orderEventPublisher.publishOrderCancelledEvent(outbox);
 
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);

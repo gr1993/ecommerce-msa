@@ -31,6 +31,8 @@ sequenceDiagram
 
     Payment-->>User: 결제 취소/환불 완료 알림
 ```
+* 사용자/CS에서 주문 취소 요청을 하면 order.cancelled 이벤트를 발행한다.
+* 주문 생성 후 10분 이내에 결제되지 않으면 order.cancelled 이벤트를 발행한다.
 
 
 ### 프로젝트 패키지 구조
@@ -83,7 +85,7 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 1. 브라우저에서 Swagger UI 열기: `/springwolf/asyncapi-ui.html`
 2. 정적 문서 확인: [`asyncapi.yaml`](./asyncapi.yaml)
 
-| 구분 | 설명            |
-|-----|---------------|
-| 발행(Published) | order.created |
-| 구독(Subscribed) | -             |
+| 구분 | 설명 |
+|-----|-----|
+| 발행(Published) | order.created, order.cancelled |
+| 구독(Subscribed) | - |
