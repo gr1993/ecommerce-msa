@@ -98,15 +98,9 @@ function MarketOrder() {
     return orderItems.reduce((sum, item) => sum + (item.base_price * item.quantity), 0)
   }
 
-  // 배송비 계산 (5만원 이상 무료배송)
-  const calculateShippingFee = () => {
-    const total = calculateTotal()
-    return total >= 50000 ? 0 : 3000
-  }
-
-  // 최종 결제 금액
+  // 최종 결제 금액 (배송비 무료)
   const calculateFinalTotal = () => {
-    return calculateTotal() + calculateShippingFee()
+    return calculateTotal()
   }
 
   // 주소 검색 (다음 주소 API 연동 예시)
@@ -244,7 +238,6 @@ function MarketOrder() {
   }
 
   const totalPrice = calculateTotal()
-  const shippingFee = calculateShippingFee()
   const finalTotal = calculateFinalTotal()
 
   // 비로그인 상태면 렌더링하지 않음 (로그인 페이지로 리다이렉트 중)
@@ -420,19 +413,8 @@ function MarketOrder() {
                     </div>
                     <div className="summary-row">
                       <span>배송비</span>
-                      <span>
-                        {shippingFee === 0 ? (
-                          <span style={{ color: '#52c41a' }}>무료</span>
-                        ) : (
-                          `${shippingFee.toLocaleString()}원`
-                        )}
-                      </span>
+                      <span style={{ color: '#52c41a' }}>무료</span>
                     </div>
-                    {totalPrice < 50000 && (
-                      <div className="shipping-notice">
-                        <small>5만원 이상 구매 시 무료배송</small>
-                      </div>
-                    )}
                     <Divider />
                     <div className="summary-row total-row">
                       <span>최종 결제금액</span>
@@ -511,13 +493,7 @@ function MarketOrder() {
                     </div>
                     <div className="summary-row">
                       <span>배송비</span>
-                      <span>
-                        {shippingFee === 0 ? (
-                          <span style={{ color: '#52c41a' }}>무료</span>
-                        ) : (
-                          `${shippingFee.toLocaleString()}원`
-                        )}
-                      </span>
+                      <span style={{ color: '#52c41a' }}>무료</span>
                     </div>
                     <Divider />
                     <div className="summary-row total-row">
@@ -580,19 +556,8 @@ function MarketOrder() {
                 </div>
                 <div className="summary-row">
                   <span>배송비</span>
-                  <span>
-                    {shippingFee === 0 ? (
-                      <span style={{ color: '#52c41a' }}>무료</span>
-                    ) : (
-                      `${shippingFee.toLocaleString()}원`
-                    )}
-                  </span>
+                  <span style={{ color: '#52c41a' }}>무료</span>
                 </div>
-                {totalPrice < 50000 && (
-                  <div className="shipping-notice">
-                    <small>5만원 이상 구매 시 무료배송</small>
-                  </div>
-                )}
                 <Divider />
                 <div className="summary-row total-row">
                   <span>총 결제금액</span>
