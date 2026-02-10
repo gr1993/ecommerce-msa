@@ -14,6 +14,7 @@ import com.example.paymentservice.repository.OrderRepository;
 import com.example.paymentservice.repository.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,8 +36,9 @@ public class PaymentService {
      * 결제 승인 처리
      * 1. 주문 정보 조회
      * 2. 결제 금액과 주문 금액 검증 (실패 시 Order FAILED + Outbox 저장)
-     * 3. 토스페이먼츠 결제 승인 API 호출
+     * 3. 토스페이먼츠 결제 승인 API 호출 (실패 시 Order FAILED + Outbox 저장)
      * 4. 주문 상태 업데이트
+     * 5. 결제 완료 이벤트 Outbox 저장
      */
     @Transactional
     public PaymentConfirmResponse confirmPayment(PaymentConfirmRequest request) {
@@ -63,7 +65,17 @@ public class PaymentService {
                 .amount(request.getAmount())
                 .build();
 
-        TossPaymentResponse tossResponse = tossPaymentsClient.confirmPayment(tossRequest);
+        TossPaymentResponse tossResponse;
+        try {
+            tossResponse = tossPaymentsClient.confirmPayment(tossRequest);
+        } catch (FeignException e) {
+            log.error("토스페이먼츠 결제 승인 실패 - orderId: {}, status: {}, message: {}",
+                    request.getOrderId(), e.status(), e.getMessage());
+            order.fail();
+            orderRepository.save(order);
+            savePaymentCancelledOutbox(order, "토스페이먼츠 결제 승인 거부: " + e.getMessage());
+            throw new RuntimeException("토스페이먼츠 결제 승인에 실패했습니다.", e);
+        }
 
         log.info("토스페이먼츠 결제 승인 완료 - orderId: {}, status: {}",
                 tossResponse.getOrderId(), tossResponse.getStatus());
