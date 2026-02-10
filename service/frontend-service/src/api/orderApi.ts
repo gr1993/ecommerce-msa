@@ -6,6 +6,7 @@
  */
 
 import { API_BASE_URL } from '../config/env'
+import { useAuthStore } from '../stores/authStore'
 
 // ==================== Interfaces ====================
 
@@ -80,23 +81,30 @@ export interface OrderResponse {
  * @throws Error - 주문 생성 실패 시
  */
 export const createOrder = async (request: OrderCreateRequest): Promise<OrderResponse> => {
-  const token = localStorage.getItem('userToken')
-
-  if (!token) {
-    throw new Error('로그인이 필요합니다.')
-  }
+  const token = useAuthStore.getState().userToken
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(request),
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('로그인이 필요합니다.')
+      }
+      if (response.status === 403) {
+        throw new Error('주문 권한이 없습니다.')
+      }
       const error = await response.json().catch(() => ({ message: '주문 생성에 실패했습니다.' }))
       throw new Error(error.message || `주문 생성 실패 (HTTP ${response.status})`)
     }

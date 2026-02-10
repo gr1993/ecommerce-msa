@@ -24,7 +24,7 @@ import MarketFooter from '../../components/market/MarketFooter'
 import { useCartStore, type CartItem } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { requestPayment, type PaymentRequest } from '../../utils/paymentUtils'
-import { createOrder, type OrderCreateRequest } from '../../api/orderApi'
+import { createOrder, type OrderCreateRequest, type OrderResponse } from '../../api/orderApi'
 import './MarketOrder.css'
 
 const { Step } = Steps
@@ -46,6 +46,8 @@ function MarketOrder() {
   const [orderItems, setOrderItems] = useState<CartItem[]>([])
   const [currentStep, setCurrentStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [orderResponse, setOrderResponse] = useState<OrderResponse | null>(null)
+  const [savedFormData, setSavedFormData] = useState<OrderFormData | null>(null)
   const cartItems = useCartStore((state) => state.items)
   const removeFromCart = useCartStore((state) => state.removeFromCart)
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
@@ -113,49 +115,33 @@ function MarketOrder() {
     message.info('주소 검색 기능은 준비 중입니다.')
   }
 
-  // 결제하기 (부트페이 SDK 연동)
-  const handleOrderSubmit = async (values: OrderFormData) => {
+  // Step 0 → Step 1 이동 (배송지 정보 저장)
+  const handleNextStep = async () => {
+    try {
+      const values = await form.validateFields()
+      setSavedFormData(values)
+      setCurrentStep(1)
+    } catch (error) {
+      console.error('Validation failed:', error)
+    }
+  }
+
+  // 주문하기 (주문 생성 API 호출)
+  const handleOrderCreate = async () => {
     if (orderItems.length === 0) {
       message.warning('주문할 상품이 없습니다.')
       return
     }
 
+    if (!savedFormData) {
+      message.error('배송지 정보가 없습니다.')
+      setCurrentStep(0)
+      return
+    }
+
     setLoading(true)
     try {
-      // 주문 ID 생성
-      const orderId = `ORD-${Date.now()}`
-      const orderName = orderItems.length === 1 
-        ? orderItems[0].product_name 
-        : `${orderItems[0].product_name} 외 ${orderItems.length - 1}개`
-
-      // 결제 요청 데이터 구성
-      const paymentRequest: PaymentRequest = {
-        orderId,
-        orderName,
-        totalAmount: calculateFinalTotal(),
-        paymentMethod: '', // 부트페이 SDK에서 결제 방법 선택
-        items: orderItems.map(item => ({
-          id: item.product_id,
-          name: item.product_name,
-          qty: item.quantity,
-          price: item.base_price
-        })),
-        shippingInfo: {
-          receiver_name: values.receiver_name,
-          receiver_phone: values.receiver_phone,
-          postal_code: values.postal_code,
-          address: values.address,
-          address_detail: values.address_detail
-        }
-      }
-
-      // 부트페이 SDK로 결제 요청
-      // TODO: 부트페이 SDK 설치 후 실제 결제 처리
-      // import Bootpay from '@bootpay/client-js'
-      // const bootpay = Bootpay.setApplicationId('YOUR_APPLICATION_ID', 'YOUR_PRIVATE_KEY')
-      // const response = await bootpay.request({ ... })
-      
-      // 1. 백엔드 API로 주문 생성
+      // 백엔드 API로 주문 생성
       const orderRequest: OrderCreateRequest = {
         orderItems: orderItems.map(item => ({
           productId: Number(item.product_id),
@@ -163,24 +149,76 @@ function MarketOrder() {
           quantity: item.quantity,
         })),
         deliveryInfo: {
-          receiverName: values.receiver_name,
-          receiverPhone: values.receiver_phone,
-          zipcode: values.postal_code,
-          address: values.address,
-          addressDetail: values.address_detail,
-          deliveryMemo: values.delivery_memo,
+          receiverName: savedFormData.receiver_name,
+          receiverPhone: savedFormData.receiver_phone,
+          zipcode: savedFormData.postal_code,
+          address: savedFormData.address,
+          addressDetail: savedFormData.address_detail,
+          deliveryMemo: savedFormData.delivery_memo,
         },
       }
 
-      const orderResponse = await createOrder(orderRequest)
+      const response = await createOrder(orderRequest)
+      setOrderResponse(response)
 
-      // 2. 부트페이 SDK로 결제 요청
+      message.success('주문이 생성되었습니다. 결제를 진행해주세요.')
+      setCurrentStep(2) // 결제 화면으로 이동
+    } catch (error) {
+      console.error('Order create error:', error)
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('주문 생성 중 오류가 발생했습니다.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 결제하기 (부트페이 SDK 연동)
+  const handlePayment = async () => {
+    if (!orderResponse || !savedFormData) {
+      message.error('주문 정보가 없습니다.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const orderName = orderItems.length === 1
+        ? orderItems[0].product_name
+        : `${orderItems[0].product_name} 외 ${orderItems.length - 1}개`
+
+      // 결제 요청 데이터 구성
+      const paymentRequest: PaymentRequest = {
+        orderId: orderResponse.orderNumber,
+        orderName,
+        totalAmount: calculateFinalTotal(),
+        paymentMethod: '',
+        items: orderItems.map(item => ({
+          id: item.product_id,
+          name: item.product_name,
+          qty: item.quantity,
+          price: item.base_price
+        })),
+        shippingInfo: {
+          receiver_name: savedFormData.receiver_name,
+          receiver_phone: savedFormData.receiver_phone,
+          postal_code: savedFormData.postal_code,
+          address: savedFormData.address,
+          address_detail: savedFormData.address_detail
+        }
+      }
+
+      // 부트페이 SDK로 결제 요청
       const paymentResponse = await requestPayment(paymentRequest)
 
       if (!paymentResponse.success) {
         message.error(paymentResponse.error || '결제 처리 중 오류가 발생했습니다.')
         return
       }
+
+      // TODO: 결제 승인 API 호출 (백엔드에서 결제 검증 후 주문 상태 업데이트)
+      // await confirmPayment({ orderId: orderResponse.orderId, paymentId: paymentResponse.paymentId, ... })
 
       // 주문 성공 시 장바구니에서 선택한 상품 제거
       if (location.state?.fromCart) {
@@ -250,6 +288,7 @@ function MarketOrder() {
         <Steps current={currentStep} className="order-steps">
           <Step title="배송지 정보" icon={<HomeOutlined />} />
           <Step title="주문 확인" icon={<CheckCircleOutlined />} />
+          <Step title="결제" icon={<CreditCardOutlined />} />
         </Steps>
 
         <div className="order-content">
@@ -257,8 +296,16 @@ function MarketOrder() {
             <Form
               form={form}
               layout="vertical"
-              onFinish={handleOrderSubmit}
+              onFinish={handleOrderCreate}
               className="order-form"
+              initialValues={{
+                receiver_name: '박강림',
+                receiver_phone: '010-1234-5678',
+                postal_code: '04524',
+                address: '서울특별시 강남구 테스트로 123',
+                address_detail: '테스트빌딩 10층',
+                delivery_memo: '빠른 배송 부탁합니다.',
+              }}
             >
               {/* 배송지 정보 */}
               {currentStep === 0 && (
@@ -282,13 +329,15 @@ function MarketOrder() {
                     <Input placeholder="010-1234-5678" size="large" />
                   </Form.Item>
 
-                  <Form.Item
-                    name="postal_code"
-                    label="우편번호"
-                    rules={[{ required: true, message: '우편번호를 입력해주세요.' }]}
-                  >
+                  <Form.Item label="우편번호" required>
                     <Space.Compact style={{ width: '100%' }}>
-                      <Input placeholder="우편번호" size="large" />
+                      <Form.Item
+                        name="postal_code"
+                        noStyle
+                        rules={[{ required: true, message: '우편번호를 입력해주세요.' }]}
+                      >
+                        <Input placeholder="우편번호" size="large" />
+                      </Form.Item>
                       <Button onClick={handleAddressSearch} size="large">
                         주소 검색
                       </Button>
@@ -325,7 +374,7 @@ function MarketOrder() {
                     type="primary"
                     size="large"
                     block
-                    onClick={() => setCurrentStep(1)}
+                    onClick={handleNextStep}
                     className="step-button"
                   >
                     주문 확인
@@ -398,7 +447,93 @@ function MarketOrder() {
                     <Button
                       type="primary"
                       size="large"
-                      htmlType="submit"
+                      onClick={handleOrderCreate}
+                      loading={loading}
+                      className="order-submit-button"
+                      icon={<ShoppingCartOutlined />}
+                    >
+                      주문하기
+                    </Button>
+                  </Space>
+                </Card>
+              )}
+
+              {/* 결제 */}
+              {currentStep === 2 && orderResponse && (
+                <Card title="결제" className="order-section-card">
+                  <div className="payment-info">
+                    <h3>주문 정보</h3>
+                    <div className="payment-order-info">
+                      <div className="info-row">
+                        <span>주문 번호</span>
+                        <span>{orderResponse.orderNumber}</span>
+                      </div>
+                      <div className="info-row">
+                        <span>주문 상태</span>
+                        <span>{orderResponse.orderStatus === 'CREATED' ? '주문 생성됨' : orderResponse.orderStatus}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Divider />
+
+                  <div className="payment-items">
+                    <h3>결제 상품</h3>
+                    {orderItems.map((item) => (
+                      <div key={item.product_id} className="order-item-review">
+                        <Image
+                          src={item.image_url || 'https://via.placeholder.com/100x100'}
+                          alt={item.product_name}
+                          width={60}
+                          height={60}
+                          preview={false}
+                          style={{ borderRadius: '8px', objectFit: 'cover' }}
+                        />
+                        <div className="order-item-info">
+                          <h4>{item.product_name}</h4>
+                          <div className="order-item-quantity">
+                            수량: {item.quantity}개
+                          </div>
+                        </div>
+                        <div className="order-item-price">
+                          {(item.base_price * item.quantity).toLocaleString()}원
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Divider />
+
+                  <div className="order-summary-review">
+                    <div className="summary-row">
+                      <span>상품 금액</span>
+                      <span>{totalPrice.toLocaleString()}원</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>배송비</span>
+                      <span>
+                        {shippingFee === 0 ? (
+                          <span style={{ color: '#52c41a' }}>무료</span>
+                        ) : (
+                          `${shippingFee.toLocaleString()}원`
+                        )}
+                      </span>
+                    </div>
+                    <Divider />
+                    <div className="summary-row total-row">
+                      <span>최종 결제금액</span>
+                      <span className="final-total">{finalTotal.toLocaleString()}원</span>
+                    </div>
+                  </div>
+
+                  <Space style={{ width: '100%', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+                    <Button size="large" onClick={() => setCurrentStep(1)}>
+                      이전
+                    </Button>
+                    <Button
+                      type="primary"
+                      size="large"
+                      onClick={handlePayment}
                       loading={loading}
                       className="order-submit-button"
                       icon={<CreditCardOutlined />}

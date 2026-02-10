@@ -236,6 +236,54 @@
   margin-top: 1rem;
 }
 
+/* 결제 화면 */
+.payment-info {
+  margin-bottom: 1.5rem;
+}
+
+.payment-info h3,
+.payment-items h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.payment-order-info {
+  background-color: #fafafa;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.info-row:first-child {
+  padding-top: 0;
+}
+
+.info-row:last-child {
+  padding-bottom: 0;
+}
+
+.info-row span:first-child {
+  color: #95a5a6;
+}
+
+.info-row span:last-child {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.payment-items {
+  margin-bottom: 1rem;
+}
+
 /* 반응형 */
 @media (max-width: 1024px) {
   .order-content {
