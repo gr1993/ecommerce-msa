@@ -148,6 +148,7 @@ services:
     container_name: mongodb
     ports:
       - 27017:27017
+    command: ["--replSet", "rs0"]
     networks:
       - ecommerce-net
 
@@ -155,7 +156,7 @@ services:
     image: mongo-express:latest
     container_name: mongo-express
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/payment_service?replicaSet=rs0
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: admin
     ports:

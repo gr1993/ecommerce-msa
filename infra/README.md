@@ -18,6 +18,18 @@ docker-compose --project-name service up --build -d user-service
 docker-compose -f docker-compose.infra.yml up -d
 ```
 
+### MongoDB 구축 시
+MongoDB에서 트랜잭션을 사용하려면 Replica Set 설정이 필수이다. 아래 명령어는 현재 인스턴스를 Primary로  
+초기화하여 mongo-express 등 클라이언트에서 접근할 수 있도록 한다.  
+
+```shell
+# MongoDB 실행
+docker exec -it mongodb mongosh
+
+# MongoDB Replica Set을 초기화하고, 현재 노드를 Primary로 설정하는 명령어
+rs.initiate()
+```
+
 
 ### Kafka 토픽 생성
 
