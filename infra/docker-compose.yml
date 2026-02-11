@@ -9,6 +9,7 @@ x-service-common: &service-common
     REDIS_HOST: redis
     CONFIG_HOST: config-server
     EUREKA_HOST: discovery-service
+    MONGODB_HOST: mongodb
 
 x-healthcheck-template: &healthcheck-template
   interval: 10s
