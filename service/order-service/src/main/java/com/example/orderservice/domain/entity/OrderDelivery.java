@@ -16,7 +16,7 @@ public class OrderDelivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_delivery_id")
+    @Column(name = "delivery_id")
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
