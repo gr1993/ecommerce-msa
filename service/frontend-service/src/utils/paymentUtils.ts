@@ -1,31 +1,19 @@
 /**
  * 결제 유틸리티 함수
- * 부트페이(Bootpay) 등 외부 결제 서비스 연동을 위한 유틸리티
+ * 토스페이먼츠 SDK 연동
  */
+
+import type { TossPaymentSuccessParams, TossPaymentFailParams } from '../types/tossPayments'
+
+const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY
 
 export interface PaymentRequest {
   orderId: string
   orderName: string
   totalAmount: number
-  paymentMethod: string
-  items: Array<{
-    id: string
-    name: string
-    qty: number
-    price: number
-  }>
-  userInfo?: {
-    username?: string
-    email?: string
-    phone?: string
-  }
-  shippingInfo?: {
-    receiver_name: string
-    receiver_phone: string
-    postal_code: string
-    address: string
-    address_detail: string
-  }
+  customerEmail?: string
+  customerName?: string
+  customerMobilePhone?: string
 }
 
 export interface PaymentResponse {
@@ -37,86 +25,117 @@ export interface PaymentResponse {
 }
 
 /**
- * 부트페이 결제 요청
- * TODO: 실제 부트페이 SDK 연동
- * 
- * @example
- * // 부트페이 SDK 설치 필요: npm install @bootpay/client-js
- * // import Bootpay from '@bootpay/client-js'
- * 
- * const bootpay = Bootpay.setApplicationId('YOUR_APPLICATION_ID', 'YOUR_PRIVATE_KEY')
- * 
- * const response = await bootpay.request({
- *   price: paymentRequest.totalAmount,
- *   application_id: 'YOUR_APPLICATION_ID',
- *   name: paymentRequest.orderName,
- *   order_id: paymentRequest.orderId,
- *   pg: getPaymentPg(paymentRequest.paymentMethod),
- *   method: getPaymentMethod(paymentRequest.paymentMethod),
- *   items: paymentRequest.items,
- *   user_info: paymentRequest.userInfo,
- *   extra: {
- *     shipping_info: paymentRequest.shippingInfo
- *   }
- * })
+ * 토스페이먼츠 결제 요청
+ * 결제 완료 후 successUrl/failUrl로 리다이렉트됨
  */
-export const requestPayment = async (paymentRequest: PaymentRequest): Promise<PaymentResponse> => {
-  try {
-    // TODO: 부트페이 SDK 연동
-    // 1. 부트페이 SDK 초기화
-    // 2. 결제 요청 API 호출
-    // 3. 결제 결과 반환
-    
-    console.log('Payment Request:', paymentRequest)
-    
-    // 임시: 실제 결제 API 호출 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // TODO: 실제 부트페이 API 호출
-    // const bootpay = Bootpay.setApplicationId('YOUR_APPLICATION_ID', 'YOUR_PRIVATE_KEY')
-    // const response = await bootpay.request({ ... })
-    
-    return {
-      success: true,
-      orderId: paymentRequest.orderId,
-      paymentId: `PAY-${Date.now()}`,
-      receiptId: `RECEIPT-${Date.now()}`
-    }
-  } catch (error) {
-    console.error('Payment error:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '결제 처리 중 오류가 발생했습니다.'
-    }
+export const requestTossPayment = async (
+  paymentRequest: PaymentRequest,
+  customerKey: string
+): Promise<void> => {
+  if (!window.TossPayments) {
+    throw new Error('토스페이먼츠 SDK가 로드되지 않았습니다.')
   }
+
+  if (!TOSS_CLIENT_KEY) {
+    throw new Error('토스페이먼츠 클라이언트 키가 설정되지 않았습니다.')
+  }
+
+  const tossPayments = window.TossPayments(TOSS_CLIENT_KEY)
+  const payment = tossPayments.payment({ customerKey })
+
+  const baseUrl = window.location.origin
+
+  await payment.requestPayment({
+    method: 'CARD',
+    amount: {
+      currency: 'KRW',
+      value: paymentRequest.totalAmount,
+    },
+    orderId: paymentRequest.orderId,
+    orderName: paymentRequest.orderName,
+    successUrl: `${baseUrl}/market/payment/success`,
+    failUrl: `${baseUrl}/market/payment/fail`,
+    customerEmail: paymentRequest.customerEmail,
+    customerName: paymentRequest.customerName,
+    customerMobilePhone: paymentRequest.customerMobilePhone?.replace(/-/g, ''),
+    card: {
+      useEscrow: false,
+      flowMode: 'DEFAULT',
+      useCardPoint: false,
+      useAppCardOnly: false,
+    },
+  })
 }
 
 /**
- * 결제 방법에 따른 부트페이 PG 설정
+ * 비회원 결제 요청
  */
-export const getPaymentPg = (paymentMethod: string): string => {
-  const pgMap: Record<string, string> = {
-    CARD: '나이스페이', // 또는 '다날', 'KG이니시스' 등
-    BANK_TRANSFER: '나이스페이',
-    VIRTUAL_ACCOUNT: '나이스페이',
-    MOBILE: '나이스페이',
-    EASYPAY: '나이스페이'
+export const requestTossPaymentAnonymous = async (
+  paymentRequest: PaymentRequest
+): Promise<void> => {
+  if (!window.TossPayments) {
+    throw new Error('토스페이먼츠 SDK가 로드되지 않았습니다.')
   }
-  return pgMap[paymentMethod] || '나이스페이'
+
+  if (!TOSS_CLIENT_KEY) {
+    throw new Error('토스페이먼츠 클라이언트 키가 설정되지 않았습니다.')
+  }
+
+  const tossPayments = window.TossPayments(TOSS_CLIENT_KEY)
+  const payment = tossPayments.payment({ customerKey: window.TossPayments.ANONYMOUS })
+
+  const baseUrl = window.location.origin
+
+  await payment.requestPayment({
+    method: 'CARD',
+    amount: {
+      currency: 'KRW',
+      value: paymentRequest.totalAmount,
+    },
+    orderId: paymentRequest.orderId,
+    orderName: paymentRequest.orderName,
+    successUrl: `${baseUrl}/market/payment/success`,
+    failUrl: `${baseUrl}/market/payment/fail`,
+    customerEmail: paymentRequest.customerEmail,
+    customerName: paymentRequest.customerName,
+    customerMobilePhone: paymentRequest.customerMobilePhone?.replace(/-/g, ''),
+    card: {
+      useEscrow: false,
+      flowMode: 'DEFAULT',
+      useCardPoint: false,
+      useAppCardOnly: false,
+    },
+  })
 }
 
 /**
- * 결제 방법에 따른 부트페이 method 설정
+ * URL 쿼리 파라미터에서 결제 성공 정보 추출
  */
-export const getPaymentMethod = (paymentMethod: string): string[] => {
-  const methodMap: Record<string, string[]> = {
-    CARD: ['card'],
-    BANK_TRANSFER: ['bank'],
-    VIRTUAL_ACCOUNT: ['vbank'],
-    MOBILE: ['phone'],
-    EASYPAY: ['easy']
+export const parsePaymentSuccessParams = (searchParams: URLSearchParams): TossPaymentSuccessParams | null => {
+  const paymentKey = searchParams.get('paymentKey')
+  const orderId = searchParams.get('orderId')
+  const amount = searchParams.get('amount')
+
+  if (!paymentKey || !orderId || !amount) {
+    return null
   }
-  return methodMap[paymentMethod] || ['card']
+
+  return { paymentKey, orderId, amount }
+}
+
+/**
+ * URL 쿼리 파라미터에서 결제 실패 정보 추출
+ */
+export const parsePaymentFailParams = (searchParams: URLSearchParams): TossPaymentFailParams | null => {
+  const code = searchParams.get('code')
+  const message = searchParams.get('message')
+  const orderId = searchParams.get('orderId')
+
+  if (!code || !message) {
+    return null
+  }
+
+  return { code, message, orderId: orderId || undefined }
 }
 
 /**
@@ -125,30 +144,9 @@ export const getPaymentMethod = (paymentMethod: string): string[] => {
 export const getPaymentMethodName = (paymentMethod: string): string => {
   const nameMap: Record<string, string> = {
     CARD: '신용카드',
-    BANK_TRANSFER: '계좌이체',
+    TRANSFER: '계좌이체',
     VIRTUAL_ACCOUNT: '가상계좌',
-    MOBILE: '휴대폰 결제',
-    EASYPAY: '간편결제'
+    MOBILE_PHONE: '휴대폰 결제',
   }
   return nameMap[paymentMethod] || '신용카드'
 }
-
-/**
- * 결제 완료 후 검증
- * TODO: 부트페이 receipt_id로 실제 결제 검증
- */
-export const verifyPayment = async (receiptId: string): Promise<boolean> => {
-  try {
-    // TODO: 부트페이 결제 검증 API 호출
-    // const bootpay = Bootpay.setApplicationId('YOUR_APPLICATION_ID', 'YOUR_PRIVATE_KEY')
-    // const response = await bootpay.verify(receiptId)
-    // return response.status === 1
-    
-    console.log('Verify payment:', receiptId)
-    return true
-  } catch (error) {
-    console.error('Payment verification error:', error)
-    return false
-  }
-}
-

@@ -26,6 +26,8 @@ import MarketProductDetail from './pages/market/MarketProductDetail'
 import MarketCart from './pages/market/MarketCart'
 import MarketOrder from './pages/market/MarketOrder'
 import MarketOrderComplete from './pages/market/MarketOrderComplete'
+import MarketPaymentSuccess from './pages/market/MarketPaymentSuccess'
+import MarketPaymentFail from './pages/market/MarketPaymentFail'
 import MarketNotices from './pages/market/support/MarketNotices'
 import MarketMyPageLayout from './pages/market/mypage/MarketMyPageLayout'
 import MarketMyPageOrders from './pages/market/mypage/MarketMyPageOrders'
@@ -51,6 +53,8 @@ function App() {
         <Route path="/market/cart" element={<MarketCart />} />
         <Route path="/market/order" element={<MarketOrder />} />
         <Route path="/market/order/complete" element={<MarketOrderComplete />} />
+        <Route path="/market/payment/success" element={<MarketPaymentSuccess />} />
+        <Route path="/market/payment/fail" element={<MarketPaymentFail />} />
         <Route path="/market/support/notices" element={<MarketNotices />} />
         <Route path="/market/mypage" element={<MarketMyPageLayout />}>
           <Route index element={<Navigate to="/market/mypage/orders" replace />} />

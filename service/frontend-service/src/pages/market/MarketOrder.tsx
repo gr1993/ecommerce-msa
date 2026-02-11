@@ -7,7 +7,6 @@ import {
   Button,
   Space,
   Divider,
-  Radio,
   message,
   Image,
   Steps
@@ -23,11 +22,11 @@ import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { useCartStore, type CartItem } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
-import { requestPayment, type PaymentRequest } from '../../utils/paymentUtils'
+import { usePendingOrderStore } from '../../stores/pendingOrderStore'
+import { requestTossPayment, type PaymentRequest } from '../../utils/paymentUtils'
 import { createOrder, type OrderCreateRequest, type OrderResponse } from '../../api/orderApi'
 import './MarketOrder.css'
 
-const { Step } = Steps
 const { TextArea } = Input
 
 interface OrderFormData {
@@ -49,8 +48,9 @@ function MarketOrder() {
   const [orderResponse, setOrderResponse] = useState<OrderResponse | null>(null)
   const [savedFormData, setSavedFormData] = useState<OrderFormData | null>(null)
   const cartItems = useCartStore((state) => state.items)
-  const removeFromCart = useCartStore((state) => state.removeFromCart)
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+  const setPendingOrder = usePendingOrderStore((state) => state.setPendingOrder)
+  const clearPendingOrder = usePendingOrderStore((state) => state.clearPendingOrder)
 
   // 비로그인 상태면 로그인 페이지로 이동
   useEffect(() => {
@@ -139,7 +139,7 @@ function MarketOrder() {
       const orderRequest: OrderCreateRequest = {
         orderItems: orderItems.map(item => ({
           productId: Number(item.product_id),
-          skuId: item.sku_id,
+          skuId: Number(item.sku_id),
           quantity: item.quantity,
         })),
         deliveryInfo: {
@@ -169,7 +169,7 @@ function MarketOrder() {
     }
   }
 
-  // 결제하기 (부트페이 SDK 연동)
+  // 결제하기 (토스페이먼츠 SDK 연동)
   const handlePayment = async () => {
     if (!orderResponse || !savedFormData) {
       message.error('주문 정보가 없습니다.')
@@ -182,56 +182,40 @@ function MarketOrder() {
         ? orderItems[0].product_name
         : `${orderItems[0].product_name} 외 ${orderItems.length - 1}개`
 
+      const totalAmount = calculateFinalTotal()
+
+      // 토스 리다이렉트 후 복원을 위해 store에 주문 정보 저장
+      setPendingOrder({
+        orderId: orderResponse.orderId,
+        orderNumber: orderResponse.orderNumber,
+        cartItemIds: orderItems.map(item => ({
+          productId: item.product_id,
+          skuId: item.sku_id
+        })),
+        totalAmount,
+        fromCart: location.state?.fromCart || false
+      })
+
       // 결제 요청 데이터 구성
       const paymentRequest: PaymentRequest = {
         orderId: orderResponse.orderNumber,
         orderName,
-        totalAmount: calculateFinalTotal(),
-        paymentMethod: '',
-        items: orderItems.map(item => ({
-          id: item.product_id,
-          name: item.product_name,
-          qty: item.quantity,
-          price: item.base_price
-        })),
-        shippingInfo: {
-          receiver_name: savedFormData.receiver_name,
-          receiver_phone: savedFormData.receiver_phone,
-          postal_code: savedFormData.postal_code,
-          address: savedFormData.address,
-          address_detail: savedFormData.address_detail
-        }
+        totalAmount,
+        customerName: savedFormData.receiver_name,
+        customerMobilePhone: savedFormData.receiver_phone
       }
 
-      // 부트페이 SDK로 결제 요청
-      const paymentResponse = await requestPayment(paymentRequest)
+      // 토스페이먼츠 SDK로 결제 요청 (사용자 ID를 customerKey로 사용)
+      const customerKey = `USER_${orderResponse.orderId}`
+      await requestTossPayment(paymentRequest, customerKey)
 
-      if (!paymentResponse.success) {
-        message.error(paymentResponse.error || '결제 처리 중 오류가 발생했습니다.')
-        return
-      }
-
-      // TODO: 결제 승인 API 호출 (백엔드에서 결제 검증 후 주문 상태 업데이트)
-      // await confirmPayment({ orderId: orderResponse.orderId, paymentId: paymentResponse.paymentId, ... })
-
-      // 주문 성공 시 장바구니에서 선택한 상품 제거
-      if (location.state?.fromCart) {
-        orderItems.forEach(item => removeFromCart(item.product_id, item.sku_id))
-      }
-
-      message.success('결제가 완료되었습니다!')
-      navigate('/market/order/complete', {
-        state: {
-          orderId: orderResponse.orderId,
-          orderNumber: orderResponse.orderNumber,
-          paymentId: paymentResponse.paymentId,
-          receiptId: paymentResponse.receiptId,
-          totalAmount: calculateFinalTotal()
-        }
-      })
+      // 토스페이먼츠는 결제 완료 후 successUrl로 리다이렉트됨
+      // 실제 결제 승인 및 후처리는 MarketPaymentSuccess 페이지에서 처리
     } catch (error) {
       console.error('Payment error:', error)
-      message.error('결제 처리 중 오류가 발생했습니다.')
+      // 결제 실패 시 store에서 임시 주문 정보 삭제
+      clearPendingOrder()
+      message.error(error instanceof Error ? error.message : '결제 처리 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -278,11 +262,15 @@ function MarketOrder() {
           </h1>
         </div>
 
-        <Steps current={currentStep} className="order-steps">
-          <Step title="배송지 정보" icon={<HomeOutlined />} />
-          <Step title="주문 확인" icon={<CheckCircleOutlined />} />
-          <Step title="결제" icon={<CreditCardOutlined />} />
-        </Steps>
+        <Steps
+          current={currentStep}
+          className="order-steps"
+          items={[
+            { title: '배송지 정보', icon: <HomeOutlined /> },
+            { title: '주문 확인', icon: <CheckCircleOutlined /> },
+            { title: '결제', icon: <CreditCardOutlined /> },
+          ]}
+        />
 
         <div className="order-content">
           <div className="order-main">
