@@ -6,6 +6,7 @@ import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
 import { useAuthStore } from '../../stores/authStore'
 import { login } from '../../api/authApi'
+import { decodeToken } from '../../utils/tokenUtils'
 import './MarketLogin.css'
 
 function MarketLogin() {
@@ -18,18 +19,6 @@ function MarketLogin() {
   // 로그인 후 리다이렉트할 경로 (로그인 유도된 페이지 또는 기본값)
   const redirectPath = location.state?.from || '/market'
   const redirectState = location.state?.orderItems
-
-  // JWT 토큰에서 사용자 정보 추출
-  const decodeToken = (token: string) => {
-    try {
-      const payload = token.split('.')[1]
-      const decoded = JSON.parse(atob(payload))
-      return decoded
-    } catch (error) {
-      console.error('Failed to decode token:', error)
-      return null
-    }
-  }
 
   const onFinish = async (values: any) => {
     setLoading(true)

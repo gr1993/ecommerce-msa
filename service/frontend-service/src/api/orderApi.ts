@@ -3,10 +3,15 @@
  *
  * Type-safe API functions for order-service endpoints
  * All requests go through API Gateway
+ *
+ * 토큰 정책:
+ * - API 요청 전 Access Token 만료 시간 확인
+ * - 만료되었거나 5분 이내 만료 예정 시 자동 갱신
+ * - 갱신 실패 시 로그아웃 유도
  */
 
 import { API_BASE_URL } from '../config/env'
-import { useAuthStore } from '../stores/authStore'
+import { authenticatedFetch, TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
 
 // ==================== Interfaces ====================
 
@@ -75,33 +80,26 @@ export interface OrderResponse {
  * 주문 생성
  *
  * 새로운 주문을 생성합니다. (인증 필요)
+ * Access Token 만료 시 자동으로 갱신 후 요청을 수행합니다.
  *
  * @param request - 주문 생성 요청 데이터
  * @returns 주문 생성 응답
  * @throws Error - 주문 생성 실패 시
+ * @throws TokenRefreshError - 토큰 갱신 실패 시 (재로그인 필요)
+ * @throws AuthRequiredError - 로그인되어 있지 않은 경우
  */
 export const createOrder = async (request: OrderCreateRequest): Promise<OrderResponse> => {
-  const token = useAuthStore.getState().userToken
-
   try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/orders`, {
+    // authenticatedFetch가 토큰 만료 확인 및 자동 갱신 처리
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(request),
     })
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('로그인이 필요합니다.')
-      }
       if (response.status === 403) {
         throw new Error('주문 권한이 없습니다.')
       }
@@ -113,6 +111,11 @@ export const createOrder = async (request: OrderCreateRequest): Promise<OrderRes
     return data
   } catch (error) {
     console.error('Create order error:', error)
+
+    // 토큰 갱신 실패 또는 인증 필요 에러는 그대로 전파
+    if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) {
+      throw error
+    }
 
     if (error instanceof Error) {
       throw error

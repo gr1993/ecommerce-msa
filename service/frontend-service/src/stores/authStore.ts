@@ -39,6 +39,11 @@ interface AuthState {
   login: (user: User, token: string, refreshToken?: string) => void
   logout: () => void
   isLoggedIn: () => boolean
+  /**
+   * 토큰 갱신 시 새로운 토큰들을 저장
+   * Refresh Token Rotation을 사용하지 않으므로 refreshToken은 optional
+   */
+  updateTokens: (accessToken: string, refreshToken?: string) => void
 
   // 관리자 액션
   adminLogin: (adminUser: AdminUser, token: string) => void
@@ -76,6 +81,15 @@ export const useAuthStore = create<AuthState>()(
 
       isLoggedIn: () => {
         return !!get().userToken
+      },
+
+      updateTokens: (accessToken, refreshToken) => {
+        // 새로운 액세스 토큰 저장
+        // Refresh Token Rotation을 사용하지 않으므로 refreshToken이 있을 때만 갱신
+        set({
+          userToken: accessToken,
+          ...(refreshToken && { refreshToken }),
+        })
       },
 
       // 관리자 액션
