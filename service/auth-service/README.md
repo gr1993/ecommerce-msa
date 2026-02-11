@@ -2,6 +2,42 @@
 JWT 기반 인증 토큰 발급 및 검증을 담당하는 MSA 서비스
 
 
+### 토큰 정책
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API Gateway
+    participant Auth Server
+
+    Note over Client: Access Token 만료
+
+    Client->>API Gateway: API 요청 (Access Token)
+    API Gateway-->>Client: 401 Unauthorized (Expired)
+
+    Client->>Auth Server: POST /auth/refresh (Refresh Token)
+    
+    Auth Server->>Auth Server: Refresh Token 서명 + 만료 검증
+    
+    alt Refresh Token 유효
+        Auth Server-->>Client: New Access Token (+ New Refresh Token 선택적)
+        Client->>API Gateway: 원래 요청 재시도 (New Access Token)
+        API Gateway-->>Client: 200 OK
+    else Refresh Token 만료
+        Auth Server-->>Client: 401 Unauthorized
+        Note over Client: 다시 로그인 필요
+    end
+```
+토큰 정책은 아래와 같다.
+* Access Token 만료 시간 : 30분
+* Refresh Token 만료 시간 : 7일
+
+Access Token은 탈취 시 보안 위험이 있으므로 만료 시간을 짧게, 약 30분 정도로 설정하였다.  
+API 요청 전에 Access Token의 만료 시간을 확인하고, 만료되었거나 만료까지 5분 이내인 경우에는 Refresh Token을 이용해  
+토큰 갱신 API를 호출하여 새로운 Access Token을 발급받은 뒤 API 요청을 진행한다.  
+현업에서는 Refresh Token 재발급 시 기존 토큰을 무효화하는 Rotation 방식을 사용하지만, 사이드 프로젝트 특성상 기존  
+Refresh Token은 그대로 사용한다. 만약 토큰 갱신 API 호출이 실패하면, 클라이언트는 재로그인을 유도한다.  
+
+
 ### 프로젝트 패키지 구조
 ```
 com.example.authservice
