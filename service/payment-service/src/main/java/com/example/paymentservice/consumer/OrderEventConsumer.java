@@ -1,5 +1,6 @@
 package com.example.paymentservice.consumer;
 
+import com.example.paymentservice.consumer.event.OrderCancelledEvent;
 import com.example.paymentservice.consumer.event.OrderCreatedEvent;
 import com.example.paymentservice.domain.entity.Order;
 import com.example.paymentservice.repository.OrderRepository;
@@ -100,6 +101,63 @@ public class OrderEventConsumer {
 		}
 	}
 
+	@AsyncListener(
+			operation = @AsyncOperation(
+					channelName = "order.cancelled",
+					description = "주문 취소 이벤트 구독 - 결제 대기 주문 상태를 CANCELED로 변경",
+					message = @AsyncMessage(
+							messageId = "orderCancelledEvent",
+							name = "OrderCancelledEvent"
+					)
+			)
+	)
+	@KafkaAsyncOperationBinding
+	@RetryableTopic(
+			attempts = "4",
+			backoff = @Backoff(
+					delay = 1000,
+					multiplier = 2.0,
+					maxDelay = 10000
+			),
+			autoCreateTopics = "false",
+			include = {Exception.class},
+			topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+			retryTopicSuffix = "-payment-retry",
+			dltTopicSuffix = "-payment-dlt"
+	)
+	@KafkaListener(topics = "order.cancelled", groupId = "${spring.kafka.consumer.group-id:payment-service}")
+	public void consumeOrderCancelledEvent(
+			@Payload OrderCancelledEvent event,
+			@Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
+			@Header(value = KafkaHeaders.OFFSET, required = false) Long offset
+	) {
+		log.info("Received order.cancelled event: orderId={}, orderNumber={}, reason={}, topic={}, offset={}",
+				event.getOrderId(), event.getOrderNumber(), event.getCancellationReason(), topic, offset);
+
+		try {
+			orderRepository.findByOrderId(event.getOrderNumber())
+					.ifPresentOrElse(
+							order -> {
+								// 이미 취소된 주문인지 확인 (멱등성 보장)
+								if (order.getStatus() == Order.PaymentStatus.CANCELED) {
+									log.info("Order already cancelled, skipping: orderNumber={}", event.getOrderNumber());
+									return;
+								}
+
+								order.cancel();
+								orderRepository.save(order);
+								log.info("Successfully cancelled order: orderNumber={}, reason={}",
+										event.getOrderNumber(), event.getCancellationReason());
+							},
+							() -> log.warn("Order not found for cancellation: orderNumber={}", event.getOrderNumber())
+					);
+		} catch (Exception e) {
+			log.error("Failed to process order.cancelled event: orderId={}, orderNumber={}",
+					event.getOrderId(), event.getOrderNumber(), e);
+			throw e;
+		}
+	}
+
 	/**
 	 * DLQ(Dead Letter Queue) 핸들러
 	 * 모든 재시도가 실패한 후 호출됩니다.
@@ -127,6 +185,9 @@ public class OrderEventConsumer {
 		if (payload instanceof OrderCreatedEvent event) {
 			log.error("DLQ 처리 필요 - order.created 실패: orderId={}, orderNumber={}",
 					event.getOrderId(), event.getOrderNumber());
+		} else if (payload instanceof OrderCancelledEvent event) {
+			log.error("DLQ 처리 필요 - order.cancelled 실패: orderId={}, orderNumber={}, reason={}",
+					event.getOrderId(), event.getOrderNumber(), event.getCancellationReason());
 		} else {
 			log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
 		}

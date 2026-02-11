@@ -38,6 +38,10 @@ public class Order {
         this.status = PaymentStatus.FAILED;
     }
 
+    public void cancel() {
+        this.status = PaymentStatus.CANCELED;
+    }
+
     public enum PaymentStatus {
         PENDING,    // 결제 대기
         APPROVED,   // 결제 승인
