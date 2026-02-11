@@ -103,6 +103,16 @@ services:
       <<: *service-common-env
     depends_on: *depends-on-infra
 
+  payment-service:
+    <<: *service-common
+    container_name: payment-service
+    build: ../service/payment-service
+    ports:
+      - "8086:8080"
+    environment:
+      <<: *service-common-env
+    depends_on: *depends-on-infra
+
 
 networks:
   ecommerce-net:
