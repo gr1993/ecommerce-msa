@@ -23,7 +23,7 @@ import java.util.List;
 public class OrderCancellationService {
 
     private static final int EXPIRATION_MINUTES = 10;
-    private static final String CANCEL_REASON_PAYMENT_TIMEOUT = "결제 대기 시간 초과";
+    private static final String CANCELLATION_REASON_SYSTEM_TIMEOUT = "SYSTEM_TIMEOUT";
 
     private final OrderRepository orderRepository;
     private final OutboxRepository outboxRepository;
@@ -61,19 +61,13 @@ public class OrderCancellationService {
     }
 
     private void saveOrderCancelledOutbox(Order order) {
-        LocalDateTime cancelledAt = LocalDateTime.now();
-
         OrderCancelledEvent event = OrderCancelledEvent.builder()
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
+                .cancellationReason(CANCELLATION_REASON_SYSTEM_TIMEOUT)
                 .userId(order.getUserId())
-                .orderStatus(order.getOrderStatus().name())
-                .cancelReason(CANCEL_REASON_PAYMENT_TIMEOUT)
-                .totalProductAmount(order.getTotalProductAmount())
-                .totalDiscountAmount(order.getTotalDiscountAmount())
-                .totalPaymentAmount(order.getTotalPaymentAmount())
-                .orderItems(order.getOrderItems().stream()
-                        .map(item -> OrderCancelledEvent.OrderItemSnapshot.builder()
+                .cancelledItems(order.getOrderItems().stream()
+                        .map(item -> OrderCancelledEvent.CancelledOrderItem.builder()
                                 .orderItemId(item.getId())
                                 .productId(item.getProductId())
                                 .skuId(item.getSkuId())
@@ -84,8 +78,7 @@ public class OrderCancellationService {
                                 .totalPrice(item.getTotalPrice())
                                 .build())
                         .toList())
-                .orderedAt(order.getOrderedAt())
-                .cancelledAt(cancelledAt)
+                .cancelledAt(LocalDateTime.now())
                 .build();
 
         try {
