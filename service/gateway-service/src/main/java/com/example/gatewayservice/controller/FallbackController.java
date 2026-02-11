@@ -62,13 +62,25 @@ public class FallbackController {
     }
 
     @RequestMapping("/order")
-    public ResponseEntity<Map<String, Object>>orderServiceFallback() {
+    public ResponseEntity<Map<String, Object>> orderServiceFallback() {
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
         response.put("error", "Service Unavailable");
         response.put("message", "Order Service is temporarily unavailable. Please try again later.");
         response.put("service", "order-service");
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+
+    @RequestMapping("/payment")
+    public ResponseEntity<Map<String, Object>> paymentServiceFallback() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        response.put("error", "Service Unavailable");
+        response.put("message", "Payment Service is temporarily unavailable. Please try again later.");
+        response.put("service", "payment-service");
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
