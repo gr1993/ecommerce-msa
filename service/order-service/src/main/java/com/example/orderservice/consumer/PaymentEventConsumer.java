@@ -1,5 +1,6 @@
 package com.example.orderservice.consumer;
 
+import com.example.orderservice.consumer.event.PaymentCancelledEvent;
 import com.example.orderservice.consumer.event.PaymentConfirmedEvent;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderPayment;
@@ -149,6 +150,68 @@ public class PaymentEventConsumer {
 		};
 	}
 
+	@AsyncListener(
+			operation = @AsyncOperation(
+					channelName = "payment.cancelled",
+					description = "결제 취소 이벤트 구독 - 주문 상태를 FAILED로 변경",
+					message = @AsyncMessage(
+							messageId = "paymentCancelledEvent",
+							name = "PaymentCancelledEvent"
+					)
+			)
+	)
+	@KafkaAsyncOperationBinding
+	@RetryableTopic(
+			attempts = "4",
+			backoff = @Backoff(
+					delay = 1000,
+					multiplier = 2.0,
+					maxDelay = 10000
+			),
+			autoCreateTopics = "false",
+			include = {Exception.class},
+			topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+			retryTopicSuffix = "-order-retry",
+			dltTopicSuffix = "-order-dlt"
+	)
+	@KafkaListener(topics = "payment.cancelled", groupId = "${spring.kafka.consumer.group-id:order-service}")
+	@Transactional
+	public void consumePaymentCancelledEvent(
+			@Payload PaymentCancelledEvent event,
+			@Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
+			@Header(value = KafkaHeaders.OFFSET, required = false) Long offset
+	) {
+		log.info("Received payment.cancelled event: orderId={}, cancelReason={}, topic={}, offset={}",
+				event.getOrderId(), event.getCancelReason(), topic, offset);
+
+		try {
+			Order order = orderRepository.findByOrderNumber(event.getOrderId())
+					.orElse(null);
+
+			if (order == null) {
+				log.warn("Order not found for payment cancellation: orderNumber={}", event.getOrderId());
+				return;
+			}
+
+			// 이미 실패 처리된 주문인지 확인 (멱등성 보장)
+			if (order.getOrderStatus() == OrderStatus.FAILED) {
+				log.info("Order already failed, skipping: orderNumber={}", event.getOrderId());
+				return;
+			}
+
+			// 주문 상태를 FAILED로 변경
+			order.updateStatus(OrderStatus.FAILED);
+
+			orderRepository.save(order);
+			log.info("Successfully updated order to FAILED: orderNumber={}, cancelReason={}",
+					event.getOrderId(), event.getCancelReason());
+		} catch (Exception e) {
+			log.error("Failed to process payment.cancelled event: orderNumber={}, cancelReason={}",
+					event.getOrderId(), event.getCancelReason(), e);
+			throw e;
+		}
+	}
+
 	/**
 	 * DLQ(Dead Letter Queue) 핸들러
 	 * 모든 재시도가 실패한 후 호출됩니다.
@@ -176,6 +239,9 @@ public class PaymentEventConsumer {
 		if (payload instanceof PaymentConfirmedEvent event) {
 			log.error("DLQ 처리 필요 - payment.confirmed 실패: orderId={}, paymentKey={}",
 					event.getOrderId(), event.getPaymentKey());
+		} else if (payload instanceof PaymentCancelledEvent event) {
+			log.error("DLQ 처리 필요 - payment.cancelled 실패: orderNumber={}, cancelReason={}",
+					event.getOrderId(), event.getCancelReason());
 		} else {
 			log.error("DLQ 알 수 없는 payload 타입: {}", payload.getClass().getName());
 		}

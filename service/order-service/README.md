@@ -86,6 +86,6 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 2. 정적 문서 확인: [`asyncapi.yaml`](./asyncapi.yaml)
 
 | 구분 | 설명 |
-|-----|----|
+|-----|-----|
 | 발행(Published) | order.created, order.cancelled |
-| 구독(Subscribed) | payment.confirmed |
+| 구독(Subscribed) | payment.confirmed, payment.cancelled |
