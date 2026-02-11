@@ -35,6 +35,9 @@ public class OrderPayment {
     @Column(name = "payment_status", nullable = false, length = 30)
     private PaymentStatus paymentStatus;
 
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -43,10 +46,11 @@ public class OrderPayment {
 
     @Builder
     public OrderPayment(PaymentMethod paymentMethod, BigDecimal paymentAmount,
-                        PaymentStatus paymentStatus, LocalDateTime paidAt) {
+                        PaymentStatus paymentStatus, String paymentKey, LocalDateTime paidAt) {
         this.paymentMethod = paymentMethod;
         this.paymentAmount = paymentAmount;
         this.paymentStatus = paymentStatus;
+        this.paymentKey = paymentKey;
         this.paidAt = paidAt;
     }
 
@@ -64,5 +68,11 @@ public class OrderPayment {
         if (status == PaymentStatus.PAID) {
             this.paidAt = LocalDateTime.now();
         }
+    }
+
+    public void confirmPayment(String paymentKey, LocalDateTime paidAt) {
+        this.paymentKey = paymentKey;
+        this.paymentStatus = PaymentStatus.PAID;
+        this.paidAt = paidAt;
     }
 }
