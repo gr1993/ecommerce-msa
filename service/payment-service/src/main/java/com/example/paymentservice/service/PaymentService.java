@@ -49,6 +49,16 @@ public class PaymentService {
         Order order = orderRepository.findByOrderId(request.getOrderId())
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. orderId: " + request.getOrderId()));
 
+        // 1-1. 이미 취소된 주문인지 확인
+        if (order.getStatus() == Order.PaymentStatus.CANCELED) {
+            log.info("이미 취소된 주문입니다. orderId: {}", request.getOrderId());
+            return PaymentConfirmResponse.builder()
+                    .orderId(request.getOrderId())
+                    .status("CANCELED")
+                    .message("이미 취소된 주문입니다.")
+                    .build();
+        }
+
         // 2. 결제 금액과 주문 금액 검증 (위변조 방지)
         if (!order.getAmount().equals(request.getAmount())) {
             log.error("결제 금액 불일치 - 주문 금액: {}, 요청 금액: {}", order.getAmount(), request.getAmount());

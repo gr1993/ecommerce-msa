@@ -15,4 +15,5 @@ public class PaymentConfirmResponse {
     private Long amount;
     private String status;
     private String approvedAt;
+    private String message;
 }
