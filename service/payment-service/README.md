@@ -45,6 +45,37 @@ sequenceDiagram
 4. 주문 상태 업데이트: 결제 승인 완료 상태로 변경
 5. 결제 완료 이벤트 전파: 주문 서비스가 주문 완료 처리할 수 있도록 payment.confirmed 이벤트 발행
 
+### 결제 승인 실패 프로세스
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Payment as Payment-Service
+    participant DB as MongoDB (Payment)
+    participant Toss as 토스페이먼츠 (API)
+    participant Kafka as Message Broker (Kafka)
+    participant Order as Order-Service
+    participant Product as Product-Service
+
+    Note over Payment: 결제 승인 요청 수신 (orderId, amount)
+
+    alt 1. 금액 검증 실패 (위변조 등)
+        Payment->>DB: 1a. 주문 정보 조회
+        DB-->>Payment: 금액 불일치 확인
+        Payment->>DB: 1b. 결제 상태 업데이트 (FAILED)
+        Payment->>Kafka: 1c. payment.failed 이벤트 발행
+    else 2. 토스페이먼츠 승인 실패 (한도초과 등)
+        Payment->>DB: 2a. 주문 정보 조회 및 검증 완료
+        Payment->>Toss: 2b. 최종 결제 승인 요청
+        Toss-->>Payment: 2c. 승인 거절/실패 응답
+        Payment->>DB: 2d. 결제 상태 업데이트 (FAILED)
+        Payment->>Kafka: 2e. payment.failed 이벤트 발행
+    end
+
+    Note over Kafka, Product: 후속 보상 로직 (Event Driven)
+    
+    Kafka-->>Order: 3a. 주문 상태 변경 (FAILED)
+    Kafka-->>Product: 3b. 선차감 재고 복구 (RESTORE)
+```
 
 ### 프로젝트 패키지 구조
 
