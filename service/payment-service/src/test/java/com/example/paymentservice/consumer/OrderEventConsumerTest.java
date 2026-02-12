@@ -38,7 +38,7 @@ class OrderEventConsumerTest {
 		// given
 		OrderCreatedEvent event = createOrderCreatedEvent();
 
-		given(orderRepository.findByOrderId(event.getOrderNumber())).willReturn(Optional.empty());
+		given(orderRepository.findByOrderNumber(event.getOrderNumber())).willReturn(Optional.empty());
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		// when
@@ -49,7 +49,7 @@ class OrderEventConsumerTest {
 		verify(orderRepository).save(orderCaptor.capture());
 
 		Order savedOrder = orderCaptor.getValue();
-		assertThat(savedOrder.getOrderId()).isEqualTo("ORD-20260209-001");
+		assertThat(savedOrder.getOrderNumber()).isEqualTo("ORD-20260209-001");
 		assertThat(savedOrder.getOrderName()).isEqualTo("테스트 상품 외 1개");
 		assertThat(savedOrder.getAmount()).isEqualTo(30000L);
 		assertThat(savedOrder.getCustomerId()).isEqualTo("1001");
@@ -63,13 +63,13 @@ class OrderEventConsumerTest {
 		OrderCreatedEvent event = createOrderCreatedEvent();
 
 		Order existingOrder = Order.builder()
-				.orderId(event.getOrderNumber())
+				.orderNumber(event.getOrderNumber())
 				.orderName("기존 주문")
 				.amount(30000L)
 				.status(Order.PaymentStatus.PENDING)
 				.build();
 
-		given(orderRepository.findByOrderId(event.getOrderNumber())).willReturn(Optional.of(existingOrder));
+		given(orderRepository.findByOrderNumber(event.getOrderNumber())).willReturn(Optional.of(existingOrder));
 
 		// when
 		orderEventConsumer.consumeOrderCreatedEvent(event, "order.created", 0L);
@@ -84,7 +84,7 @@ class OrderEventConsumerTest {
 		// given
 		OrderCreatedEvent event = createOrderCreatedEvent();
 
-		given(orderRepository.findByOrderId(event.getOrderNumber())).willReturn(Optional.empty());
+		given(orderRepository.findByOrderNumber(event.getOrderNumber())).willReturn(Optional.empty());
 		given(orderRepository.save(any(Order.class))).willThrow(new RuntimeException("MongoDB 저장 실패"));
 
 		// when & then
@@ -118,7 +118,7 @@ class OrderEventConsumerTest {
 				.orderedAt(LocalDateTime.now())
 				.build();
 
-		given(orderRepository.findByOrderId(event.getOrderNumber())).willReturn(Optional.empty());
+		given(orderRepository.findByOrderNumber(event.getOrderNumber())).willReturn(Optional.empty());
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		// when
@@ -150,7 +150,7 @@ class OrderEventConsumerTest {
 				.orderedAt(null)  // null
 				.build();
 
-		given(orderRepository.findByOrderId(event.getOrderNumber())).willReturn(Optional.empty());
+		given(orderRepository.findByOrderNumber(event.getOrderNumber())).willReturn(Optional.empty());
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 
 		// when

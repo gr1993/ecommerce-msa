@@ -27,7 +27,7 @@ public class PaymentController {
     public ResponseEntity<PaymentConfirmResponse> confirmPayment(
             @RequestBody PaymentConfirmRequest request) {
 
-        log.info("결제 승인 요청 수신 - orderId: {}", request.getOrderId());
+        log.info("결제 승인 요청 수신 - orderNumber: {}", request.getOrderNumber());
 
         PaymentConfirmResponse response = paymentService.confirmPayment(request);
 

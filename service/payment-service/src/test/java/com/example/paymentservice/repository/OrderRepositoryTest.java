@@ -24,11 +24,11 @@ class OrderRepositoryTest {
     }
 
     @Test
-    @DisplayName("주문을 저장하고 orderId로 조회한다")
-    void findByOrderId() {
+    @DisplayName("주문을 저장하고 orderNumber로 조회한다")
+    void findByOrderNumber() {
         // given
         Order order = Order.builder()
-                .orderId("ORDER-001")
+                .orderNumber("ORDER-001")
                 .orderName("테스트 상품")
                 .amount(10000L)
                 .status(Order.PaymentStatus.PENDING)
@@ -39,11 +39,11 @@ class OrderRepositoryTest {
         orderRepository.save(order);
 
         // when
-        Optional<Order> found = orderRepository.findByOrderId("ORDER-001");
+        Optional<Order> found = orderRepository.findByOrderNumber("ORDER-001");
 
         // then
         assertThat(found).isPresent();
-        assertThat(found.get().getOrderId()).isEqualTo("ORDER-001");
+        assertThat(found.get().getOrderNumber()).isEqualTo("ORDER-001");
         assertThat(found.get().getOrderName()).isEqualTo("테스트 상품");
         assertThat(found.get().getAmount()).isEqualTo(10000L);
         assertThat(found.get().getStatus()).isEqualTo(Order.PaymentStatus.PENDING);
@@ -51,10 +51,10 @@ class OrderRepositoryTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 orderId로 조회하면 빈 Optional을 반환한다")
-    void findByOrderId_notFound() {
+    @DisplayName("존재하지 않는 orderNumber로 조회하면 빈 Optional을 반환한다")
+    void findByOrderNumber_notFound() {
         // when
-        Optional<Order> found = orderRepository.findByOrderId("NON-EXISTENT");
+        Optional<Order> found = orderRepository.findByOrderNumber("NON-EXISTENT");
 
         // then
         assertThat(found).isEmpty();
@@ -65,7 +65,7 @@ class OrderRepositoryTest {
     void approveOrder() {
         // given
         Order order = Order.builder()
-                .orderId("ORDER-002")
+                .orderNumber("ORDER-002")
                 .orderName("승인 테스트 상품")
                 .amount(20000L)
                 .status(Order.PaymentStatus.PENDING)
@@ -76,12 +76,12 @@ class OrderRepositoryTest {
         orderRepository.save(order);
 
         // when
-        Order saved = orderRepository.findByOrderId("ORDER-002").get();
+        Order saved = orderRepository.findByOrderNumber("ORDER-002").get();
         saved.approve("PAYMENT-KEY-001");
         orderRepository.save(saved);
 
         // then
-        Order approved = orderRepository.findByOrderId("ORDER-002").get();
+        Order approved = orderRepository.findByOrderNumber("ORDER-002").get();
         assertThat(approved.getStatus()).isEqualTo(Order.PaymentStatus.APPROVED);
         assertThat(approved.getPaymentKey()).isEqualTo("PAYMENT-KEY-001");
         assertThat(approved.getApprovedAt()).isNotNull();
@@ -92,7 +92,7 @@ class OrderRepositoryTest {
     void failOrder() {
         // given
         Order order = Order.builder()
-                .orderId("ORDER-003")
+                .orderNumber("ORDER-003")
                 .orderName("실패 테스트 상품")
                 .amount(30000L)
                 .status(Order.PaymentStatus.PENDING)
@@ -103,12 +103,12 @@ class OrderRepositoryTest {
         orderRepository.save(order);
 
         // when
-        Order saved = orderRepository.findByOrderId("ORDER-003").get();
+        Order saved = orderRepository.findByOrderNumber("ORDER-003").get();
         saved.fail();
         orderRepository.save(saved);
 
         // then
-        Order failed = orderRepository.findByOrderId("ORDER-003").get();
+        Order failed = orderRepository.findByOrderNumber("ORDER-003").get();
         assertThat(failed.getStatus()).isEqualTo(Order.PaymentStatus.FAILED);
     }
 }

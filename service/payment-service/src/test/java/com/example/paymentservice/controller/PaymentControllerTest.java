@@ -43,7 +43,7 @@ class PaymentControllerTest {
 		);
 
 		PaymentConfirmResponse response = PaymentConfirmResponse.builder()
-				.orderId("ORDER-001")
+				.orderNumber("ORDER-001")
 				.paymentKey("test-payment-key")
 				.amount(10000L)
 				.status("DONE")
@@ -59,7 +59,7 @@ class PaymentControllerTest {
 						.content(objectMapper.writeValueAsString(request)))
 				.andDo(print())
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.orderId").value("ORDER-001"))
+				.andExpect(jsonPath("$.orderNumber").value("ORDER-001"))
 				.andExpect(jsonPath("$.paymentKey").value("test-payment-key"))
 				.andExpect(jsonPath("$.amount").value(10000))
 				.andExpect(jsonPath("$.status").value("DONE"))
@@ -79,7 +79,7 @@ class PaymentControllerTest {
 		);
 
 		given(paymentService.confirmPayment(any(PaymentConfirmRequest.class)))
-				.willThrow(new IllegalArgumentException("주문을 찾을 수 없습니다. orderId: NON-EXISTENT-ORDER"));
+				.willThrow(new IllegalArgumentException("주문을 찾을 수 없습니다. orderNumber: NON-EXISTENT-ORDER"));
 
 		// when & then
 		mockMvc.perform(post("/api/payments/confirm")

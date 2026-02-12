@@ -76,14 +76,14 @@ public class OrderEventConsumer {
 
 		try {
 			// 이미 저장된 주문인지 확인 (멱등성 보장)
-			if (orderRepository.findByOrderId(event.getOrderNumber()).isPresent()) {
+			if (orderRepository.findByOrderNumber(event.getOrderNumber()).isPresent()) {
 				log.info("Order already exists, skipping: orderNumber={}", event.getOrderNumber());
 				return;
 			}
 
 			// 결제 대기 상태로 주문 정보 저장
 			Order order = Order.builder()
-					.orderId(event.getOrderNumber())
+					.orderNumber(event.getOrderNumber())
 					.orderName(event.generateOrderName())
 					.amount(event.getTotalPaymentAmount().longValue())
 					.customerId(event.getUserId().toString())
@@ -135,7 +135,7 @@ public class OrderEventConsumer {
 				event.getOrderId(), event.getOrderNumber(), event.getCancellationReason(), topic, offset);
 
 		try {
-			orderRepository.findByOrderId(event.getOrderNumber())
+			orderRepository.findByOrderNumber(event.getOrderNumber())
 					.ifPresentOrElse(
 							order -> {
 								// 이미 취소된 주문인지 확인 (멱등성 보장)

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -19,7 +20,10 @@ public class Order {
     @Id
     private String id;
 
-    private String orderId;
+    @Version
+    private Long version;
+
+    private String orderNumber;
     private String orderName;
     private Long amount;
     private String paymentKey;

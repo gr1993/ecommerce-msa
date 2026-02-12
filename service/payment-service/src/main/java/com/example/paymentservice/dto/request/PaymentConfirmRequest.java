@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PaymentConfirmRequest {
     private String paymentKey;
-    private String orderId;
+    private String orderNumber;
     private Long amount;
 }

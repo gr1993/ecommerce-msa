@@ -17,6 +17,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,20 +43,25 @@ public class PaymentService {
      * 4. 주문 상태 업데이트
      * 5. 결제 완료 이벤트 Outbox 저장
      */
+    @Retryable(
+            retryFor = OptimisticLockingFailureException.class,
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100, multiplier = 2, random = true)
+    )
     @Transactional
     public PaymentConfirmResponse confirmPayment(PaymentConfirmRequest request) {
-        log.info("결제 승인 요청 - orderId: {}, paymentKey: {}, amount: {}",
-                request.getOrderId(), request.getPaymentKey(), request.getAmount());
+        log.info("결제 승인 요청 - orderNumber: {}, paymentKey: {}, amount: {}",
+                request.getOrderNumber(), request.getPaymentKey(), request.getAmount());
 
         // 1. 주문 정보 조회
-        Order order = orderRepository.findByOrderId(request.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. orderId: " + request.getOrderId()));
+        Order order = orderRepository.findByOrderNumber(request.getOrderNumber())
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. orderNumber: " + request.getOrderNumber()));
 
         // 1-1. 이미 취소된 주문인지 확인
         if (order.getStatus() == Order.PaymentStatus.CANCELED) {
-            log.info("이미 취소된 주문입니다. orderId: {}", request.getOrderId());
+            log.info("이미 취소된 주문입니다. orderNumber: {}", request.getOrderNumber());
             return PaymentConfirmResponse.builder()
-                    .orderId(request.getOrderId())
+                    .orderNumber(request.getOrderNumber())
                     .status("CANCELED")
                     .message("이미 취소된 주문입니다.")
                     .build();
@@ -71,7 +79,7 @@ public class PaymentService {
         // 3. 토스페이먼츠 결제 승인 API 호출
         TossPaymentConfirmRequest tossRequest = TossPaymentConfirmRequest.builder()
                 .paymentKey(request.getPaymentKey())
-                .orderId(request.getOrderId())
+                .orderId(request.getOrderNumber())
                 .amount(request.getAmount())
                 .build();
 
@@ -79,15 +87,15 @@ public class PaymentService {
         try {
             tossResponse = tossPaymentsClient.confirmPayment(tossRequest);
         } catch (FeignException e) {
-            log.error("토스페이먼츠 결제 승인 실패 - orderId: {}, status: {}, message: {}",
-                    request.getOrderId(), e.status(), e.getMessage());
+            log.error("토스페이먼츠 결제 승인 실패 - orderNumber: {}, status: {}, message: {}",
+                    request.getOrderNumber(), e.status(), e.getMessage());
             order.fail();
             orderRepository.save(order);
             savePaymentCancelledOutbox(order, "토스페이먼츠 결제 승인 거부: " + e.getMessage());
             throw new RuntimeException("토스페이먼츠 결제 승인에 실패했습니다.", e);
         }
 
-        log.info("토스페이먼츠 결제 승인 완료 - orderId: {}, status: {}",
+        log.info("토스페이먼츠 결제 승인 완료 - orderNumber: {}, status: {}",
                 tossResponse.getOrderId(), tossResponse.getStatus());
 
         // 4. 주문 상태 업데이트
@@ -98,7 +106,7 @@ public class PaymentService {
         savePaymentConfirmedOutbox(order, tossResponse);
 
         return PaymentConfirmResponse.builder()
-                .orderId(tossResponse.getOrderId())
+                .orderNumber(tossResponse.getOrderId())
                 .paymentKey(tossResponse.getPaymentKey())
                 .amount(tossResponse.getTotalAmount())
                 .status(tossResponse.getStatus())
@@ -108,7 +116,7 @@ public class PaymentService {
 
     private void savePaymentConfirmedOutbox(Order order, TossPaymentResponse tossResponse) {
         PaymentConfirmedEvent event = PaymentConfirmedEvent.builder()
-                .orderId(Long.parseLong(order.getOrderId()))
+                .orderNumber(order.getOrderNumber())
                 .paymentKey(tossResponse.getPaymentKey())
                 .paymentMethod(tossResponse.getMethod())
                 .paymentAmount(tossResponse.getTotalAmount())
@@ -122,13 +130,13 @@ public class PaymentService {
 
             Outbox outbox = Outbox.builder()
                     .aggregateType("Order")
-                    .aggregateId(order.getOrderId())
+                    .aggregateId(order.getOrderNumber())
                     .eventType(EventTypeConstants.TOPIC_PAYMENT_CONFIRMED)
                     .payload(payload)
                     .build();
 
             outboxRepository.save(outbox);
-            log.info("결제 완료 Outbox 이벤트 저장 완료 - orderId: {}", order.getOrderId());
+            log.info("결제 완료 Outbox 이벤트 저장 완료 - orderNumber: {}", order.getOrderNumber());
         } catch (JsonProcessingException e) {
             throw new RuntimeException("이벤트 직렬화 실패", e);
         }
@@ -136,7 +144,7 @@ public class PaymentService {
 
     private void savePaymentCancelledOutbox(Order order, String cancelReason) {
         PaymentCancelledEvent event = PaymentCancelledEvent.builder()
-                .orderId(order.getOrderId())
+                .orderNumber(order.getOrderNumber())
                 .amount(order.getAmount())
                 .customerId(order.getCustomerId())
                 .cancelReason(cancelReason)
@@ -148,13 +156,13 @@ public class PaymentService {
 
             Outbox outbox = Outbox.builder()
                     .aggregateType("Order")
-                    .aggregateId(order.getOrderId())
+                    .aggregateId(order.getOrderNumber())
                     .eventType(EventTypeConstants.TOPIC_PAYMENT_CANCELLED)
                     .payload(payload)
                     .build();
 
             outboxRepository.save(outbox);
-            log.info("결제 취소 Outbox 이벤트 저장 완료 - orderId: {}, reason: {}", order.getOrderId(), cancelReason);
+            log.info("결제 취소 Outbox 이벤트 저장 완료 - orderNumber: {}, reason: {}", order.getOrderNumber(), cancelReason);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("이벤트 직렬화 실패", e);
         }

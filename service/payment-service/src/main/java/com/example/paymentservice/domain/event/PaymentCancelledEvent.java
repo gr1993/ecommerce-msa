@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class PaymentCancelledEvent {
 
-	private String orderId;
+	private String orderNumber;
 	private Long amount;
 	private String customerId;
 	private String cancelReason;

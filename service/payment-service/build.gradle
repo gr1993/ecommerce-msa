@@ -50,6 +50,10 @@ dependencies {
 	// OpenFeign
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
+	// Spring Retry (동시성 충돌 재시도)
+	implementation 'org.springframework.retry:spring-retry'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+
 	// Lombok
 	implementation 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

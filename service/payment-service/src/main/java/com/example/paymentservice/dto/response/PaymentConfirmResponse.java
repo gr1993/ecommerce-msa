@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PaymentConfirmResponse {
-    private String orderId;
+    private String orderNumber;
     private String paymentKey;
     private Long amount;
     private String status;

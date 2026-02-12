@@ -62,14 +62,14 @@ class PaymentServiceTest {
 	@DisplayName("결제 승인 성공")
 	void confirmPayment_Success() {
 		// given
-		String orderId = "1001";  // 숫자 형식 (Long.parseLong 호환)
+		String orderNumber = "1001";  // 숫자 형식 (Long.parseLong 호환)
 		String paymentKey = "test-payment-key";
 		Long amount = 10000L;
 
-		PaymentConfirmRequest request = new PaymentConfirmRequest(paymentKey, orderId, amount);
+		PaymentConfirmRequest request = new PaymentConfirmRequest(paymentKey, orderNumber, amount);
 
 		Order order = Order.builder()
-				.orderId(orderId)
+				.orderNumber(orderNumber)
 				.orderName("테스트 상품")
 				.amount(amount)
 				.status(Order.PaymentStatus.PENDING)
@@ -77,9 +77,9 @@ class PaymentServiceTest {
 				.createdAt(LocalDateTime.now())
 				.build();
 
-		TossPaymentResponse tossResponse = createTossPaymentResponse(orderId, paymentKey, amount);
+		TossPaymentResponse tossResponse = createTossPaymentResponse(orderNumber, paymentKey, amount);
 
-		given(orderRepository.findByOrderId(orderId)).willReturn(Optional.of(order));
+		given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
 		given(tossPaymentsClient.confirmPayment(any(TossPaymentConfirmRequest.class))).willReturn(tossResponse);
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 		given(outboxRepository.save(any(Outbox.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -88,12 +88,12 @@ class PaymentServiceTest {
 		PaymentConfirmResponse response = paymentService.confirmPayment(request);
 
 		// then
-		assertThat(response.getOrderId()).isEqualTo(orderId);
+		assertThat(response.getOrderNumber()).isEqualTo(orderNumber);
 		assertThat(response.getPaymentKey()).isEqualTo(paymentKey);
 		assertThat(response.getAmount()).isEqualTo(amount);
 		assertThat(response.getStatus()).isEqualTo("DONE");
 
-		verify(orderRepository).findByOrderId(orderId);
+		verify(orderRepository).findByOrderNumber(orderNumber);
 		verify(tossPaymentsClient).confirmPayment(any(TossPaymentConfirmRequest.class));
 		verify(orderRepository, times(1)).save(any(Order.class));
 		verify(outboxRepository).save(any(Outbox.class));
@@ -103,17 +103,17 @@ class PaymentServiceTest {
 	@DisplayName("결제 승인 실패 - 주문을 찾을 수 없음")
 	void confirmPayment_OrderNotFound() {
 		// given
-		String orderId = "9999";  // 숫자 형식
-		PaymentConfirmRequest request = new PaymentConfirmRequest("payment-key", orderId, 10000L);
+		String orderNumber = "9999";  // 숫자 형식
+		PaymentConfirmRequest request = new PaymentConfirmRequest("payment-key", orderNumber, 10000L);
 
-		given(orderRepository.findByOrderId(orderId)).willReturn(Optional.empty());
+		given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
 
 		// when & then
 		assertThatThrownBy(() -> paymentService.confirmPayment(request))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("주문을 찾을 수 없습니다");
 
-		verify(orderRepository).findByOrderId(orderId);
+		verify(orderRepository).findByOrderNumber(orderNumber);
 		verify(tossPaymentsClient, never()).confirmPayment(any());
 	}
 
@@ -121,14 +121,14 @@ class PaymentServiceTest {
 	@DisplayName("결제 승인 실패 - 금액 불일치로 주문 실패 처리 및 Outbox 저장")
 	void confirmPayment_AmountMismatch() {
 		// given
-		String orderId = "1002";  // 숫자 형식
+		String orderNumber = "1002";  // 숫자 형식
 		Long orderAmount = 10000L;
 		Long requestAmount = 99999L;  // 다른 금액
 
-		PaymentConfirmRequest request = new PaymentConfirmRequest("payment-key", orderId, requestAmount);
+		PaymentConfirmRequest request = new PaymentConfirmRequest("payment-key", orderNumber, requestAmount);
 
 		Order order = Order.builder()
-				.orderId(orderId)
+				.orderNumber(orderNumber)
 				.orderName("테스트 상품")
 				.amount(orderAmount)
 				.status(Order.PaymentStatus.PENDING)
@@ -139,7 +139,7 @@ class PaymentServiceTest {
 		ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
 		ArgumentCaptor<Outbox> outboxCaptor = ArgumentCaptor.forClass(Outbox.class);
 
-		given(orderRepository.findByOrderId(orderId)).willReturn(Optional.of(order));
+		given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
 		given(orderRepository.save(orderCaptor.capture())).willAnswer(invocation -> invocation.getArgument(0));
 		given(outboxRepository.save(outboxCaptor.capture())).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -154,7 +154,7 @@ class PaymentServiceTest {
 		// PaymentCancelledEvent가 Outbox에 저장되었는지 확인
 		Outbox savedOutbox = outboxCaptor.getValue();
 		assertThat(savedOutbox.getEventType()).isEqualTo("payment.cancelled");
-		assertThat(savedOutbox.getAggregateId()).isEqualTo(orderId);
+		assertThat(savedOutbox.getAggregateId()).isEqualTo(orderNumber);
 
 		// TossPayments API가 호출되지 않았는지 확인
 		verify(tossPaymentsClient, never()).confirmPayment(any());
@@ -164,14 +164,14 @@ class PaymentServiceTest {
 	@DisplayName("결제 승인 후 Outbox에 결제 완료 이벤트 저장")
 	void confirmPayment_SavePaymentConfirmedOutbox() {
 		// given
-		String orderId = "1003";  // 숫자 형식
+		String orderNumber = "1003";  // 숫자 형식
 		String paymentKey = "test-payment-key";
 		Long amount = 10000L;
 
-		PaymentConfirmRequest request = new PaymentConfirmRequest(paymentKey, orderId, amount);
+		PaymentConfirmRequest request = new PaymentConfirmRequest(paymentKey, orderNumber, amount);
 
 		Order order = Order.builder()
-				.orderId(orderId)
+				.orderNumber(orderNumber)
 				.orderName("테스트 상품")
 				.amount(amount)
 				.status(Order.PaymentStatus.PENDING)
@@ -179,9 +179,9 @@ class PaymentServiceTest {
 				.createdAt(LocalDateTime.now())
 				.build();
 
-		TossPaymentResponse tossResponse = createTossPaymentResponse(orderId, paymentKey, amount);
+		TossPaymentResponse tossResponse = createTossPaymentResponse(orderNumber, paymentKey, amount);
 
-		given(orderRepository.findByOrderId(orderId)).willReturn(Optional.of(order));
+		given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
 		given(tossPaymentsClient.confirmPayment(any(TossPaymentConfirmRequest.class))).willReturn(tossResponse);
 		given(orderRepository.save(any(Order.class))).willAnswer(invocation -> invocation.getArgument(0));
 		given(outboxRepository.save(any(Outbox.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -196,7 +196,7 @@ class PaymentServiceTest {
 		Outbox savedOutbox = outboxCaptor.getValue();
 		assertThat(savedOutbox.getEventType()).isEqualTo("payment.confirmed");
 		assertThat(savedOutbox.getAggregateType()).isEqualTo("Order");
-		assertThat(savedOutbox.getAggregateId()).isEqualTo(orderId);
+		assertThat(savedOutbox.getAggregateId()).isEqualTo(orderNumber);
 		assertThat(savedOutbox.getPayload()).contains(paymentKey);
 	}
 
