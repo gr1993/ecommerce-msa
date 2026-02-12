@@ -19,7 +19,7 @@ export interface PaymentConfirmRequest {
   /** 토스페이먼츠 paymentKey */
   paymentKey: string
   /** 주문번호 */
-  orderId: string
+  orderNumber: string
   /** 결제 금액 */
   amount: number
 }
@@ -30,8 +30,6 @@ export interface PaymentConfirmRequest {
 export interface PaymentConfirmResponse {
   /** 결제 ID */
   paymentId: number
-  /** 주문 ID */
-  orderId: number
   /** 주문번호 */
   orderNumber: string
   /** 결제 금액 */

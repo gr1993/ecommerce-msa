@@ -55,7 +55,7 @@ function MarketPaymentSuccess() {
         // 3. 백엔드에 결제 승인 API 호출
         const confirmResponse = await confirmPayment({
           paymentKey: paymentParams.paymentKey,
-          orderId: paymentParams.orderId,
+          orderNumber: paymentParams.orderId,
           amount: Number(paymentParams.amount),
         })
 
