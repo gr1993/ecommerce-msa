@@ -64,6 +64,7 @@ CREATE TABLE order_payment (
     payment_amount DECIMAL(12,2) NOT NULL COMMENT '결제 금액',
     payment_status VARCHAR(30) NOT NULL COMMENT '결제 상태
     (READY, PAID, FAILED, CANCELED)',
+    payment_key VARCHAR(50) NOT NULL COMMENT 'PG 결제 키',
     paid_at TIMESTAMP COMMENT '결제 완료 일시',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
     CONSTRAINT fk_payment_order
