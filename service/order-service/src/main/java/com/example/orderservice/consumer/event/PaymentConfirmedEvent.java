@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PaymentConfirmedEvent {
 
-	private Long orderId;
+	private String orderNumber;
 	private String paymentKey;
 	private String paymentMethod;
 	private Long paymentAmount;

@@ -79,21 +79,21 @@ public class PaymentEventConsumer {
 			@Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
 			@Header(value = KafkaHeaders.OFFSET, required = false) Long offset
 	) {
-		log.info("Received payment.confirmed event: orderId={}, paymentKey={}, topic={}, offset={}",
-				event.getOrderId(), event.getPaymentKey(), topic, offset);
+		log.info("Received payment.confirmed event: orderNumber={}, paymentKey={}, topic={}, offset={}",
+				event.getOrderNumber(), event.getPaymentKey(), topic, offset);
 
 		try {
-			Order order = orderRepository.findById(event.getOrderId())
+			Order order = orderRepository.findByOrderNumber(event.getOrderNumber())
 					.orElse(null);
 
 			if (order == null) {
-				log.warn("Order not found for payment confirmation: orderId={}", event.getOrderId());
+				log.warn("Order not found for payment confirmation: orderNumber={}", event.getOrderNumber());
 				return;
 			}
 
 			// 이미 결제 완료된 주문인지 확인 (멱등성 보장)
 			if (order.getOrderStatus() == OrderStatus.PAID) {
-				log.info("Order already paid, skipping: orderId={}", event.getOrderId());
+				log.info("Order already paid, skipping: orderNumber={}", event.getOrderNumber());
 				return;
 			}
 
@@ -112,11 +112,11 @@ public class PaymentEventConsumer {
 			order.addOrderPayment(orderPayment);
 
 			orderRepository.save(order);
-			log.info("Successfully updated order to PAID: orderId={}, paymentKey={}",
-					event.getOrderId(), event.getPaymentKey());
+			log.info("Successfully updated order to PAID: orderNumber={}, paymentKey={}",
+					event.getOrderNumber(), event.getPaymentKey());
 		} catch (Exception e) {
-			log.error("Failed to process payment.confirmed event: orderId={}, paymentKey={}",
-					event.getOrderId(), event.getPaymentKey(), e);
+			log.error("Failed to process payment.confirmed event: orderNumber={}, paymentKey={}",
+					event.getOrderNumber(), event.getPaymentKey(), e);
 			throw e;
 		}
 	}
@@ -237,8 +237,8 @@ public class PaymentEventConsumer {
 				""", topic, originalTopic, offset, payload, exceptionMessage);
 
 		if (payload instanceof PaymentConfirmedEvent event) {
-			log.error("DLQ 처리 필요 - payment.confirmed 실패: orderId={}, paymentKey={}",
-					event.getOrderId(), event.getPaymentKey());
+			log.error("DLQ 처리 필요 - payment.confirmed 실패: orderNumber={}, paymentKey={}",
+					event.getOrderNumber(), event.getPaymentKey());
 		} else if (payload instanceof PaymentCancelledEvent event) {
 			log.error("DLQ 처리 필요 - payment.cancelled 실패: orderNumber={}, cancelReason={}",
 					event.getOrderId(), event.getCancelReason());
