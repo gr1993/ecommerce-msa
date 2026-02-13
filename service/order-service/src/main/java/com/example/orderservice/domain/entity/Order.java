@@ -87,6 +87,10 @@ public class Order {
         this.orderStatus = status;
     }
 
+    public void updateMemo(String orderMemo) {
+        this.orderMemo = orderMemo;
+    }
+
     public void addOrderItem(OrderItem orderItem) {
         this.orderItems.add(orderItem);
         orderItem.setOrder(this);

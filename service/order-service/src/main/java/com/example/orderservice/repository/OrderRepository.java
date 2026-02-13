@@ -35,4 +35,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.orderStatus = :status AND o.orderedAt < :expiredBefore")
     List<Order> findExpiredOrdersByStatusWithItems(@Param("status") OrderStatus status,
                                                     @Param("expiredBefore") LocalDateTime expiredBefore);
+
+    @Query("SELECT o FROM Order o WHERE " +
+            "(:orderNumber IS NULL OR o.orderNumber LIKE %:orderNumber%) AND " +
+            "(:orderStatus IS NULL OR o.orderStatus = :orderStatus) " +
+            "ORDER BY o.orderedAt DESC")
+    List<Order> findAllBySearchCondition(@Param("orderNumber") String orderNumber,
+                                         @Param("orderStatus") OrderStatus orderStatus);
+
+    @Query("SELECT o FROM Order o " +
+            "LEFT JOIN FETCH o.orderItems " +
+            "LEFT JOIN FETCH o.orderDelivery " +
+            "WHERE o.id = :orderId")
+    Optional<Order> findByIdWithOrderItemsAndDelivery(@Param("orderId") Long orderId);
 }
