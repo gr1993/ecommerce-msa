@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag } from 'antd'
+import { Table, Space, Input, Button, Select, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from './OrderDetailModal'
+import { getAdminOrders, getAdminOrderDetail, updateAdminOrder } from '../../../api/orderApi'
 import './AdminOrderList.css'
 
 const { Option } = Select
 
 function AdminOrderList() {
   const [orders, setOrders] = useState<Order[]>([])
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchOrderNumber, setSearchOrderNumber] = useState('')
   const [searchStatus, setSearchStatus] = useState<string | undefined>(undefined)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -24,132 +25,44 @@ function AdminOrderList() {
     CANCELED: { label: '취소됨', color: 'red' }
   }
 
-  // 주문 데이터 로드 (샘플 데이터)
+  const fetchOrders = async (orderNumber?: string, orderStatus?: string) => {
+    setLoading(true)
+    try {
+      const data = await getAdminOrders(orderNumber || undefined, orderStatus || undefined)
+      setOrders(data)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '주문 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 초기 데이터 로드
   useEffect(() => {
-    // TODO: API 호출로 주문 데이터 로드
-    const sampleOrders: Order[] = [
-      {
-        order_id: '1',
-        order_number: 'ORD-2024-001',
-        user_id: '1',
-        user_name: '홍길동',
-        order_status: 'PAID',
-        total_product_amount: 150000,
-        total_discount_amount: 10000,
-        total_payment_amount: 140000,
-        ordered_at: '2024-01-15 10:30:00',
-        updated_at: '2024-01-15 10:35:00'
-      },
-      {
-        order_id: '2',
-        order_number: 'ORD-2024-002',
-        user_id: '2',
-        user_name: '김철수',
-        order_status: 'SHIPPING',
-        total_product_amount: 250000,
-        total_discount_amount: 0,
-        total_payment_amount: 250000,
-        ordered_at: '2024-01-14 14:20:00',
-        updated_at: '2024-01-15 09:00:00'
-      },
-      {
-        order_id: '3',
-        order_number: 'ORD-2024-003',
-        user_id: '3',
-        user_name: '이영희',
-        order_status: 'DELIVERED',
-        total_product_amount: 80000,
-        total_discount_amount: 5000,
-        total_payment_amount: 75000,
-        ordered_at: '2024-01-13 16:45:00',
-        updated_at: '2024-01-14 10:00:00'
-      },
-      {
-        order_id: '4',
-        order_number: 'ORD-2024-004',
-        user_id: '4',
-        user_name: '박민수',
-        order_status: 'CANCELED',
-        total_product_amount: 120000,
-        total_discount_amount: 0,
-        total_payment_amount: 120000,
-        ordered_at: '2024-01-12 11:20:00',
-        updated_at: '2024-01-12 12:00:00'
-      },
-      {
-        order_id: '5',
-        order_number: 'ORD-2024-005',
-        user_id: '5',
-        user_name: '최지영',
-        order_status: 'CREATED',
-        total_product_amount: 300000,
-        total_discount_amount: 20000,
-        total_payment_amount: 280000,
-        ordered_at: '2024-01-15 15:10:00',
-        updated_at: '2024-01-15 15:10:00'
-      }
-    ]
-    setOrders(sampleOrders)
+    fetchOrders()
   }, [])
 
-  // 필터링된 데이터
-  useEffect(() => {
-    const filtered = orders.filter((order) => {
-      const orderNumberMatch = !searchOrderNumber || 
-        order.order_number.toLowerCase().includes(searchOrderNumber.toLowerCase())
-      const statusMatch = !searchStatus || order.order_status === searchStatus
-      return orderNumberMatch && statusMatch
-    })
-    setFilteredOrders(filtered)
-  }, [searchOrderNumber, searchStatus, orders])
-
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+    fetchOrders(searchOrderNumber, searchStatus)
   }
 
   const handleReset = () => {
     setSearchOrderNumber('')
     setSearchStatus(undefined)
+    fetchOrders()
   }
 
   // 주문 상세 조회
   const handleOrderClick = async (orderId: string) => {
-    const order = orders.find(o => o.order_id === orderId)
-    if (!order) return
-
-    setSelectedOrder(order)
-    
-    // TODO: API 호출로 주문 상세 데이터 로드
-    // 샘플 데이터
-    const sampleOrderItems: OrderItem[] = [
-      {
-        order_item_id: '1',
-        order_id: orderId,
-        product_id: '1',
-        product_name: '노트북',
-        product_code: 'PRD-001',
-        quantity: 1,
-        unit_price: 150000,
-        total_price: 150000,
-        created_at: order.ordered_at
-      }
-    ]
-
-    const sampleShipping: OrderShipping = {
-      shipping_id: '1',
-      order_id: orderId,
-      receiver_name: '홍길동',
-      receiver_phone: '010-1234-5678',
-      address: '서울특별시 강남구 테헤란로 123',
-      postal_code: '06234',
-      shipping_status: order.order_status === 'SHIPPING' ? 'SHIPPING' : 
-                       order.order_status === 'DELIVERED' ? 'DELIVERED' : 'READY',
-      created_at: order.ordered_at
+    try {
+      const detail = await getAdminOrderDetail(orderId)
+      setSelectedOrder(detail.order)
+      setOrderItems(detail.orderItems)
+      setOrderShipping(detail.orderShipping)
+      setIsModalVisible(true)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '주문 상세 정보를 불러오는데 실패했습니다.')
     }
-
-    setOrderItems(sampleOrderItems)
-    setOrderShipping(sampleShipping)
-    setIsModalVisible(true)
   }
 
   const handleModalClose = () => {
@@ -160,22 +73,23 @@ function AdminOrderList() {
   }
 
   const handleOrderSave = async (orderId: string, orderStatus: string, orderMemo: string) => {
-    // TODO: API 호출로 주문 상태 및 메모 업데이트
-    setOrders(prev => 
-      prev.map(order => 
-        order.order_id === orderId 
-          ? { ...order, order_status: orderStatus as Order['order_status'], order_memo: orderMemo }
-          : order
+    try {
+      const result = await updateAdminOrder(orderId, orderStatus, orderMemo)
+
+      // 목록에서 해당 주문 업데이트
+      setOrders(prev =>
+        prev.map(order =>
+          order.order_id === orderId ? result.order : order
+        )
       )
-    )
-    
-    // 선택된 주문도 업데이트
-    if (selectedOrder && selectedOrder.order_id === orderId) {
-      setSelectedOrder({
-        ...selectedOrder,
-        order_status: orderStatus as Order['order_status'],
-        order_memo: orderMemo
-      })
+
+      // 선택된 주문도 업데이트
+      setSelectedOrder(result.order)
+      setOrderItems(result.orderItems)
+      setOrderShipping(result.orderShipping)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '주문 수정에 실패했습니다.')
+      throw error
     }
   }
 
@@ -186,7 +100,7 @@ function AdminOrderList() {
       key: 'order_number',
       sorter: (a, b) => a.order_number.localeCompare(b.order_number),
       render: (text: string, record: Order) => (
-        <a 
+        <a
           onClick={() => handleOrderClick(record.order_id)}
           style={{ color: '#007BFF', cursor: 'pointer' }}
         >
@@ -336,8 +250,9 @@ function AdminOrderList() {
 
         <Table
           columns={columns}
-          dataSource={filteredOrders}
+          dataSource={orders}
           rowKey="order_id"
+          loading={loading}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
@@ -360,4 +275,3 @@ function AdminOrderList() {
 }
 
 export default AdminOrderList
-
