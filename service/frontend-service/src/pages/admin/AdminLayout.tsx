@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, message } from 'antd'
 import { LogoutOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../../stores/authStore'
+import { AUTH_DISABLED } from '../../config/env'
 import './AdminLayout.css'
 
 function AdminLayout() {
@@ -13,9 +14,9 @@ function AdminLayout() {
   const isAdminLoggedIn = useAuthStore((state) => state.isAdminLoggedIn)
   const adminLogout = useAuthStore((state) => state.adminLogout)
 
-  // 관리자 인증 체크
+  // 관리자 인증 체크 (로컬 모드에서는 무시)
   useEffect(() => {
-    if (!isAdminLoggedIn()) {
+    if (!AUTH_DISABLED && !isAdminLoggedIn()) {
       message.warning('관리자 로그인이 필요합니다.')
       navigate('/admin/login')
     }
