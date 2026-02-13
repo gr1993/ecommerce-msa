@@ -5,14 +5,15 @@ import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.dto.request.AdminOrderUpdateRequest;
 import com.example.orderservice.dto.response.AdminOrderDetailResponse;
 import com.example.orderservice.dto.response.AdminOrderResponse;
+import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.global.exception.OrderNotFoundException;
 import com.example.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -23,17 +24,17 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private final OrderRepository orderRepository;
 
     @Override
-    public List<AdminOrderResponse> getOrders(String orderNumber, String orderStatus) {
+    public PageResponse<AdminOrderResponse> getOrders(String orderNumber, String orderStatus, Pageable pageable) {
         OrderStatus status = parseOrderStatus(orderStatus);
 
-        List<Order> orders = orderRepository.findAllBySearchCondition(
+        Page<Order> orderPage = orderRepository.findAllBySearchCondition(
                 orderNumber != null && orderNumber.isBlank() ? null : orderNumber,
-                status
+                status,
+                pageable
         );
 
-        return orders.stream()
-                .map(AdminOrderResponse::from)
-                .toList();
+        Page<AdminOrderResponse> responsePage = orderPage.map(AdminOrderResponse::from);
+        return PageResponse.from(responsePage);
     }
 
     @Override

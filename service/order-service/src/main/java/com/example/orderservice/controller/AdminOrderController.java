@@ -3,21 +3,22 @@ package com.example.orderservice.controller;
 import com.example.orderservice.dto.request.AdminOrderUpdateRequest;
 import com.example.orderservice.dto.response.AdminOrderDetailResponse;
 import com.example.orderservice.dto.response.AdminOrderResponse;
+import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.global.exception.ErrorResponse;
 import com.example.orderservice.service.AdminOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "Admin Order", description = "관리자 주문 관리 API")
 @RestController
@@ -34,17 +35,18 @@ public class AdminOrderController {
                     @ApiResponse(
                             responseCode = "200",
                             description = "조회 성공",
-                            content = @Content(array = @ArraySchema(schema = @Schema(implementation = AdminOrderResponse.class)))
+                            content = @Content(schema = @Schema(implementation = PageResponse.class))
                     )
             }
     )
     @GetMapping
-    public ResponseEntity<List<AdminOrderResponse>> getOrders(
+    public ResponseEntity<PageResponse<AdminOrderResponse>> getOrders(
             @Parameter(description = "주문 번호 (부분 검색)", example = "ORD-2024")
             @RequestParam(required = false) String orderNumber,
             @Parameter(description = "주문 상태", example = "PAID")
-            @RequestParam(required = false) String orderStatus) {
-        List<AdminOrderResponse> orders = adminOrderService.getOrders(orderNumber, orderStatus);
+            @RequestParam(required = false) String orderStatus,
+            @PageableDefault(size = 20, sort = "orderedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        PageResponse<AdminOrderResponse> orders = adminOrderService.getOrders(orderNumber, orderStatus, pageable);
         return ResponseEntity.ok(orders);
     }
 

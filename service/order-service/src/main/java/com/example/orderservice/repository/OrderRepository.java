@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,10 +41,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT o FROM Order o WHERE " +
             "(:orderNumber IS NULL OR o.orderNumber LIKE %:orderNumber%) AND " +
-            "(:orderStatus IS NULL OR o.orderStatus = :orderStatus) " +
-            "ORDER BY o.orderedAt DESC")
-    List<Order> findAllBySearchCondition(@Param("orderNumber") String orderNumber,
-                                         @Param("orderStatus") OrderStatus orderStatus);
+            "(:orderStatus IS NULL OR o.orderStatus = :orderStatus)")
+    Page<Order> findAllBySearchCondition(@Param("orderNumber") String orderNumber,
+                                         @Param("orderStatus") OrderStatus orderStatus,
+                                         Pageable pageable);
 
     @Query("SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.orderItems " +
