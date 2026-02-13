@@ -5,8 +5,8 @@
  * All requests go through API Gateway
  */
 
-import { useAuthStore } from '../stores/authStore'
 import { API_BASE_URL } from '../config/env'
+import { getAdminHeaders } from '../utils/apiHelper'
 
 // ==================== Interfaces ====================
 
@@ -106,17 +106,9 @@ export interface CategoryUpdateRequest {
  */
 export const getCategoryTree = async (): Promise<CategoryTreeResponse[]> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/categories`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -156,17 +148,9 @@ export const getCategoryTree = async (): Promise<CategoryTreeResponse[]> => {
  */
 export const getCategory = async (categoryId: number): Promise<CategoryResponse> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -209,17 +193,9 @@ export const getCategory = async (categoryId: number): Promise<CategoryResponse>
  */
 export const createCategory = async (request: CategoryCreateRequest): Promise<CategoryResponse> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/categories`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify(request),
     })
 
@@ -267,17 +243,9 @@ export const createCategory = async (request: CategoryCreateRequest): Promise<Ca
  */
 export const updateCategory = async (categoryId: number, request: CategoryUpdateRequest): Promise<CategoryResponse> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify(request),
     })
 
@@ -323,17 +291,9 @@ export const updateCategory = async (categoryId: number, request: CategoryUpdate
  */
 export const deleteCategory = async (categoryId: number): Promise<void> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/categories/${categoryId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {

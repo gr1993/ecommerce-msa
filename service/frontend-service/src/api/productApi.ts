@@ -5,8 +5,8 @@
  * All requests go through API Gateway
  */
 
-import { useAuthStore } from '../stores/authStore'
 import { API_BASE_URL } from '../config/env'
+import { getAdminHeaders, getAdminUploadHeaders } from '../utils/apiHelper'
 
 // ==================== Interfaces ====================
 
@@ -352,18 +352,9 @@ export const searchProducts = async (params?: SearchProductsParams): Promise<Pag
     const queryString = queryParams.toString()
     const url = `${API_BASE_URL}/api/admin/products${queryString ? `?${queryString}` : ''}`
 
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -413,20 +404,12 @@ export const searchProducts = async (params?: SearchProductsParams): Promise<Pag
  */
 export const uploadProductImage = async (file: File): Promise<FileUploadResponse> => {
   try {
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const formData = new FormData()
     formData.append('file', file)
 
     const response = await fetch(`${API_BASE_URL}/api/admin/products/files/upload`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminUploadHeaders(),
       body: formData,
     })
 
@@ -488,18 +471,9 @@ export const uploadProductImage = async (file: File): Promise<FileUploadResponse
  */
 export const createProduct = async (productData: ProductCreateRequest): Promise<ProductResponse> => {
   try {
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify(productData),
     })
 
@@ -554,18 +528,9 @@ export const createProduct = async (productData: ProductCreateRequest): Promise<
  */
 export const getProductDetail = async (productId: number): Promise<ProductDetailResponse> => {
   try {
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -622,18 +587,9 @@ export const getProductDetail = async (productId: number): Promise<ProductDetail
  */
 export const updateProduct = async (productId: number, productData: ProductCreateRequest): Promise<ProductResponse> => {
   try {
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify(productData),
     })
 
@@ -704,17 +660,9 @@ export interface SearchKeywordRequest {
  */
 export const getProductSearchKeywords = async (productId: number): Promise<SearchKeywordResponse[]> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -758,17 +706,9 @@ export const getProductSearchKeywords = async (productId: number): Promise<Searc
  */
 export const addProductSearchKeyword = async (productId: number, request: SearchKeywordRequest): Promise<SearchKeywordResponse> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify(request),
     })
 
@@ -812,17 +752,9 @@ export const addProductSearchKeyword = async (productId: number, request: Search
  */
 export const deleteProductSearchKeyword = async (productId: number, keywordId: number): Promise<void> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/products/${productId}/keywords/${keywordId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {

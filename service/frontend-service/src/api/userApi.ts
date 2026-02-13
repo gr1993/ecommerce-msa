@@ -5,8 +5,8 @@
  * All requests go through API Gateway
  */
 
-import { useAuthStore } from '../stores/authStore'
 import { API_BASE_URL } from '../config/env'
+import { getAdminHeaders } from '../utils/apiHelper'
 
 // ==================== Interfaces ====================
 
@@ -217,18 +217,9 @@ export const searchUsers = async (params?: SearchUsersParams): Promise<PageRespo
     const queryString = queryParams.toString()
     const url = `${API_BASE_URL}/api/admin/users${queryString ? `?${queryString}` : ''}`
 
-    // Get admin token from Zustand store
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {

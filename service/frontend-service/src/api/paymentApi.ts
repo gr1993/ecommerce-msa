@@ -10,7 +10,8 @@
  */
 
 import { API_BASE_URL } from '../config/env'
-import { authenticatedFetch, TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
+import { TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
+import { userFetch } from '../utils/apiHelper'
 
 /**
  * 결제 승인 요청 DTO
@@ -56,8 +57,8 @@ export interface PaymentConfirmResponse {
  */
 export const confirmPayment = async (request: PaymentConfirmRequest): Promise<PaymentConfirmResponse> => {
   try {
-    // authenticatedFetch가 토큰 만료 확인 및 자동 갱신 처리
-    const response = await authenticatedFetch(`${API_BASE_URL}/api/payments/confirm`, {
+    // userFetch: AUTH_DISABLED 시 일반 fetch, 아닐 때 authenticatedFetch (토큰 자동 갱신)
+    const response = await userFetch(`${API_BASE_URL}/api/payments/confirm`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

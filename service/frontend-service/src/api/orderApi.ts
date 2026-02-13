@@ -11,8 +11,8 @@
  */
 
 import { API_BASE_URL } from '../config/env'
-import { authenticatedFetch, TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
-import { useAuthStore } from '../stores/authStore'
+import { TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
+import { getAdminHeaders, userFetch } from '../utils/apiHelper'
 import type { Order, OrderItem, OrderShipping } from '../pages/admin/order/OrderDetailModal'
 
 // ==================== Interfaces ====================
@@ -92,8 +92,8 @@ export interface OrderResponse {
  */
 export const createOrder = async (request: OrderCreateRequest): Promise<OrderResponse> => {
   try {
-    // authenticatedFetch가 토큰 만료 확인 및 자동 갱신 처리
-    const response = await authenticatedFetch(`${API_BASE_URL}/api/orders`, {
+    // userFetch: AUTH_DISABLED 시 일반 fetch, 아닐 때 authenticatedFetch (토큰 자동 갱신)
+    const response = await userFetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -232,17 +232,9 @@ export const getAdminOrders = async (orderNumber?: string, orderStatus?: string)
     const queryString = queryParams.toString()
     const url = `${API_BASE_URL}/api/admin/orders${queryString ? `?${queryString}` : ''}`
 
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -277,17 +269,9 @@ export const getAdminOrderDetail = async (orderId: string): Promise<{
   orderShipping: OrderShipping | null
 }> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
     })
 
     if (!response.ok) {
@@ -328,17 +312,9 @@ export const updateAdminOrder = async (orderId: string, orderStatus: string, ord
   orderShipping: OrderShipping | null
 }> => {
   try {
-    const adminToken = useAuthStore.getState().adminToken
-    if (!adminToken) {
-      throw new Error('관리자 인증이 필요합니다. 다시 로그인해주세요.')
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminToken}`,
-      },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ orderStatus, orderMemo }),
     })
 
