@@ -1,8 +1,10 @@
 x-service-common: &service-common
   privileged: true
+  mem_limit: 512m
   networks:
     - ecommerce-net
   environment: &service-common-env
+    JAVA_OPTS: -Xms256m -Xmx256m
     MYSQL_HOST: mysql8
     KAFKA_BOOTSTRAP_SERVERS: kafka1:9091,kafka2:9092,kafka3:9094
     ELASTICSEARCH_HOST: elasticsearch

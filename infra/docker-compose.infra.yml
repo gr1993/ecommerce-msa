@@ -2,6 +2,7 @@ services:
   mysql:
     image: mysql:8
     container_name: mysql8
+    mem_limit: 512m
     environment:
       - MYSQL_ROOT_PASSWORD=123123
     ports:
@@ -12,6 +13,7 @@ services:
   kafka1:
     image: confluentinc/cp-kafka:latest
     container_name: kafka1
+    mem_limit: 512m
     ports:
       - 9091:9091
     environment:
@@ -27,12 +29,14 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_TRANSACTION_STATE_LOG_NUM_PARTITIONS: 4
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx256m"
     networks:
       - ecommerce-net
   
   kafka2:
     image: confluentinc/cp-kafka:latest
     container_name: kafka2
+    mem_limit: 512m
     ports:
       - 9092:9092
     environment:
@@ -48,12 +52,14 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_TRANSACTION_STATE_LOG_NUM_PARTITIONS: 4
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx256m"
     networks:
       - ecommerce-net
 
   kafka3:
     image: confluentinc/cp-kafka:latest
     container_name: kafka3
+    mem_limit: 512m
     ports:
       - 9094:9094
     environment:
@@ -69,12 +75,14 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_TRANSACTION_STATE_LOG_NUM_PARTITIONS: 4
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx256m"
     networks:
       - ecommerce-net
 
   kafka-ui:
     image: provectuslabs/kafka-ui
     container_name: kafka-ui
+    mem_limit: 256m
     ports:
       - 8090:8080
     environment:
@@ -86,10 +94,11 @@ services:
   elasticsearch:
     image: elasticsearch:9.2.3
     container_name: elasticsearch
+    mem_limit: 1g
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - 9200:9200
       - 9300:9300
@@ -99,6 +108,7 @@ services:
   kibana:
     image: kibana:9.2.3
     container_name: kibana
+    mem_limit: 1024m
     ports:
       - 5601:5601
     environment:
@@ -111,6 +121,7 @@ services:
   filebeat:
     image: elastic/filebeat:9.2.3
     container_name: filebeat
+    mem_limit: 128m
     user: root
     # command 부분을 추가하여 권한 체크를 무시합니다.
     command: ["filebeat", "-e", "--strict.perms=false"]
@@ -128,6 +139,7 @@ services:
   redis:
     image: redis:8
     container_name: redis
+    mem_limit: 128m
     ports:
       - 6379:6379
     networks:
@@ -136,6 +148,7 @@ services:
   redisinsight:
     image: redis/redisinsight:latest
     container_name: redis-insight
+    mem_limit: 256m
     ports:
       - 5540:5540
     depends_on:
@@ -146,6 +159,7 @@ services:
   mongodb:
     image: mongo:8
     container_name: mongodb
+    mem_limit: 512m
     ports:
       - 27017:27017
     command: ["--replSet", "rs0"]
@@ -155,6 +169,7 @@ services:
   mongo-express:
     image: mongo-express:latest
     container_name: mongo-express
+    mem_limit: 128m
     environment:
       ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/payment_service?replicaSet=rs0
       ME_CONFIG_BASICAUTH_USERNAME: admin
