@@ -90,6 +90,20 @@ public class Coupon {
         this.status = status;
     }
 
+    public void update(String couponCode, String couponName, DiscountType discountType,
+                       BigDecimal discountValue, BigDecimal minOrderAmount, BigDecimal maxDiscountAmount,
+                       LocalDateTime validFrom, LocalDateTime validTo, CouponStatus status) {
+        this.couponCode = couponCode;
+        this.couponName = couponName;
+        this.discountType = discountType;
+        this.discountValue = discountValue;
+        this.minOrderAmount = minOrderAmount != null ? minOrderAmount : BigDecimal.ZERO;
+        this.maxDiscountAmount = maxDiscountAmount;
+        this.validFrom = validFrom;
+        this.validTo = validTo;
+        this.status = status;
+    }
+
     public void addUserCoupon(UserCoupon userCoupon) {
         this.userCoupons.add(userCoupon);
         userCoupon.setCoupon(this);

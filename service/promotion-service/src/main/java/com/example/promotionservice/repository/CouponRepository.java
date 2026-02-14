@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -24,4 +27,11 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
     @Query("SELECT c FROM Coupon c LEFT JOIN FETCH c.userCoupons WHERE c.id = :couponId")
     Optional<Coupon> findByIdWithUserCoupons(@Param("couponId") Long couponId);
+
+    @Query("SELECT c FROM Coupon c WHERE " +
+            "(:keyword IS NULL OR c.couponCode LIKE %:keyword% OR c.couponName LIKE %:keyword%) AND " +
+            "(:status IS NULL OR c.status = :status)")
+    Page<Coupon> findAllBySearchCondition(@Param("keyword") String keyword,
+                                          @Param("status") CouponStatus status,
+                                          Pageable pageable);
 }
