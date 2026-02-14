@@ -217,20 +217,51 @@ function mapOrderShipping(data: AdminOrderShippingApiResponse): OrderShipping {
 // ==================== Admin API Functions ====================
 
 /**
- * 관리자 주문 목록 조회
+ * 관리자 주문 목록 페이지네이션 응답
+ */
+export interface AdminOrderPageResponse {
+  content: Order[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+interface AdminOrderPageApiResponse {
+  content: AdminOrderApiResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+/**
+ * 관리자 주문 목록 조회 (페이지네이션)
  *
  * @param orderNumber - 주문 번호 (부분 검색)
  * @param orderStatus - 주문 상태 필터
- * @returns 주문 목록
+ * @param page - 페이지 번호 (0부터 시작)
+ * @param size - 페이지 크기
+ * @returns 페이지네이션된 주문 목록
  */
-export const getAdminOrders = async (orderNumber?: string, orderStatus?: string): Promise<Order[]> => {
+export const getAdminOrders = async (
+  orderNumber?: string,
+  orderStatus?: string,
+  page: number = 0,
+  size: number = 20,
+): Promise<AdminOrderPageResponse> => {
   try {
     const queryParams = new URLSearchParams()
     if (orderNumber) queryParams.append('orderNumber', orderNumber)
     if (orderStatus) queryParams.append('orderStatus', orderStatus)
+    queryParams.append('page', String(page))
+    queryParams.append('size', String(size))
 
-    const queryString = queryParams.toString()
-    const url = `${API_BASE_URL}/api/admin/orders${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/api/admin/orders?${queryParams.toString()}`
 
     const response = await fetch(url, {
       method: 'GET',
@@ -248,8 +279,16 @@ export const getAdminOrders = async (orderNumber?: string, orderStatus?: string)
       throw new Error(error.message || `주문 목록 조회 실패 (HTTP ${response.status})`)
     }
 
-    const data: AdminOrderApiResponse[] = await response.json()
-    return data.map(mapOrder)
+    const data: AdminOrderPageApiResponse = await response.json()
+    return {
+      content: data.content.map(mapOrder),
+      page: data.page,
+      size: data.size,
+      totalElements: data.totalElements,
+      totalPages: data.totalPages,
+      first: data.first,
+      last: data.last,
+    }
   } catch (error) {
     console.error('Get admin orders error:', error)
     if (error instanceof Error) throw error

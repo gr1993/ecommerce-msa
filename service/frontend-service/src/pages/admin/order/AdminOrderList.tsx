@@ -16,6 +16,9 @@ function AdminOrderList() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState(0)
 
   const statusMap: Record<string, { label: string; color: string }> = {
     CREATED: { label: '주문 생성', color: 'blue' },
@@ -25,11 +28,14 @@ function AdminOrderList() {
     CANCELED: { label: '취소됨', color: 'red' }
   }
 
-  const fetchOrders = async (orderNumber?: string, orderStatus?: string) => {
+  const fetchOrders = async (orderNumber?: string, orderStatus?: string, page: number = 1, size: number = pageSize) => {
     setLoading(true)
     try {
-      const data = await getAdminOrders(orderNumber || undefined, orderStatus || undefined)
-      setOrders(data)
+      const data = await getAdminOrders(orderNumber || undefined, orderStatus || undefined, page - 1, size)
+      setOrders(data.content)
+      setTotalElements(data.totalElements)
+      setCurrentPage(page)
+      setPageSize(size)
     } catch (error) {
       message.error(error instanceof Error ? error.message : '주문 목록을 불러오는데 실패했습니다.')
     } finally {
@@ -43,13 +49,13 @@ function AdminOrderList() {
   }, [])
 
   const handleSearch = () => {
-    fetchOrders(searchOrderNumber, searchStatus)
+    fetchOrders(searchOrderNumber, searchStatus, 1)
   }
 
   const handleReset = () => {
     setSearchOrderNumber('')
     setSearchStatus(undefined)
-    fetchOrders()
+    fetchOrders(undefined, undefined, 1)
   }
 
   // 주문 상세 조회
@@ -254,9 +260,14 @@ function AdminOrderList() {
           rowKey="order_id"
           loading={loading}
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalElements,
             showSizeChanger: true,
             showTotal: (total) => `총 ${total}개`,
+            onChange: (page, size) => {
+              fetchOrders(searchOrderNumber, searchStatus, page, size)
+            },
           }}
         />
 
