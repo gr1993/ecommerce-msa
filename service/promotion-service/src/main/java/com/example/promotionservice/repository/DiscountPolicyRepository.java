@@ -3,6 +3,8 @@ package com.example.promotionservice.repository;
 import com.example.promotionservice.domain.entity.DiscountPolicy;
 import com.example.promotionservice.domain.entity.DiscountPolicyStatus;
 import com.example.promotionservice.domain.entity.DiscountTargetType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +23,11 @@ public interface DiscountPolicyRepository extends JpaRepository<DiscountPolicy, 
     @Query("SELECT d FROM DiscountPolicy d WHERE d.validTo < :now AND d.status = :status")
     List<DiscountPolicy> findByValidToBeforeAndStatus(@Param("now") LocalDateTime now,
                                                       @Param("status") DiscountPolicyStatus status);
+
+    @Query("SELECT d FROM DiscountPolicy d WHERE " +
+            "(:keyword IS NULL OR d.discountName LIKE %:keyword%) AND " +
+            "(:status IS NULL OR d.status = :status)")
+    Page<DiscountPolicy> findAllBySearchCondition(@Param("keyword") String keyword,
+                                                   @Param("status") DiscountPolicyStatus status,
+                                                   Pageable pageable);
 }

@@ -90,4 +90,20 @@ public class DiscountPolicy {
     public void updateStatus(DiscountPolicyStatus status) {
         this.status = status;
     }
+
+    public void update(String discountName, DiscountType discountType,
+                       BigDecimal discountValue, DiscountTargetType targetType,
+                       Long targetId, BigDecimal minOrderAmount, BigDecimal maxDiscountAmount,
+                       LocalDateTime validFrom, LocalDateTime validTo, DiscountPolicyStatus status) {
+        this.discountName = discountName;
+        this.discountType = discountType;
+        this.discountValue = discountValue;
+        this.targetType = targetType;
+        this.targetId = targetId;
+        this.minOrderAmount = minOrderAmount != null ? minOrderAmount : BigDecimal.ZERO;
+        this.maxDiscountAmount = maxDiscountAmount;
+        this.validFrom = validFrom;
+        this.validTo = validTo;
+        this.status = status;
+    }
 }

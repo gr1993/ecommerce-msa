@@ -29,6 +29,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(DiscountPolicyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDiscountPolicyNotFoundException(DiscountPolicyNotFoundException e) {
+        log.warn("DiscountPolicyNotFoundException: {}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(e.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("IllegalArgumentException: {}", e.getMessage());
