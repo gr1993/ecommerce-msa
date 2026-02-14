@@ -86,3 +86,23 @@ CREATE TABLE outbox (
     published_at TIMESTAMP NULL COMMENT '발행 일시',
     INDEX idx_event_type_status (event_type, status) COMMENT '이벤트 타입과 상태 인덱스'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='이벤트 메시지 테이블';
+
+
+-- 주문 할인 정보 스냅샷 테이블
+CREATE TABLE order_discount (
+    order_discount_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '주문 할인 ID',
+    order_id BIGINT NOT NULL COMMENT '주문 ID',
+    discount_type VARCHAR(30) NOT NULL COMMENT '할인 유형 (COUPON, POLICY 등)',
+    reference_id BIGINT NULL COMMENT '참조 ID (coupon_id 등)',
+    discount_name VARCHAR(100) NOT NULL COMMENT '할인명',
+    discount_amount BIGINT NOT NULL COMMENT '할인 금액',
+    discount_rate DECIMAL(5,2) NULL COMMENT '할인율 (%)',
+    description VARCHAR(255) NULL COMMENT '할인 설명',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시',
+    CONSTRAINT fk_order_discount_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(order_id)
+        ON DELETE CASCADE
+) COMMENT='주문 할인 정보 스냅샷 테이블';
