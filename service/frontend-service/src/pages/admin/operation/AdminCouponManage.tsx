@@ -1,132 +1,73 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, InputNumber, DatePicker, Switch, message, Tabs } from 'antd'
+import { Table, Space, Input, Button, Select, Tag, Modal, Form, InputNumber, DatePicker, Switch, message, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined } from '@ant-design/icons'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
+import {
+  getAdminCoupons,
+  getAdminCouponDetail,
+  createAdminCoupon,
+  updateAdminCoupon,
+} from '../../../api/couponApi'
+import type { Coupon, CouponDetail, CouponUsage } from '../../../api/couponApi'
 import './AdminCouponManage.css'
 
 const { Option } = Select
 const { RangePicker } = DatePicker
 
-interface Coupon {
-  coupon_id: string
-  coupon_code: string
-  coupon_name: string
-  coupon_type: 'PERCENTAGE' | 'FIXED_AMOUNT'
-  discount_value: number
-  min_purchase_amount?: number
-  max_discount_amount?: number
-  valid_from: string
-  valid_to: string
-  usage_limit?: number
-  used_count: number
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-
-interface CouponUsage {
-  usage_id: string
-  coupon_id: string
-  user_id: string
-  user_name: string
-  order_id: string
-  order_number: string
-  used_at: string
-}
-
 function AdminCouponManage() {
   const [coupons, setCoupons] = useState<Coupon[]>([])
-  const [filteredCoupons, setFilteredCoupons] = useState<Coupon[]>([])
-  const [searchCouponCode, setSearchCouponCode] = useState('')
-  const [searchIsActive, setSearchIsActive] = useState<string | undefined>(undefined)
+  const [loading, setLoading] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [searchStatus, setSearchStatus] = useState<string | undefined>(undefined)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState(0)
   const [isRegisterModalVisible, setIsRegisterModalVisible] = useState(false)
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false)
-  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null)
+  const [selectedCoupon, setSelectedCoupon] = useState<CouponDetail | null>(null)
   const [couponForm] = Form.useForm()
   const [detailForm] = Form.useForm()
-  const [usageSearchText, setUsageSearchText] = useState('')
 
-  const couponTypeMap: Record<string, string> = {
-    PERCENTAGE: '퍼센트 할인',
-    FIXED_AMOUNT: '정액 할인'
+  const discountTypeMap: Record<string, string> = {
+    RATE: '정률 할인',
+    FIXED: '정액 할인'
   }
 
-  // 쿠폰 데이터 로드 (샘플 데이터)
+  const statusMap: Record<string, { label: string; color: string }> = {
+    ACTIVE: { label: '활성', color: 'green' },
+    INACTIVE: { label: '비활성', color: 'red' },
+    EXPIRED: { label: '만료', color: 'default' },
+  }
+
+  // 쿠폰 목록 조회
+  const fetchCoupons = async (keyword?: string, status?: string, page: number = 1, size: number = pageSize) => {
+    setLoading(true)
+    try {
+      const data = await getAdminCoupons(keyword || undefined, status || undefined, page - 1, size)
+      setCoupons(data.content)
+      setTotalElements(data.totalElements)
+      setCurrentPage(page)
+      setPageSize(size)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '쿠폰 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // TODO: API 호출로 쿠폰 데이터 로드
-    const sampleCoupons: Coupon[] = [
-      {
-        coupon_id: '1',
-        coupon_code: 'WELCOME10',
-        coupon_name: '신규 가입 환영 쿠폰',
-        coupon_type: 'PERCENTAGE',
-        discount_value: 10,
-        min_purchase_amount: 10000,
-        max_discount_amount: 5000,
-        valid_from: '2024-01-01 00:00:00',
-        valid_to: '2024-12-31 23:59:59',
-        usage_limit: 1000,
-        used_count: 245,
-        is_active: true,
-        created_at: '2024-01-01 00:00:00',
-        updated_at: '2024-01-15 10:00:00'
-      },
-      {
-        coupon_id: '2',
-        coupon_code: 'SAVE5000',
-        coupon_name: '5천원 할인 쿠폰',
-        coupon_type: 'FIXED_AMOUNT',
-        discount_value: 5000,
-        min_purchase_amount: 30000,
-        valid_from: '2024-01-15 00:00:00',
-        valid_to: '2024-02-15 23:59:59',
-        usage_limit: 500,
-        used_count: 123,
-        is_active: true,
-        created_at: '2024-01-15 00:00:00',
-        updated_at: '2024-01-15 10:00:00'
-      },
-      {
-        coupon_id: '3',
-        coupon_code: 'SUMMER20',
-        coupon_name: '여름 특가 20% 할인',
-        coupon_type: 'PERCENTAGE',
-        discount_value: 20,
-        min_purchase_amount: 50000,
-        max_discount_amount: 20000,
-        valid_from: '2024-06-01 00:00:00',
-        valid_to: '2024-08-31 23:59:59',
-        usage_limit: null,
-        used_count: 0,
-        is_active: false,
-        created_at: '2024-05-20 00:00:00',
-        updated_at: '2024-05-20 00:00:00'
-      }
-    ]
-    setCoupons(sampleCoupons)
+    fetchCoupons()
   }, [])
 
-  // 필터링된 데이터
-  useEffect(() => {
-    const filtered = coupons.filter((coupon) => {
-      const codeMatch = !searchCouponCode || 
-        coupon.coupon_code.toLowerCase().includes(searchCouponCode.toLowerCase()) ||
-        coupon.coupon_name.toLowerCase().includes(searchCouponCode.toLowerCase())
-      const activeMatch = searchIsActive === undefined || 
-        (searchIsActive === 'true' ? coupon.is_active : !coupon.is_active)
-      return codeMatch && activeMatch
-    })
-    setFilteredCoupons(filtered)
-  }, [searchCouponCode, searchIsActive, coupons])
-
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+    fetchCoupons(searchKeyword, searchStatus, 1)
   }
 
   const handleReset = () => {
-    setSearchCouponCode('')
-    setSearchIsActive(undefined)
+    setSearchKeyword('')
+    setSearchStatus(undefined)
+    fetchCoupons(undefined, undefined, 1)
   }
 
   const handleRegister = () => {
@@ -137,31 +78,27 @@ function AdminCouponManage() {
   const handleRegisterSave = async () => {
     try {
       const values = await couponForm.validateFields()
-      
-      const newCoupon: Coupon = {
-        coupon_id: `coupon_${Date.now()}`,
-        coupon_code: values.coupon_code,
-        coupon_name: values.coupon_name,
-        coupon_type: values.coupon_type,
-        discount_value: values.discount_value,
-        min_purchase_amount: values.min_purchase_amount || undefined,
-        max_discount_amount: values.coupon_type === 'PERCENTAGE' ? values.max_discount_amount : undefined,
-        valid_from: values.valid_period[0].format('YYYY-MM-DD HH:mm:ss'),
-        valid_to: values.valid_period[1].format('YYYY-MM-DD HH:mm:ss'),
-        usage_limit: values.usage_limit || undefined,
-        used_count: 0,
-        is_active: values.is_active !== false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
 
-      // TODO: API 호출로 쿠폰 등록
-      setCoupons(prev => [newCoupon, ...prev])
+      await createAdminCoupon({
+        couponCode: values.coupon_code,
+        couponName: values.coupon_name,
+        discountType: values.discount_type,
+        discountValue: values.discount_value,
+        minOrderAmount: values.min_order_amount || undefined,
+        maxDiscountAmount: values.discount_type === 'RATE' ? values.max_discount_amount : undefined,
+        validFrom: values.valid_period[0].format('YYYY-MM-DDTHH:mm:ss'),
+        validTo: values.valid_period[1].format('YYYY-MM-DDTHH:mm:ss'),
+        status: values.is_active ? 'ACTIVE' : 'INACTIVE',
+      })
+
       message.success('쿠폰이 등록되었습니다.')
       setIsRegisterModalVisible(false)
       couponForm.resetFields()
+      fetchCoupons(searchKeyword, searchStatus, 1)
     } catch (error) {
-      console.error('Validation failed:', error)
+      if (error instanceof Error && error.message !== 'Validation failed') {
+        message.error(error.message)
+      }
     }
   }
 
@@ -171,30 +108,31 @@ function AdminCouponManage() {
   }
 
   // 쿠폰 상세 조회
-  const handleCouponClick = (coupon: Coupon) => {
-    setSelectedCoupon(coupon)
-    setUsageSearchText('') // 검색어 초기화
-    
-    // 폼에 쿠폰 정보 설정
-    detailForm.setFieldsValue({
-      coupon_code: coupon.coupon_code,
-      coupon_name: coupon.coupon_name,
-      coupon_type: coupon.coupon_type,
-      discount_value: coupon.discount_value,
-      min_purchase_amount: coupon.min_purchase_amount,
-      max_discount_amount: coupon.max_discount_amount,
-      valid_period: [dayjs(coupon.valid_from), dayjs(coupon.valid_to)],
-      usage_limit: coupon.usage_limit,
-      is_active: coupon.is_active
-    })
-    
-    setIsDetailModalVisible(true)
+  const handleCouponClick = async (coupon: Coupon) => {
+    try {
+      const detail = await getAdminCouponDetail(coupon.coupon_id)
+      setSelectedCoupon(detail)
+
+      detailForm.setFieldsValue({
+        coupon_code: detail.coupon_code,
+        coupon_name: detail.coupon_name,
+        discount_type: detail.discount_type,
+        discount_value: detail.discount_value,
+        min_order_amount: detail.min_order_amount || undefined,
+        max_discount_amount: detail.max_discount_amount || undefined,
+        valid_period: [dayjs(detail.valid_from), dayjs(detail.valid_to)],
+        is_active: detail.status === 'ACTIVE',
+      })
+
+      setIsDetailModalVisible(true)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '쿠폰 상세 정보를 불러오는데 실패했습니다.')
+    }
   }
 
   const handleDetailModalClose = () => {
     setIsDetailModalVisible(false)
     setSelectedCoupon(null)
-    setUsageSearchText('')
     detailForm.resetFields()
   }
 
@@ -203,110 +141,83 @@ function AdminCouponManage() {
 
     try {
       const values = await detailForm.validateFields()
-      
-      // TODO: API 호출로 쿠폰 정보 업데이트
-      setCoupons(prev =>
-        prev.map(coupon =>
-          coupon.coupon_id === selectedCoupon.coupon_id
-            ? {
-                ...coupon,
-                coupon_code: values.coupon_code,
-                coupon_name: values.coupon_name,
-                coupon_type: values.coupon_type,
-                discount_value: values.discount_value,
-                min_purchase_amount: values.min_purchase_amount || undefined,
-                max_discount_amount: values.coupon_type === 'PERCENTAGE' ? values.max_discount_amount : undefined,
-                valid_from: values.valid_period[0].format('YYYY-MM-DD HH:mm:ss'),
-                valid_to: values.valid_period[1].format('YYYY-MM-DD HH:mm:ss'),
-                usage_limit: values.usage_limit || undefined,
-                is_active: values.is_active !== false,
-                updated_at: new Date().toISOString()
-              }
-            : coupon
-        )
-      )
+
+      await updateAdminCoupon(selectedCoupon.coupon_id, {
+        couponCode: values.coupon_code,
+        couponName: values.coupon_name,
+        discountType: values.discount_type,
+        discountValue: values.discount_value,
+        minOrderAmount: values.min_order_amount || undefined,
+        maxDiscountAmount: values.discount_type === 'RATE' ? values.max_discount_amount : undefined,
+        validFrom: values.valid_period[0].format('YYYY-MM-DDTHH:mm:ss'),
+        validTo: values.valid_period[1].format('YYYY-MM-DDTHH:mm:ss'),
+        status: values.is_active ? 'ACTIVE' : 'INACTIVE',
+      })
 
       message.success('쿠폰 정보가 수정되었습니다.')
       setIsDetailModalVisible(false)
       setSelectedCoupon(null)
       detailForm.resetFields()
+      fetchCoupons(searchKeyword, searchStatus, currentPage, pageSize)
     } catch (error) {
-      console.error('Validation failed:', error)
+      if (error instanceof Error && error.message !== 'Validation failed') {
+        message.error(error.message)
+      }
     }
   }
 
-  // 쿠폰 사용자 리스트 (샘플 데이터)
-  const [couponUsages] = useState<CouponUsage[]>([
-    {
-      usage_id: '1',
-      coupon_id: '1',
-      user_id: '1',
-      user_name: '홍길동',
-      order_id: '1',
-      order_number: 'ORD-2024-001',
-      used_at: '2024-01-10 14:30:00'
-    },
-    {
-      usage_id: '2',
-      coupon_id: '1',
-      user_id: '2',
-      user_name: '김철수',
-      order_id: '2',
-      order_number: 'ORD-2024-002',
-      used_at: '2024-01-12 10:20:00'
-    },
-    {
-      usage_id: '3',
-      coupon_id: '1',
-      user_id: '3',
-      user_name: '이영희',
-      order_id: '3',
-      order_number: 'ORD-2024-003',
-      used_at: '2024-01-14 16:45:00'
-    }
-  ])
-
-  const getCouponUsages = (couponId: string) => {
-    const usages = couponUsages.filter(usage => usage.coupon_id === couponId)
-    
-    // 검색 필터 적용
-    if (!usageSearchText) {
-      return usages
-    }
-    
-    return usages.filter(usage => 
-      usage.user_name.toLowerCase().includes(usageSearchText.toLowerCase()) ||
-      usage.order_number.toLowerCase().includes(usageSearchText.toLowerCase())
-    )
-  }
-
-  const handleUsageSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
-  }
-
-  const handleUsageSearchReset = () => {
-    setUsageSearchText('')
+  const couponStatusMap: Record<string, { label: string; color: string }> = {
+    ISSUED: { label: '발급됨', color: 'blue' },
+    USED: { label: '사용됨', color: 'green' },
+    EXPIRED: { label: '만료됨', color: 'default' },
   }
 
   const usageColumns: ColumnsType<CouponUsage> = [
     {
-      title: '사용자명',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 120,
+      title: '발급 ID',
+      dataIndex: 'user_coupon_id',
+      key: 'user_coupon_id',
+      width: 80,
     },
     {
-      title: '주문 번호',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      width: 150,
+      title: '사용자 ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 100,
+    },
+    {
+      title: '상태',
+      dataIndex: 'coupon_status',
+      key: 'coupon_status',
+      render: (status: string) => {
+        const info = couponStatusMap[status]
+        return <Tag color={info?.color || 'default'}>{info?.label || status}</Tag>
+      },
+      width: 100,
+    },
+    {
+      title: '발급 일시',
+      dataIndex: 'issued_at',
+      key: 'issued_at',
+      sorter: (a, b) => new Date(a.issued_at).getTime() - new Date(b.issued_at).getTime(),
+      render: (date: string) => {
+        const dateObj = new Date(date)
+        return dateObj.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      },
+      width: 160,
     },
     {
       title: '사용 일시',
       dataIndex: 'used_at',
       key: 'used_at',
-      sorter: (a, b) => new Date(a.used_at).getTime() - new Date(b.used_at).getTime(),
-      render: (date: string) => {
+      render: (date: string | null) => {
+        if (!date) return '-'
         const dateObj = new Date(date)
         return dateObj.toLocaleString('ko-KR', {
           year: 'numeric',
@@ -327,7 +238,7 @@ function AdminCouponManage() {
       key: 'coupon_code',
       sorter: (a, b) => a.coupon_code.localeCompare(b.coupon_code),
       render: (text: string, record: Coupon) => (
-        <a 
+        <a
           onClick={() => handleCouponClick(record)}
           style={{ color: '#007BFF', cursor: 'pointer' }}
         >
@@ -342,7 +253,7 @@ function AdminCouponManage() {
       key: 'coupon_name',
       sorter: (a, b) => a.coupon_name.localeCompare(b.coupon_name),
       render: (text: string, record: Coupon) => (
-        <a 
+        <a
           onClick={() => handleCouponClick(record)}
           style={{ color: '#007BFF', cursor: 'pointer' }}
         >
@@ -353,21 +264,21 @@ function AdminCouponManage() {
     },
     {
       title: '할인 유형',
-      dataIndex: 'coupon_type',
-      key: 'coupon_type',
+      dataIndex: 'discount_type',
+      key: 'discount_type',
       filters: [
-        { text: '퍼센트 할인', value: 'PERCENTAGE' },
-        { text: '정액 할인', value: 'FIXED_AMOUNT' },
+        { text: '정률 할인', value: 'RATE' },
+        { text: '정액 할인', value: 'FIXED' },
       ],
-      onFilter: (value, record) => record.coupon_type === value,
-      render: (type: string) => couponTypeMap[type] || type,
+      onFilter: (value, record) => record.discount_type === value,
+      render: (type: string) => discountTypeMap[type] || type,
       width: 120,
     },
     {
       title: '할인 금액',
       key: 'discount',
       render: (_, record: Coupon) => {
-        if (record.coupon_type === 'PERCENTAGE') {
+        if (record.discount_type === 'RATE') {
           return `${record.discount_value}%${record.max_discount_amount ? ` (최대 ${record.max_discount_amount.toLocaleString()}원)` : ''}`
         } else {
           return `${record.discount_value.toLocaleString()}원`
@@ -377,9 +288,9 @@ function AdminCouponManage() {
     },
     {
       title: '최소 구매 금액',
-      dataIndex: 'min_purchase_amount',
-      key: 'min_purchase_amount',
-      render: (amount: number | null) => amount ? `${amount.toLocaleString()}원` : '-',
+      dataIndex: 'min_order_amount',
+      key: 'min_order_amount',
+      render: (amount: number) => amount ? `${amount.toLocaleString()}원` : '-',
       align: 'right',
       width: 130,
     },
@@ -394,33 +305,20 @@ function AdminCouponManage() {
       width: 200,
     },
     {
-      title: '사용 횟수',
-      key: 'usage',
-      render: (_, record: Coupon) => {
-        if (record.usage_limit) {
-          return `${record.used_count} / ${record.usage_limit}`
-        }
-        return `${record.used_count} / 무제한`
-      },
-      width: 120,
+      title: '발급 수',
+      dataIndex: 'issued_count',
+      key: 'issued_count',
+      align: 'center',
+      width: 80,
     },
     {
       title: '상태',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      filters: [
-        { text: '활성', value: 'true' },
-        { text: '비활성', value: 'false' },
-      ],
-      onFilter: (value, record) => {
-        if (value === 'true') return record.is_active
-        return !record.is_active
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const info = statusMap[status]
+        return <Tag color={info?.color || 'default'}>{info?.label || status}</Tag>
       },
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? '활성' : '비활성'}
-        </Tag>
-      ),
       width: 100,
     },
     {
@@ -442,6 +340,136 @@ function AdminCouponManage() {
     },
   ]
 
+  // 폼 렌더링 함수 (등록/수정 공통)
+  const renderCouponForm = (form: ReturnType<typeof Form.useForm>[0]) => (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={{
+        discount_type: 'RATE',
+        is_active: true
+      }}
+    >
+      <Form.Item
+        label="쿠폰 코드"
+        name="coupon_code"
+        rules={[
+          { required: true, message: '쿠폰 코드를 입력하세요' },
+          { max: 50, message: '쿠폰 코드는 최대 50자까지 입력 가능합니다.' }
+        ]}
+      >
+        <Input placeholder="쿠폰 코드를 입력하세요 (예: WELCOME10)" maxLength={50} />
+      </Form.Item>
+
+      <Form.Item
+        label="쿠폰명"
+        name="coupon_name"
+        rules={[
+          { required: true, message: '쿠폰명을 입력하세요' },
+          { max: 100, message: '쿠폰명은 최대 100자까지 입력 가능합니다.' }
+        ]}
+      >
+        <Input placeholder="쿠폰명을 입력하세요" maxLength={100} />
+      </Form.Item>
+
+      <Form.Item
+        label="할인 유형"
+        name="discount_type"
+        rules={[{ required: true, message: '할인 유형을 선택하세요' }]}
+      >
+        <Select>
+          <Option value="RATE">정률 할인</Option>
+          <Option value="FIXED">정액 할인</Option>
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        noStyle
+        shouldUpdate={(prevValues, currentValues) => prevValues.discount_type !== currentValues.discount_type}
+      >
+        {({ getFieldValue }) => {
+          const discountType = getFieldValue('discount_type')
+          return (
+            <>
+              <Form.Item
+                label={discountType === 'RATE' ? '할인율 (%)' : '할인 금액 (원)'}
+                name="discount_value"
+                rules={[
+                  { required: true, message: discountType === 'RATE' ? '할인율을 입력하세요' : '할인 금액을 입력하세요' },
+                  { type: 'number', min: 1, max: discountType === 'RATE' ? 100 : undefined, message: discountType === 'RATE' ? '할인율은 1~100% 사이여야 합니다' : '할인 금액은 1원 이상이어야 합니다' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder={discountType === 'RATE' ? '할인율을 입력하세요 (1~100)' : '할인 금액을 입력하세요'}
+                  min={1}
+                  max={discountType === 'RATE' ? 100 : undefined}
+                  formatter={discountType === 'RATE' ? (value) => `${value}%` : (value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={discountType === 'RATE' ? (value) => Number(value!.replace('%', '')) as never : (value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as never}
+                />
+              </Form.Item>
+
+              {discountType === 'RATE' && (
+                <Form.Item
+                  label="최대 할인 금액 (원)"
+                  name="max_discount_amount"
+                  rules={[
+                    { type: 'number', min: 1, message: '최대 할인 금액은 1원 이상이어야 합니다' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="최대 할인 금액을 입력하세요 (선택사항)"
+                    min={1}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as never}
+                  />
+                </Form.Item>
+              )}
+            </>
+          )
+        }}
+      </Form.Item>
+
+      <Form.Item
+        label="최소 구매 금액 (원)"
+        name="min_order_amount"
+        rules={[
+          { type: 'number', min: 0, message: '최소 구매 금액은 0원 이상이어야 합니다' }
+        ]}
+      >
+        <InputNumber
+          style={{ width: '100%' }}
+          placeholder="최소 구매 금액을 입력하세요 (선택사항)"
+          min={0}
+          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+          parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) as never}
+        />
+      </Form.Item>
+
+      <Form.Item
+        label="유효 기간"
+        name="valid_period"
+        rules={[{ required: true, message: '유효 기간을 선택하세요' }]}
+      >
+        <RangePicker
+          style={{ width: '100%' }}
+          showTime={{ format: 'HH:mm' }}
+          format="YYYY-MM-DD HH:mm"
+          placeholder={['시작일시', '종료일시']}
+        />
+      </Form.Item>
+
+      <Form.Item
+        label="활성화"
+        name="is_active"
+        valuePropName="checked"
+      >
+        <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+      </Form.Item>
+    </Form>
+  )
+
   return (
     <div className="admin-coupon-manage">
       <div className="coupon-manage-container">
@@ -456,19 +484,20 @@ function AdminCouponManage() {
                 placeholder="쿠폰 코드 또는 쿠폰명 검색"
                 allowClear
                 style={{ width: 250 }}
-                value={searchCouponCode}
-                onChange={(e) => setSearchCouponCode(e.target.value)}
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
                 onPressEnter={handleSearch}
               />
               <Select
                 placeholder="상태 선택"
                 allowClear
                 style={{ width: 150 }}
-                value={searchIsActive}
-                onChange={(value) => setSearchIsActive(value)}
+                value={searchStatus}
+                onChange={(value) => setSearchStatus(value)}
               >
-                <Option value="true">활성</Option>
-                <Option value="false">비활성</Option>
+                <Option value="ACTIVE">활성</Option>
+                <Option value="INACTIVE">비활성</Option>
+                <Option value="EXPIRED">만료</Option>
               </Select>
             </Space>
           </div>
@@ -478,8 +507,8 @@ function AdminCouponManage() {
               <Button type="primary" onClick={handleSearch}>
                 검색
               </Button>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleRegister}
                 style={{ backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }}
@@ -492,13 +521,19 @@ function AdminCouponManage() {
 
         <Table
           columns={columns}
-          dataSource={filteredCoupons}
+          dataSource={coupons}
           rowKey="coupon_id"
+          loading={loading}
           scroll={{ x: 'max-content' }}
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
+            total: totalElements,
             showSizeChanger: true,
             showTotal: (total) => `총 ${total}개`,
+            onChange: (page, size) => {
+              fetchCoupons(searchKeyword, searchStatus, page, size)
+            },
           }}
         />
 
@@ -515,146 +550,7 @@ function AdminCouponManage() {
           }}
           width={700}
         >
-          <Form
-            form={couponForm}
-            layout="vertical"
-            initialValues={{
-              coupon_type: 'PERCENTAGE',
-              is_active: true
-            }}
-          >
-            <Form.Item
-              label="쿠폰 코드"
-              name="coupon_code"
-              rules={[
-                { required: true, message: '쿠폰 코드를 입력하세요' },
-                { max: 50, message: '쿠폰 코드는 최대 50자까지 입력 가능합니다.' }
-              ]}
-            >
-              <Input placeholder="쿠폰 코드를 입력하세요 (예: WELCOME10)" maxLength={50} />
-            </Form.Item>
-
-            <Form.Item
-              label="쿠폰명"
-              name="coupon_name"
-              rules={[
-                { required: true, message: '쿠폰명을 입력하세요' },
-                { max: 100, message: '쿠폰명은 최대 100자까지 입력 가능합니다.' }
-              ]}
-            >
-              <Input placeholder="쿠폰명을 입력하세요" maxLength={100} />
-            </Form.Item>
-
-            <Form.Item
-              label="할인 유형"
-              name="coupon_type"
-              rules={[{ required: true, message: '할인 유형을 선택하세요' }]}
-            >
-              <Select>
-                <Option value="PERCENTAGE">퍼센트 할인</Option>
-                <Option value="FIXED_AMOUNT">정액 할인</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              noStyle
-              shouldUpdate={(prevValues, currentValues) => prevValues.coupon_type !== currentValues.coupon_type}
-            >
-              {({ getFieldValue }) => {
-                const couponType = getFieldValue('coupon_type')
-                return (
-                  <>
-                    <Form.Item
-                      label={couponType === 'PERCENTAGE' ? '할인율 (%)' : '할인 금액 (원)'}
-                      name="discount_value"
-                      rules={[
-                        { required: true, message: couponType === 'PERCENTAGE' ? '할인율을 입력하세요' : '할인 금액을 입력하세요' },
-                        { type: 'number', min: couponType === 'PERCENTAGE' ? 1 : 1, max: couponType === 'PERCENTAGE' ? 100 : undefined, message: couponType === 'PERCENTAGE' ? '할인율은 1~100% 사이여야 합니다' : '할인 금액은 1원 이상이어야 합니다' }
-                      ]}
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        placeholder={couponType === 'PERCENTAGE' ? '할인율을 입력하세요 (1~100)' : '할인 금액을 입력하세요'}
-                        min={1}
-                        max={couponType === 'PERCENTAGE' ? 100 : undefined}
-                        formatter={couponType === 'PERCENTAGE' ? (value) => `${value}%` : (value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        parser={couponType === 'PERCENTAGE' ? (value) => value!.replace('%', '') : (value) => value!.replace(/\$\s?|(,*)/g, '')}
-                      />
-                    </Form.Item>
-
-                    {couponType === 'PERCENTAGE' && (
-                      <Form.Item
-                        label="최대 할인 금액 (원)"
-                        name="max_discount_amount"
-                        rules={[
-                          { type: 'number', min: 1, message: '최대 할인 금액은 1원 이상이어야 합니다' }
-                        ]}
-                      >
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          placeholder="최대 할인 금액을 입력하세요 (선택사항)"
-                          min={1}
-                          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                        />
-                      </Form.Item>
-                    )}
-                  </>
-                )
-              }}
-            </Form.Item>
-
-            <Form.Item
-              label="최소 구매 금액 (원)"
-              name="min_purchase_amount"
-              rules={[
-                { type: 'number', min: 0, message: '최소 구매 금액은 0원 이상이어야 합니다' }
-              ]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="최소 구매 금액을 입력하세요 (선택사항)"
-                min={0}
-                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="유효 기간"
-              name="valid_period"
-              rules={[{ required: true, message: '유효 기간을 선택하세요' }]}
-            >
-              <RangePicker
-                style={{ width: '100%' }}
-                showTime={{ format: 'HH:mm' }}
-                format="YYYY-MM-DD HH:mm"
-                placeholder={['시작일시', '종료일시']}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="사용 제한 횟수"
-              name="usage_limit"
-              rules={[
-                { type: 'number', min: 1, message: '사용 제한 횟수는 1회 이상이어야 합니다' }
-              ]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                placeholder="사용 제한 횟수를 입력하세요 (선택사항, 미입력 시 무제한)"
-                min={1}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="활성화"
-              name="is_active"
-              valuePropName="checked"
-            >
-              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
-            </Form.Item>
-            </Form>
+          {renderCouponForm(couponForm)}
         </Modal>
 
         {/* 쿠폰 상세 조회 및 수정 모달 */}
@@ -666,9 +562,9 @@ function AdminCouponManage() {
             <Button key="cancel" onClick={handleDetailModalClose}>
               취소
             </Button>,
-            <Button 
-              key="save" 
-              type="primary" 
+            <Button
+              key="save"
+              type="primary"
               onClick={handleDetailSave}
               style={{ backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }}
             >
@@ -684,178 +580,23 @@ function AdminCouponManage() {
                 {
                   key: 'info',
                   label: '쿠폰 정보',
-                  children: (
-                    <Form
-                      form={detailForm}
-                      layout="vertical"
-                    >
-                      <Form.Item
-                        label="쿠폰 코드"
-                        name="coupon_code"
-                        rules={[
-                          { required: true, message: '쿠폰 코드를 입력하세요' },
-                          { max: 50, message: '쿠폰 코드는 최대 50자까지 입력 가능합니다.' }
-                        ]}
-                      >
-                        <Input placeholder="쿠폰 코드를 입력하세요" maxLength={50} />
-                      </Form.Item>
-
-                      <Form.Item
-                        label="쿠폰명"
-                        name="coupon_name"
-                        rules={[
-                          { required: true, message: '쿠폰명을 입력하세요' },
-                          { max: 100, message: '쿠폰명은 최대 100자까지 입력 가능합니다.' }
-                        ]}
-                      >
-                        <Input placeholder="쿠폰명을 입력하세요" maxLength={100} />
-                      </Form.Item>
-
-                      <Form.Item
-                        label="할인 유형"
-                        name="coupon_type"
-                        rules={[{ required: true, message: '할인 유형을 선택하세요' }]}
-                      >
-                        <Select>
-                          <Option value="PERCENTAGE">퍼센트 할인</Option>
-                          <Option value="FIXED_AMOUNT">정액 할인</Option>
-                        </Select>
-                      </Form.Item>
-
-                      <Form.Item
-                        noStyle
-                        shouldUpdate={(prevValues, currentValues) => prevValues.coupon_type !== currentValues.coupon_type}
-                      >
-                        {({ getFieldValue }) => {
-                          const couponType = getFieldValue('coupon_type')
-                          return (
-                            <>
-                              <Form.Item
-                                label={couponType === 'PERCENTAGE' ? '할인율 (%)' : '할인 금액 (원)'}
-                                name="discount_value"
-                                rules={[
-                                  { required: true, message: couponType === 'PERCENTAGE' ? '할인율을 입력하세요' : '할인 금액을 입력하세요' },
-                                  { type: 'number', min: couponType === 'PERCENTAGE' ? 1 : 1, max: couponType === 'PERCENTAGE' ? 100 : undefined, message: couponType === 'PERCENTAGE' ? '할인율은 1~100% 사이여야 합니다' : '할인 금액은 1원 이상이어야 합니다' }
-                                ]}
-                              >
-                                <InputNumber
-                                  style={{ width: '100%' }}
-                                  placeholder={couponType === 'PERCENTAGE' ? '할인율을 입력하세요 (1~100)' : '할인 금액을 입력하세요'}
-                                  min={1}
-                                  max={couponType === 'PERCENTAGE' ? 100 : undefined}
-                                  formatter={couponType === 'PERCENTAGE' ? (value) => `${value}%` : (value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                  parser={couponType === 'PERCENTAGE' ? (value) => value!.replace('%', '') : (value) => value!.replace(/\$\s?|(,*)/g, '')}
-                                />
-                              </Form.Item>
-
-                              {couponType === 'PERCENTAGE' && (
-                                <Form.Item
-                                  label="최대 할인 금액 (원)"
-                                  name="max_discount_amount"
-                                  rules={[
-                                    { type: 'number', min: 1, message: '최대 할인 금액은 1원 이상이어야 합니다' }
-                                  ]}
-                                >
-                                  <InputNumber
-                                    style={{ width: '100%' }}
-                                    placeholder="최대 할인 금액을 입력하세요 (선택사항)"
-                                    min={1}
-                                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                                  />
-                                </Form.Item>
-                              )}
-                            </>
-                          )
-                        }}
-                      </Form.Item>
-
-                      <Form.Item
-                        label="최소 구매 금액 (원)"
-                        name="min_purchase_amount"
-                        rules={[
-                          { type: 'number', min: 0, message: '최소 구매 금액은 0원 이상이어야 합니다' }
-                        ]}
-                      >
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          placeholder="최소 구매 금액을 입력하세요 (선택사항)"
-                          min={0}
-                          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        label="유효 기간"
-                        name="valid_period"
-                        rules={[{ required: true, message: '유효 기간을 선택하세요' }]}
-                      >
-                        <RangePicker
-                          style={{ width: '100%' }}
-                          showTime={{ format: 'HH:mm' }}
-                          format="YYYY-MM-DD HH:mm"
-                          placeholder={['시작일시', '종료일시']}
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        label="사용 제한 횟수"
-                        name="usage_limit"
-                        rules={[
-                          { type: 'number', min: 1, message: '사용 제한 횟수는 1회 이상이어야 합니다' }
-                        ]}
-                      >
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          placeholder="사용 제한 횟수를 입력하세요 (선택사항, 미입력 시 무제한)"
-                          min={1}
-                        />
-                      </Form.Item>
-
-                      <Form.Item
-                        label="활성화"
-                        name="is_active"
-                        valuePropName="checked"
-                      >
-                        <Switch checkedChildren="활성" unCheckedChildren="비활성" />
-                      </Form.Item>
-                    </Form>
-                  )
+                  children: renderCouponForm(detailForm),
                 },
                 {
                   key: 'usage',
-                  label: `사용 내역 (${getCouponUsages(selectedCoupon.coupon_id).length}건)`,
+                  label: `발급 내역 (${selectedCoupon.user_coupons.length}건)`,
                   children: (
-                    <div>
-                      <div style={{ marginBottom: '1rem' }}>
-                        <Space>
-                          <Input
-                            placeholder="사용자명 또는 주문 번호 검색"
-                            allowClear
-                            style={{ width: 250 }}
-                            value={usageSearchText}
-                            onChange={(e) => setUsageSearchText(e.target.value)}
-                            onPressEnter={handleUsageSearch}
-                          />
-                          <Button onClick={handleUsageSearchReset}>초기화</Button>
-                          <Button type="primary" onClick={handleUsageSearch}>
-                            검색
-                          </Button>
-                        </Space>
-                      </div>
-                      <Table
-                        columns={usageColumns}
-                        dataSource={getCouponUsages(selectedCoupon.coupon_id)}
-                        rowKey="usage_id"
-                        pagination={{
-                          pageSize: 10,
-                          showSizeChanger: true,
-                          showTotal: (total) => `총 ${total}건`,
-                        }}
-                        size="small"
-                      />
-                    </div>
+                    <Table
+                      columns={usageColumns}
+                      dataSource={selectedCoupon.user_coupons}
+                      rowKey="user_coupon_id"
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showTotal: (total) => `총 ${total}건`,
+                      }}
+                      size="small"
+                    />
                   )
                 }
               ]}
@@ -868,4 +609,3 @@ function AdminCouponManage() {
 }
 
 export default AdminCouponManage
-
