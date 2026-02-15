@@ -116,6 +116,16 @@ services:
       <<: *service-common-env
     depends_on: *depends-on-infra
 
+  promotion-service:
+    <<: *service-common
+    container_name: promotion-service
+    build: ../service/promotion-service
+    ports:
+      - "8087:8080"
+    environment:
+      <<: *service-common-env
+    depends_on: *depends-on-infra
+
 
 networks:
   ecommerce-net:
