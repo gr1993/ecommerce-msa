@@ -2,6 +2,7 @@ package com.example.promotionservice.controller;
 
 import com.example.promotionservice.dto.request.CouponClaimRequest;
 import com.example.promotionservice.dto.response.CouponClaimResponse;
+import com.example.promotionservice.dto.response.UserCouponResponse;
 import com.example.promotionservice.global.exception.ErrorResponse;
 import com.example.promotionservice.service.PromotionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "Promotion", description = "사용자 프로모션 관리")
 @RestController
 @RequestMapping("/api/promotion")
@@ -23,6 +26,26 @@ import org.springframework.web.bind.annotation.*;
 public class PromotionController {
 
     private final PromotionService promotionService;
+
+    @Operation(
+            summary = "내 쿠폰 목록 조회",
+            description = "사용자가 보유한 쿠폰 목록을 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "쿠폰 목록 조회 성공",
+                            content = @Content(schema = @Schema(implementation = UserCouponResponse.class))
+                    )
+            }
+    )
+    @GetMapping("/coupons")
+    public ResponseEntity<List<UserCouponResponse>> getUserCoupons(
+            @Parameter(description = "사용자 ID", required = true)
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        List<UserCouponResponse> response = promotionService.getUserCoupons(userId);
+        return ResponseEntity.ok(response);
+    }
 
     @Operation(
             summary = "쿠폰 등록",

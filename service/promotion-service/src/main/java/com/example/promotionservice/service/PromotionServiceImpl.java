@@ -3,6 +3,7 @@ package com.example.promotionservice.service;
 import com.example.promotionservice.domain.entity.*;
 import com.example.promotionservice.dto.request.CouponClaimRequest;
 import com.example.promotionservice.dto.response.CouponClaimResponse;
+import com.example.promotionservice.dto.response.UserCouponResponse;
 import com.example.promotionservice.global.exception.CouponNotFoundException;
 import com.example.promotionservice.repository.CouponRepository;
 import com.example.promotionservice.repository.UserCouponRepository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -53,5 +55,13 @@ public class PromotionServiceImpl implements PromotionService {
                 userId, coupon.getCouponCode(), savedUserCoupon.getId());
 
         return CouponClaimResponse.from(savedUserCoupon);
+    }
+
+    @Override
+    public List<UserCouponResponse> getUserCoupons(Long userId) {
+        List<UserCoupon> userCoupons = userCouponRepository.findByUserId(userId);
+        return userCoupons.stream()
+                .map(UserCouponResponse::from)
+                .toList();
     }
 }
