@@ -53,6 +53,10 @@ public class UserCoupon {
         this.usedAt = LocalDateTime.now();
     }
 
+    public void restore() {
+        this.couponStatus = UserCouponStatus.RESTORED;
+    }
+
     public void expire() {
         this.couponStatus = UserCouponStatus.EXPIRED;
     }
