@@ -1,43 +1,37 @@
-# order-service
-주문 데이터를 생성하고 관리를 담당하는 MSA 서비스
+# promotion-service
+쿠폰 및 할인 정책을 관리하고 사용자별 쿠폰 발급 및 사용 상태를 관리하는 서비스
 
 
-### 주문 취소 프로세스
+### 쿠폰 사용 프로세스
 ```mermaid
 sequenceDiagram
     autonumber
     participant User as 사용자
     participant Order as Order-Service
     participant Kafka
-    participant Payment as Payment-Service
-    participant Product as Product-Service
+    participant Promotion as Promotion-Service
 
-    User->>Order: 주문 취소 요청
-    
+    User->>Order: 주문 생성 요청 (쿠폰 사용 포함)
+
     rect rgb(240, 240, 240)
-        Order->>Order: 1. 주문 상태 변경 (CANCELLED)
-        Order-->>Kafka: 2. order.cancelled 발행 (Outbox)
+        Order->>Order: 1. 주문 생성 (PENDING/CREATED)
+        Order->>Order: 2. 쿠폰 적용 금액 계산
+        Order-->>Kafka: 3. coupon.used 발행 (Outbox)
     end
 
-    Note right of Kafka: 보상 트랜잭션 시작
+    Note right of Kafka: 쿠폰 사용 처리 시작
 
-    par 병렬 처리
-        Kafka->>Payment: 3a. order.cancelled 구독
-        Payment->>Payment: 4a. 실제 환불/결제 취소 로직
-    and
-        Kafka->>Product: 3b. order.cancelled 구독
-        Product->>Product: 4b. 재고 복구 (멱등성 체크)
-    end
+    Kafka->>Promotion: 4. coupon.used 구독
+    Promotion->>Promotion: 5. UserCoupon 상태 변경 (ISSUED → USED)
+    Promotion->>Promotion: 6. 멱등성 체크 (이미 사용 여부 확인)
 
-    Payment-->>User: 결제 취소/환불 완료 알림
+    Promotion-->>Order: (선택) 쿠폰 처리 완료 이벤트 발행 가능
 ```
-* 사용자/CS에서 주문 취소 요청을 하면 order.cancelled 이벤트를 발행한다.
-* 주문 생성 후 10분 이내에 결제되지 않으면 order.cancelled 이벤트를 발행한다.
 
 
 ### 프로젝트 패키지 구조
 ```
-com.example.orderservice
+com.example.promotionservice
 ├── common              # 유틸리티, 공통 상수
 ├── config              # 설정 클래스 (Security, JWT, CORS, Swagger 등)
 ├── consumer            # Kafka 이벤트 컨슈머
@@ -87,5 +81,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | order.created, order.cancelled |
-| 구독(Subscribed) | payment.confirmed, payment.cancelled |
+| 발행(Published) |  |
+| 구독(Subscribed) |  |
