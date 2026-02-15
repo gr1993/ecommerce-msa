@@ -1,6 +1,7 @@
 package com.example.promotionservice.controller;
 
 import com.example.promotionservice.dto.request.CouponClaimRequest;
+import com.example.promotionservice.dto.response.ApplicableDiscountPolicyResponse;
 import com.example.promotionservice.dto.response.CouponClaimResponse;
 import com.example.promotionservice.dto.response.UserCouponResponse;
 import com.example.promotionservice.global.exception.ErrorResponse;
@@ -76,5 +77,25 @@ public class PromotionController {
     ) {
         CouponClaimResponse response = promotionService.claimCoupon(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "적용 가능 할인 정책 조회",
+            description = "주어진 상품 ID 목록에 적용 가능한 할인 정책(ACTIVE 상태, 유효기간 내)을 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "할인 정책 조회 성공",
+                            content = @Content(schema = @Schema(implementation = ApplicableDiscountPolicyResponse.class))
+                    )
+            }
+    )
+    @GetMapping("/discount-policies")
+    public ResponseEntity<List<ApplicableDiscountPolicyResponse>> getApplicableDiscountPolicies(
+            @Parameter(description = "상품 ID 목록", required = true)
+            @RequestParam List<Long> productIds
+    ) {
+        List<ApplicableDiscountPolicyResponse> response = promotionService.getApplicableDiscountPolicies(productIds);
+        return ResponseEntity.ok(response);
     }
 }

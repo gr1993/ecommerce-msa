@@ -2,10 +2,12 @@ package com.example.promotionservice.service;
 
 import com.example.promotionservice.domain.entity.*;
 import com.example.promotionservice.dto.request.CouponClaimRequest;
+import com.example.promotionservice.dto.response.ApplicableDiscountPolicyResponse;
 import com.example.promotionservice.dto.response.CouponClaimResponse;
 import com.example.promotionservice.dto.response.UserCouponResponse;
 import com.example.promotionservice.global.exception.CouponNotFoundException;
 import com.example.promotionservice.repository.CouponRepository;
+import com.example.promotionservice.repository.DiscountPolicyRepository;
 import com.example.promotionservice.repository.UserCouponRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ public class PromotionServiceImpl implements PromotionService {
 
     private final CouponRepository couponRepository;
     private final UserCouponRepository userCouponRepository;
+    private final DiscountPolicyRepository discountPolicyRepository;
 
     @Override
     @Transactional
@@ -62,6 +65,16 @@ public class PromotionServiceImpl implements PromotionService {
         List<UserCoupon> userCoupons = userCouponRepository.findByUserId(userId);
         return userCoupons.stream()
                 .map(UserCouponResponse::from)
+                .toList();
+    }
+
+    @Override
+    public List<ApplicableDiscountPolicyResponse> getApplicableDiscountPolicies(List<Long> productIds) {
+        LocalDateTime now = LocalDateTime.now();
+        List<DiscountPolicy> policies = discountPolicyRepository.findApplicablePolicies(
+                DiscountPolicyStatus.ACTIVE, now, productIds);
+        return policies.stream()
+                .map(ApplicableDiscountPolicyResponse::from)
                 .toList();
     }
 }

@@ -30,4 +30,11 @@ public interface DiscountPolicyRepository extends JpaRepository<DiscountPolicy, 
     Page<DiscountPolicy> findAllBySearchCondition(@Param("keyword") String keyword,
                                                    @Param("status") DiscountPolicyStatus status,
                                                    Pageable pageable);
+
+    @Query("SELECT d FROM DiscountPolicy d WHERE d.status = :status " +
+            "AND d.validFrom <= :now AND d.validTo >= :now " +
+            "AND (d.targetType = 'ORDER' OR (d.targetType = 'PRODUCT' AND d.targetId IN :productIds))")
+    List<DiscountPolicy> findApplicablePolicies(@Param("status") DiscountPolicyStatus status,
+                                                 @Param("now") LocalDateTime now,
+                                                 @Param("productIds") List<Long> productIds);
 }
