@@ -56,6 +56,9 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderPayment> orderPayments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderDiscount> orderDiscounts = new ArrayList<>();
+
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private OrderDelivery orderDelivery;
 
@@ -104,6 +107,11 @@ public class Order {
     public void setOrderDelivery(OrderDelivery orderDelivery) {
         this.orderDelivery = orderDelivery;
         orderDelivery.setOrder(this);
+    }
+
+    public void addOrderDiscount(OrderDiscount orderDiscount) {
+        this.orderDiscounts.add(orderDiscount);
+        orderDiscount.setOrder(this);
     }
 
     public void updateTotalAmounts(BigDecimal totalProductAmount, BigDecimal totalDiscountAmount) {

@@ -4,13 +4,17 @@ import com.example.orderservice.client.ProductServiceClient;
 import com.example.orderservice.client.dto.ProductDetailResponse;
 import com.example.orderservice.client.dto.ProductDetailResponse.OptionValueResponse;
 import com.example.orderservice.client.dto.ProductDetailResponse.SkuResponse;
+import com.example.orderservice.domain.entity.DiscountType;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderDelivery;
+import com.example.orderservice.domain.entity.OrderDiscount;
 import com.example.orderservice.domain.entity.OrderItem;
 import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.domain.entity.Outbox;
+import com.example.orderservice.domain.event.CouponUsedEvent;
 import com.example.orderservice.domain.event.OrderCreatedEvent;
 import com.example.orderservice.dto.request.DeliveryInfoRequest;
+import com.example.orderservice.dto.request.DiscountRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
 import com.example.orderservice.dto.response.OrderResponse;
@@ -79,7 +83,23 @@ public class OrderServiceImpl implements OrderService {
             totalProductAmount = totalProductAmount.add(totalPrice);
         }
 
-        order.updateTotalAmounts(totalProductAmount, BigDecimal.ZERO);
+        BigDecimal totalDiscountAmount = BigDecimal.ZERO;
+        if (request.getDiscounts() != null && !request.getDiscounts().isEmpty()) {
+            for (DiscountRequest discountRequest : request.getDiscounts()) {
+                OrderDiscount orderDiscount = OrderDiscount.builder()
+                        .discountType(DiscountType.valueOf(discountRequest.getDiscountType()))
+                        .referenceId(discountRequest.getReferenceId())
+                        .discountName(discountRequest.getDiscountName())
+                        .discountAmount(discountRequest.getDiscountAmount())
+                        .discountRate(discountRequest.getDiscountRate())
+                        .description(discountRequest.getDescription())
+                        .build();
+                order.addOrderDiscount(orderDiscount);
+                totalDiscountAmount = totalDiscountAmount.add(BigDecimal.valueOf(discountRequest.getDiscountAmount()));
+            }
+        }
+
+        order.updateTotalAmounts(totalProductAmount, totalDiscountAmount);
 
         DeliveryInfoRequest deliveryInfo = request.getDeliveryInfo();
         OrderDelivery orderDelivery = OrderDelivery.builder()
@@ -95,6 +115,7 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
 
         saveOrderCreatedOutbox(savedOrder);
+        saveCouponUsedOutboxes(savedOrder);
 
         return OrderResponse.from(savedOrder);
     }
@@ -145,6 +166,35 @@ public class OrderServiceImpl implements OrderService {
             log.error("OrderCreatedEvent 직렬화 실패: orderId={}", order.getId(), e);
             throw new RuntimeException("이벤트 직렬화 실패", e);
         }
+    }
+
+    private void saveCouponUsedOutboxes(Order order) {
+        order.getOrderDiscounts().stream()
+                .filter(d -> d.getDiscountType() == DiscountType.COUPON)
+                .forEach(discount -> {
+                    CouponUsedEvent event = CouponUsedEvent.builder()
+                            .orderId(order.getOrderNumber())
+                            .userCouponId(discount.getReferenceId())
+                            .customerId(String.valueOf(order.getUserId()))
+                            .usedAt(order.getOrderedAt())
+                            .build();
+                    try {
+                        String payload = objectMapper.writeValueAsString(event);
+                        Outbox outbox = Outbox.builder()
+                                .aggregateType("Coupon")
+                                .aggregateId(String.valueOf(discount.getReferenceId()))
+                                .eventType(EventTypeConstants.TOPIC_COUPON_USED)
+                                .payload(payload)
+                                .build();
+                        outboxRepository.save(outbox);
+                        log.debug("CouponUsedEvent Outbox 저장 완료: orderId={}, userCouponId={}",
+                                order.getId(), discount.getReferenceId());
+                    } catch (JsonProcessingException e) {
+                        log.error("CouponUsedEvent 직렬화 실패: orderId={}, userCouponId={}",
+                                order.getId(), discount.getReferenceId(), e);
+                        throw new RuntimeException("이벤트 직렬화 실패", e);
+                    }
+                });
     }
 
     private SkuResponse findSkuById(List<SkuResponse> skus, Long skuId) {

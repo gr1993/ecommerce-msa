@@ -87,5 +87,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | order.created, order.cancelled |
+| 발행(Published) | order.created, order.cancelled, coupon.used, coupon.restored |
 | 구독(Subscribed) | payment.confirmed, payment.cancelled |

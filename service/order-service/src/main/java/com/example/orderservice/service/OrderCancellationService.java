@@ -1,8 +1,10 @@
 package com.example.orderservice.service;
 
+import com.example.orderservice.domain.entity.DiscountType;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.domain.entity.Outbox;
+import com.example.orderservice.domain.event.CouponRestoredEvent;
 import com.example.orderservice.domain.event.OrderCancelledEvent;
 import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.repository.OrderRepository;
@@ -58,6 +60,35 @@ public class OrderCancellationService {
         order.updateStatus(OrderStatus.CANCELED);
         orderRepository.save(order);
         saveOrderCancelledOutbox(order);
+        saveCouponRestoredOutboxes(order);
+    }
+
+    private void saveCouponRestoredOutboxes(Order order) {
+        order.getOrderDiscounts().stream()
+                .filter(d -> d.getDiscountType() == DiscountType.COUPON)
+                .forEach(discount -> {
+                    CouponRestoredEvent event = CouponRestoredEvent.builder()
+                            .orderId(order.getOrderNumber())
+                            .userCouponId(discount.getReferenceId())
+                            .restoredAt(LocalDateTime.now())
+                            .build();
+                    try {
+                        String payload = objectMapper.writeValueAsString(event);
+                        Outbox outbox = Outbox.builder()
+                                .aggregateType("Coupon")
+                                .aggregateId(String.valueOf(discount.getReferenceId()))
+                                .eventType(EventTypeConstants.TOPIC_COUPON_RESTORED)
+                                .payload(payload)
+                                .build();
+                        outboxRepository.save(outbox);
+                        log.debug("CouponRestoredEvent Outbox 저장 완료: orderId={}, userCouponId={}",
+                                order.getId(), discount.getReferenceId());
+                    } catch (JsonProcessingException e) {
+                        log.error("CouponRestoredEvent 직렬화 실패: orderId={}, userCouponId={}",
+                                order.getId(), discount.getReferenceId(), e);
+                        throw new RuntimeException("이벤트 직렬화 실패", e);
+                    }
+                });
     }
 
     private void saveOrderCancelledOutbox(Order order) {

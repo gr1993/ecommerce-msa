@@ -25,9 +25,15 @@ public class OrderCreateRequest {
     @Valid
     private DeliveryInfoRequest deliveryInfo;
 
+    @Schema(description = "할인 정보 목록")
+    @Valid
+    private List<DiscountRequest> discounts;
+
     @Builder
-    public OrderCreateRequest(List<OrderItemRequest> orderItems, DeliveryInfoRequest deliveryInfo) {
+    public OrderCreateRequest(List<OrderItemRequest> orderItems, DeliveryInfoRequest deliveryInfo,
+                              List<DiscountRequest> discounts) {
         this.orderItems = orderItems;
         this.deliveryInfo = deliveryInfo;
+        this.discounts = discounts;
     }
 }

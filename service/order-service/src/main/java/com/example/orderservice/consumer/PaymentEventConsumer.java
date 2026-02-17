@@ -2,12 +2,19 @@ package com.example.orderservice.consumer;
 
 import com.example.orderservice.consumer.event.PaymentCancelledEvent;
 import com.example.orderservice.consumer.event.PaymentConfirmedEvent;
+import com.example.orderservice.domain.entity.DiscountType;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderPayment;
 import com.example.orderservice.domain.entity.OrderStatus;
+import com.example.orderservice.domain.entity.Outbox;
 import com.example.orderservice.domain.entity.PaymentMethod;
 import com.example.orderservice.domain.entity.PaymentStatus;
+import com.example.orderservice.domain.event.CouponRestoredEvent;
+import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.repository.OrderRepository;
+import com.example.orderservice.repository.OutboxRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
 import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
@@ -47,6 +54,8 @@ import java.time.format.DateTimeFormatter;
 public class PaymentEventConsumer {
 
 	private final OrderRepository orderRepository;
+	private final OutboxRepository outboxRepository;
+	private final ObjectMapper objectMapper;
 
 	@AsyncListener(
 			operation = @AsyncOperation(
@@ -203,6 +212,10 @@ public class PaymentEventConsumer {
 			order.updateStatus(OrderStatus.FAILED);
 
 			orderRepository.save(order);
+
+			// 쿠폰 복원 이벤트 발행
+			saveCouponRestoredOutboxes(order);
+
 			log.info("Successfully updated order to FAILED: orderNumber={}, cancelReason={}",
 					event.getOrderId(), event.getCancelReason());
 		} catch (Exception e) {
@@ -210,6 +223,34 @@ public class PaymentEventConsumer {
 					event.getOrderId(), event.getCancelReason(), e);
 			throw e;
 		}
+	}
+
+	private void saveCouponRestoredOutboxes(Order order) {
+		order.getOrderDiscounts().stream()
+				.filter(d -> d.getDiscountType() == DiscountType.COUPON)
+				.forEach(discount -> {
+					CouponRestoredEvent event = CouponRestoredEvent.builder()
+							.orderId(order.getOrderNumber())
+							.userCouponId(discount.getReferenceId())
+							.restoredAt(LocalDateTime.now())
+							.build();
+					try {
+						String payload = objectMapper.writeValueAsString(event);
+						Outbox outbox = Outbox.builder()
+								.aggregateType("Coupon")
+								.aggregateId(String.valueOf(discount.getReferenceId()))
+								.eventType(EventTypeConstants.TOPIC_COUPON_RESTORED)
+								.payload(payload)
+								.build();
+						outboxRepository.save(outbox);
+						log.debug("CouponRestoredEvent Outbox 저장 완료: orderId={}, userCouponId={}",
+								order.getId(), discount.getReferenceId());
+					} catch (JsonProcessingException e) {
+						log.error("CouponRestoredEvent 직렬화 실패: orderId={}, userCouponId={}",
+								order.getId(), discount.getReferenceId(), e);
+						throw new RuntimeException("이벤트 직렬화 실패", e);
+					}
+				});
 	}
 
 	/**

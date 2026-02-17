@@ -60,6 +60,12 @@ public class OutboxEventPublisher {
 			case EventTypeConstants.TOPIC_ORDER_CANCELLED ->
 				orderEventPublisher.publishOrderCancelledEvent(outbox);
 
+			// Coupon Events
+			case EventTypeConstants.TOPIC_COUPON_USED ->
+				orderEventPublisher.publishCouponUsedEvent(outbox);
+			case EventTypeConstants.TOPIC_COUPON_RESTORED ->
+				orderEventPublisher.publishCouponRestoredEvent(outbox);
+
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);
 				throw new IllegalArgumentException("알 수 없는 이벤트 타입: " + eventType);
