@@ -29,7 +29,7 @@ import { useCartStore, type CartItem } from '../../stores/cartStore'
 import { useAuthStore } from '../../stores/authStore'
 import { usePendingOrderStore } from '../../stores/pendingOrderStore'
 import { requestTossPayment, type PaymentRequest } from '../../utils/paymentUtils'
-import { createOrder, type OrderCreateRequest, type OrderResponse } from '../../api/orderApi'
+import { createOrder, type OrderCreateRequest, type OrderResponse, type DiscountRequest } from '../../api/orderApi'
 import {
   getUserCoupons,
   getApplicableDiscountPolicies,
@@ -241,6 +241,66 @@ function MarketOrder() {
 
     setLoading(true)
     try {
+      // 할인 정보 구성
+      const discounts: DiscountRequest[] = []
+
+      // 선택된 쿠폰 할인
+      if (selectedCouponId) {
+        const coupon = userCoupons.find(c => c.user_coupon_id === selectedCouponId)
+        if (coupon) {
+          const couponDiscountAmount = calculateCouponDiscount()
+          if (couponDiscountAmount > 0) {
+            discounts.push({
+              discountType: 'COUPON',
+              referenceId: Number(coupon.user_coupon_id),
+              discountName: coupon.coupon_name,
+              discountAmount: couponDiscountAmount,
+              discountRate: coupon.discount_type === 'RATE' ? coupon.discount_value : undefined,
+              description: `쿠폰: ${coupon.coupon_code}`,
+            })
+          }
+        }
+      }
+
+      // 자동 할인 정책
+      for (const policy of discountPolicies) {
+        const totalPriceForPolicy = calculateTotal()
+        if (totalPriceForPolicy < policy.min_order_amount) continue
+
+        let discount = 0
+        if (policy.target_type === 'ORDER') {
+          if (policy.discount_type === 'RATE') {
+            discount = Math.floor(totalPriceForPolicy * policy.discount_value / 100)
+          } else {
+            discount = policy.discount_value
+          }
+        } else if (policy.target_type === 'PRODUCT') {
+          const targetItem = orderItems.find(item => Number(item.product_id) === policy.target_id)
+          if (!targetItem) continue
+          const itemTotal = targetItem.base_price * targetItem.quantity
+          if (policy.discount_type === 'RATE') {
+            discount = Math.floor(itemTotal * policy.discount_value / 100)
+          } else {
+            discount = policy.discount_value
+          }
+        }
+
+        if (policy.max_discount_amount && discount > policy.max_discount_amount) {
+          discount = policy.max_discount_amount
+        }
+
+        if (discount > 0) {
+          discounts.push({
+            discountType: 'POLICY',
+            referenceId: Number(policy.discount_id),
+            discountName: policy.discount_name,
+            discountAmount: discount,
+            discountRate: policy.discount_type === 'RATE' ? policy.discount_value : undefined,
+            description: `자동 할인: ${policy.discount_name}`,
+          })
+        }
+      }
+
       // 백엔드 API로 주문 생성
       const orderRequest: OrderCreateRequest = {
         orderItems: orderItems.map(item => ({
@@ -256,6 +316,7 @@ function MarketOrder() {
           addressDetail: savedFormData.address_detail,
           deliveryMemo: savedFormData.delivery_memo,
         },
+        discounts: discounts.length > 0 ? discounts : undefined,
       }
 
       const response = await createOrder(orderRequest)

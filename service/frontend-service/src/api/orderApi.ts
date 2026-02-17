@@ -48,6 +48,24 @@ export interface DeliveryInfoRequest {
 }
 
 /**
+ * 할인 적용 요청 DTO
+ */
+export interface DiscountRequest {
+  /** 할인 유형 (COUPON, POLICY) */
+  discountType: string
+  /** 참조 ID (userCouponId 또는 discountPolicyId) */
+  referenceId: number
+  /** 할인명 */
+  discountName: string
+  /** 할인 금액 */
+  discountAmount: number
+  /** 할인율 (%) */
+  discountRate?: number
+  /** 할인 설명 */
+  description?: string
+}
+
+/**
  * 주문 생성 요청 DTO
  */
 export interface OrderCreateRequest {
@@ -55,6 +73,8 @@ export interface OrderCreateRequest {
   orderItems: OrderItemRequest[]
   /** 배송 정보 */
   deliveryInfo: DeliveryInfoRequest
+  /** 할인 정보 목록 */
+  discounts?: DiscountRequest[]
 }
 
 /**
