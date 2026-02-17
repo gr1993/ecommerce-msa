@@ -9,14 +9,19 @@ import {
   Divider,
   message,
   Image,
-  Steps
+  Steps,
+  Select,
+  Tag,
+  Spin
 } from 'antd'
 import {
   ShoppingCartOutlined,
   HomeOutlined,
   CreditCardOutlined,
   CheckCircleOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  GiftOutlined,
+  TagOutlined
 } from '@ant-design/icons'
 import MarketHeader from '../../components/market/MarketHeader'
 import MarketFooter from '../../components/market/MarketFooter'
@@ -25,6 +30,12 @@ import { useAuthStore } from '../../stores/authStore'
 import { usePendingOrderStore } from '../../stores/pendingOrderStore'
 import { requestTossPayment, type PaymentRequest } from '../../utils/paymentUtils'
 import { createOrder, type OrderCreateRequest, type OrderResponse } from '../../api/orderApi'
+import {
+  getUserCoupons,
+  getApplicableDiscountPolicies,
+  type UserCoupon,
+  type ApplicableDiscountPolicy
+} from '../../api/promotionApi'
 import './MarketOrder.css'
 
 const { TextArea } = Input
@@ -51,6 +62,12 @@ function MarketOrder() {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
   const setPendingOrder = usePendingOrderStore((state) => state.setPendingOrder)
   const clearPendingOrder = usePendingOrderStore((state) => state.clearPendingOrder)
+
+  // 프로모션 state
+  const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([])
+  const [selectedCouponId, setSelectedCouponId] = useState<string | undefined>(undefined)
+  const [discountPolicies, setDiscountPolicies] = useState<ApplicableDiscountPolicy[]>([])
+  const [promotionLoading, setPromotionLoading] = useState(false)
 
   // 비로그인 상태면 로그인 페이지로 이동
   useEffect(() => {
@@ -93,14 +110,103 @@ function MarketOrder() {
     }
   }, [location, navigate, cartItems])
 
+  // orderItems가 설정되면 쿠폰 + 할인정책 병렬 조회
+  useEffect(() => {
+    if (orderItems.length === 0) return
+
+    const fetchPromotions = async () => {
+      setPromotionLoading(true)
+      const productIds = orderItems.map(item => Number(item.product_id))
+
+      const results = await Promise.allSettled([
+        getUserCoupons(),
+        getApplicableDiscountPolicies(productIds),
+      ])
+
+      if (results[0].status === 'fulfilled') {
+        // ISSUED(사용 가능) 상태인 쿠폰만 필터링
+        setUserCoupons(results[0].value.filter(c => c.coupon_status === 'ISSUED'))
+      }
+      if (results[1].status === 'fulfilled') {
+        setDiscountPolicies(results[1].value)
+      }
+
+      setPromotionLoading(false)
+    }
+
+    fetchPromotions()
+  }, [orderItems])
+
   // 총 주문 금액 계산
   const calculateTotal = () => {
     return orderItems.reduce((sum, item) => sum + (item.base_price * item.quantity), 0)
   }
 
+  // 쿠폰 할인 금액 계산
+  const calculateCouponDiscount = () => {
+    if (!selectedCouponId) return 0
+    const coupon = userCoupons.find(c => c.user_coupon_id === selectedCouponId)
+    if (!coupon) return 0
+
+    const totalPrice = calculateTotal()
+    if (totalPrice < coupon.min_order_amount) return 0
+
+    let discount = 0
+    if (coupon.discount_type === 'RATE') {
+      discount = Math.floor(totalPrice * coupon.discount_value / 100)
+    } else {
+      discount = coupon.discount_value
+    }
+
+    if (coupon.max_discount_amount && discount > coupon.max_discount_amount) {
+      discount = coupon.max_discount_amount
+    }
+
+    return discount
+  }
+
+  // 자동 할인 정책 할인 금액 계산
+  const calculatePolicyDiscount = () => {
+    const totalPrice = calculateTotal()
+    let totalDiscount = 0
+
+    for (const policy of discountPolicies) {
+      if (totalPrice < policy.min_order_amount) continue
+
+      let discount = 0
+      if (policy.target_type === 'ORDER') {
+        if (policy.discount_type === 'RATE') {
+          discount = Math.floor(totalPrice * policy.discount_value / 100)
+        } else {
+          discount = policy.discount_value
+        }
+      } else if (policy.target_type === 'PRODUCT') {
+        const targetItem = orderItems.find(item => Number(item.product_id) === policy.target_id)
+        if (!targetItem) continue
+        const itemTotal = targetItem.base_price * targetItem.quantity
+        if (policy.discount_type === 'RATE') {
+          discount = Math.floor(itemTotal * policy.discount_value / 100)
+        } else {
+          discount = policy.discount_value
+        }
+      }
+
+      if (policy.max_discount_amount && discount > policy.max_discount_amount) {
+        discount = policy.max_discount_amount
+      }
+
+      totalDiscount += discount
+    }
+
+    return totalDiscount
+  }
+
   // 최종 결제 금액 (배송비 무료)
   const calculateFinalTotal = () => {
-    return calculateTotal()
+    const total = calculateTotal()
+    const couponDiscount = calculateCouponDiscount()
+    const policyDiscount = calculatePolicyDiscount()
+    return Math.max(0, total - couponDiscount - policyDiscount)
   }
 
   // 주소 검색 (다음 주소 API 연동 예시)
@@ -222,7 +328,40 @@ function MarketOrder() {
   }
 
   const totalPrice = calculateTotal()
+  const couponDiscount = calculateCouponDiscount()
+  const policyDiscount = calculatePolicyDiscount()
   const finalTotal = calculateFinalTotal()
+
+  // 할인 요약 렌더링 (Step 1, Step 2, Sidebar 공용)
+  const renderDiscountSummary = () => (
+    <>
+      <div className="summary-row">
+        <span>상품 금액</span>
+        <span>{totalPrice.toLocaleString()}원</span>
+      </div>
+      {couponDiscount > 0 && (
+        <div className="summary-row discount-row">
+          <span>쿠폰 할인</span>
+          <span className="discount-amount">-{couponDiscount.toLocaleString()}원</span>
+        </div>
+      )}
+      {policyDiscount > 0 && (
+        <div className="summary-row discount-row">
+          <span>자동 할인</span>
+          <span className="discount-amount">-{policyDiscount.toLocaleString()}원</span>
+        </div>
+      )}
+      <div className="summary-row">
+        <span>배송비</span>
+        <span style={{ color: '#52c41a' }}>무료</span>
+      </div>
+      <Divider />
+      <div className="summary-row total-row">
+        <span>최종 결제금액</span>
+        <span className="final-total">{finalTotal.toLocaleString()}원</span>
+      </div>
+    </>
+  )
 
   // 비로그인 상태면 렌더링하지 않음 (로그인 페이지로 리다이렉트 중)
   if (!isLoggedIn()) {
@@ -394,20 +533,65 @@ function MarketOrder() {
 
                   <Divider />
 
+                  {/* 쿠폰 선택 */}
+                  <div className="promotion-section">
+                    <h3><GiftOutlined /> 쿠폰 적용</h3>
+                    {promotionLoading ? (
+                      <Spin size="small" />
+                    ) : (
+                      <Select
+                        placeholder="쿠폰을 선택해주세요"
+                        value={selectedCouponId}
+                        onChange={(value) => setSelectedCouponId(value)}
+                        allowClear
+                        style={{ width: '100%' }}
+                        size="large"
+                        options={userCoupons.map(coupon => {
+                          const meetsMinOrder = totalPrice >= coupon.min_order_amount
+                          const discountLabel = coupon.discount_type === 'RATE'
+                            ? `${coupon.discount_value}% 할인`
+                            : `${coupon.discount_value.toLocaleString()}원 할인`
+                          const minOrderLabel = coupon.min_order_amount > 0
+                            ? ` (${coupon.min_order_amount.toLocaleString()}원 이상)`
+                            : ''
+                          return {
+                            value: coupon.user_coupon_id,
+                            label: `${coupon.coupon_name} - ${discountLabel}${minOrderLabel}`,
+                            disabled: !meetsMinOrder,
+                          }
+                        })}
+                        notFoundContent="사용 가능한 쿠폰이 없습니다"
+                      />
+                    )}
+                  </div>
+
+                  {/* 자동 할인 정책 */}
+                  {discountPolicies.length > 0 && (
+                    <div className="promotion-section">
+                      <h3><TagOutlined /> 자동 할인</h3>
+                      <div className="discount-policy-list">
+                        {discountPolicies.map(policy => {
+                          const discountLabel = policy.discount_type === 'RATE'
+                            ? `${policy.discount_value}%`
+                            : `${policy.discount_value.toLocaleString()}원`
+                          return (
+                            <div key={policy.discount_id} className="discount-policy-item">
+                              <Tag color="blue">
+                                {policy.target_type === 'ORDER' ? '주문' : '상품'}
+                              </Tag>
+                              <span className="discount-policy-name">{policy.discount_name}</span>
+                              <span className="discount-policy-value">{discountLabel} 할인</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <Divider />
+
                   <div className="order-summary-review">
-                    <div className="summary-row">
-                      <span>상품 금액</span>
-                      <span>{totalPrice.toLocaleString()}원</span>
-                    </div>
-                    <div className="summary-row">
-                      <span>배송비</span>
-                      <span style={{ color: '#52c41a' }}>무료</span>
-                    </div>
-                    <Divider />
-                    <div className="summary-row total-row">
-                      <span>최종 결제금액</span>
-                      <span className="final-total">{finalTotal.toLocaleString()}원</span>
-                    </div>
+                    {renderDiscountSummary()}
                   </div>
 
                   <Space style={{ width: '100%', justifyContent: 'space-between', marginTop: '1.5rem' }}>
@@ -475,19 +659,7 @@ function MarketOrder() {
                   <Divider />
 
                   <div className="order-summary-review">
-                    <div className="summary-row">
-                      <span>상품 금액</span>
-                      <span>{totalPrice.toLocaleString()}원</span>
-                    </div>
-                    <div className="summary-row">
-                      <span>배송비</span>
-                      <span style={{ color: '#52c41a' }}>무료</span>
-                    </div>
-                    <Divider />
-                    <div className="summary-row total-row">
-                      <span>최종 결제금액</span>
-                      <span className="final-total">{finalTotal.toLocaleString()}원</span>
-                    </div>
+                    {renderDiscountSummary()}
                   </div>
 
                   <Space style={{ width: '100%', justifyContent: 'space-between', marginTop: '1.5rem' }}>
@@ -538,19 +710,7 @@ function MarketOrder() {
               <Divider />
 
               <div className="order-summary">
-                <div className="summary-row">
-                  <span>상품 금액</span>
-                  <span>{totalPrice.toLocaleString()}원</span>
-                </div>
-                <div className="summary-row">
-                  <span>배송비</span>
-                  <span style={{ color: '#52c41a' }}>무료</span>
-                </div>
-                <Divider />
-                <div className="summary-row total-row">
-                  <span>총 결제금액</span>
-                  <span className="final-total">{finalTotal.toLocaleString()}원</span>
-                </div>
+                {renderDiscountSummary()}
               </div>
             </Card>
           </div>
@@ -563,4 +723,3 @@ function MarketOrder() {
 }
 
 export default MarketOrder
-
