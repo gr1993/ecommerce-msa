@@ -1,9 +1,12 @@
 package com.example.orderservice.service;
 
 import com.example.orderservice.client.ProductServiceClient;
+import com.example.orderservice.client.PromotionServiceClient;
+import com.example.orderservice.client.dto.ApplicableDiscountPolicyResponse;
 import com.example.orderservice.client.dto.ProductDetailResponse;
 import com.example.orderservice.client.dto.ProductDetailResponse.OptionValueResponse;
 import com.example.orderservice.client.dto.ProductDetailResponse.SkuResponse;
+import com.example.orderservice.client.dto.UserCouponResponse;
 import com.example.orderservice.domain.entity.DiscountType;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderDelivery;
@@ -45,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OutboxRepository outboxRepository;
     private final ProductServiceClient productServiceClient;
+    private final PromotionServiceClient promotionServiceClient;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -85,6 +89,12 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal totalDiscountAmount = BigDecimal.ZERO;
         if (request.getDiscounts() != null && !request.getDiscounts().isEmpty()) {
+            List<Long> productIds = request.getOrderItems().stream()
+                    .map(OrderItemRequest::getProductId)
+                    .distinct()
+                    .toList();
+            validateDiscounts(userId, request.getDiscounts(), productIds);
+
             for (DiscountRequest discountRequest : request.getDiscounts()) {
                 OrderDiscount orderDiscount = OrderDiscount.builder()
                         .discountType(DiscountType.valueOf(discountRequest.getDiscountType()))
@@ -165,6 +175,48 @@ public class OrderServiceImpl implements OrderService {
         } catch (JsonProcessingException e) {
             log.error("OrderCreatedEvent 직렬화 실패: orderId={}", order.getId(), e);
             throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
+    }
+
+    private void validateDiscounts(Long userId, List<DiscountRequest> discounts, List<Long> productIds) {
+        List<DiscountRequest> couponDiscounts = discounts.stream()
+                .filter(d -> "COUPON".equals(d.getDiscountType()))
+                .toList();
+        List<DiscountRequest> policyDiscounts = discounts.stream()
+                .filter(d -> "POLICY".equals(d.getDiscountType()))
+                .toList();
+
+        if (!couponDiscounts.isEmpty()) {
+            List<UserCouponResponse> userCoupons = promotionServiceClient.getUserCoupons(userId);
+            Map<Long, UserCouponResponse> couponMap = userCoupons.stream()
+                    .collect(Collectors.toMap(UserCouponResponse::getUserCouponId, c -> c));
+
+            for (DiscountRequest couponDiscount : couponDiscounts) {
+                UserCouponResponse userCoupon = couponMap.get(couponDiscount.getReferenceId());
+                if (userCoupon == null) {
+                    throw new IllegalArgumentException(
+                            "사용자가 보유하지 않은 쿠폰입니다: userCouponId=" + couponDiscount.getReferenceId());
+                }
+                if (!"ISSUED".equals(userCoupon.getCouponStatus())) {
+                    throw new IllegalArgumentException(
+                            "사용할 수 없는 상태의 쿠폰입니다: userCouponId=" + couponDiscount.getReferenceId()
+                                    + ", status=" + userCoupon.getCouponStatus());
+                }
+            }
+        }
+
+        if (!policyDiscounts.isEmpty()) {
+            List<ApplicableDiscountPolicyResponse> applicablePolicies =
+                    promotionServiceClient.getApplicableDiscountPolicies(productIds);
+            Map<Long, ApplicableDiscountPolicyResponse> policyMap = applicablePolicies.stream()
+                    .collect(Collectors.toMap(ApplicableDiscountPolicyResponse::getDiscountId, p -> p));
+
+            for (DiscountRequest policyDiscount : policyDiscounts) {
+                if (!policyMap.containsKey(policyDiscount.getReferenceId())) {
+                    throw new IllegalArgumentException(
+                            "적용할 수 없는 할인 정책입니다: discountPolicyId=" + policyDiscount.getReferenceId());
+                }
+            }
         }
     }
 
