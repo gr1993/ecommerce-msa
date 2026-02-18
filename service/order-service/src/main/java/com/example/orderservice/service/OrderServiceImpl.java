@@ -20,8 +20,10 @@ import com.example.orderservice.dto.request.DeliveryInfoRequest;
 import com.example.orderservice.dto.request.DiscountRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
+import com.example.orderservice.dto.response.MyOrderResponse;
 import com.example.orderservice.dto.response.OrderResponse;
 import com.example.orderservice.global.common.EventTypeConstants;
+import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.repository.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,6 +32,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -128,6 +133,13 @@ public class OrderServiceImpl implements OrderService {
         saveCouponUsedOutboxes(savedOrder);
 
         return OrderResponse.from(savedOrder);
+    }
+
+    @Override
+    public PageResponse<MyOrderResponse> getMyOrders(Long userId, Pageable pageable) {
+        Page<Order> orderPage = orderRepository.findByUserIdWithItems(userId, pageable);
+        Page<MyOrderResponse> responsePage = orderPage.map(MyOrderResponse::from);
+        return PageResponse.from(responsePage);
     }
 
     private void saveOrderCreatedOutbox(Order order) {

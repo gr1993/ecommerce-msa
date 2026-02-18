@@ -46,6 +46,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                                          @Param("orderStatus") OrderStatus orderStatus,
                                          Pageable pageable);
 
+    @Query(value = "SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.userId = :userId",
+            countQuery = "SELECT COUNT(o) FROM Order o WHERE o.userId = :userId")
+    Page<Order> findByUserIdWithItems(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT o FROM Order o " +
             "LEFT JOIN FETCH o.orderItems " +
             "LEFT JOIN FETCH o.orderDelivery " +

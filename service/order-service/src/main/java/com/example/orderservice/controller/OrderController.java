@@ -1,7 +1,9 @@
 package com.example.orderservice.controller;
 
 import com.example.orderservice.dto.request.OrderCreateRequest;
+import com.example.orderservice.dto.response.MyOrderResponse;
 import com.example.orderservice.dto.response.OrderResponse;
+import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.global.exception.ErrorResponse;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +15,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -83,5 +88,25 @@ public class OrderController {
             @Valid @RequestBody OrderCreateRequest request) {
         OrderResponse response = orderService.createOrder(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(
+            summary = "내 주문 목록 조회",
+            description = "사용자의 주문 목록을 페이지네이션하여 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공",
+                            content = @Content(schema = @Schema(implementation = PageResponse.class))
+                    )
+            }
+    )
+    @GetMapping
+    public ResponseEntity<PageResponse<MyOrderResponse>> getMyOrders(
+            @Parameter(description = "사용자 ID", required = true)
+            @RequestHeader("X-User-Id") Long userId,
+            @PageableDefault(size = 10, sort = "orderedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        PageResponse<MyOrderResponse> orders = orderService.getMyOrders(userId, pageable);
+        return ResponseEntity.ok(orders);
     }
 }
