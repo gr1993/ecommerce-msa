@@ -56,7 +56,7 @@ public class InventoryServiceImpl implements InventoryService {
         List<StockRejectedEvent.RejectedItem> rejectedItems = new ArrayList<>();
 
         for (OrderCreatedEvent.OrderItemSnapshot item : event.getOrderItems()) {
-            ProductSku sku = productSkuRepository.findById(item.getSkuId())
+            ProductSku sku = productSkuRepository.findByIdForUpdate(item.getSkuId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "SKU not found: skuId=" + item.getSkuId()));
 
@@ -130,7 +130,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         for (OrderCancelledEvent.CancelledOrderItem item : event.getCancelledItems()) {
-            ProductSku sku = productSkuRepository.findById(item.getSkuId())
+            ProductSku sku = productSkuRepository.findByIdForUpdate(item.getSkuId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "SKU not found: skuId=" + item.getSkuId()));
 
@@ -177,7 +177,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         for (PaymentCancelledEvent.PaymentItem item : event.getItems()) {
-            ProductSku sku = productSkuRepository.findById(item.getSkuId())
+            ProductSku sku = productSkuRepository.findByIdForUpdate(item.getSkuId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "SKU not found: skuId=" + item.getSkuId()));
 
