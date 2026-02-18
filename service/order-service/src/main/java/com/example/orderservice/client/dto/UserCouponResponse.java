@@ -1,5 +1,6 @@
 package com.example.orderservice.client.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,9 +23,18 @@ public class UserCouponResponse {
 	private BigDecimal discountValue;
 	private BigDecimal minOrderAmount;
 	private BigDecimal maxDiscountAmount;
+
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	private LocalDateTime validFrom;
+
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	private LocalDateTime validTo;
+
 	private String couponStatus;
+
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	private LocalDateTime usedAt;
+
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	private LocalDateTime issuedAt;
 }

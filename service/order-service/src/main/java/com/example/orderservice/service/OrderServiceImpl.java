@@ -197,7 +197,7 @@ public class OrderServiceImpl implements OrderService {
                     throw new IllegalArgumentException(
                             "사용자가 보유하지 않은 쿠폰입니다: userCouponId=" + couponDiscount.getReferenceId());
                 }
-                if (!"ISSUED".equals(userCoupon.getCouponStatus())) {
+                if (!"ISSUED".equals(userCoupon.getCouponStatus()) && !"RESTORED".equals(userCoupon.getCouponStatus())) {
                     throw new IllegalArgumentException(
                             "사용할 수 없는 상태의 쿠폰입니다: userCouponId=" + couponDiscount.getReferenceId()
                                     + ", status=" + userCoupon.getCouponStatus());

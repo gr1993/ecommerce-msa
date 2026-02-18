@@ -124,8 +124,8 @@ function MarketOrder() {
       ])
 
       if (results[0].status === 'fulfilled') {
-        // ISSUED(사용 가능) 상태인 쿠폰만 필터링
-        setUserCoupons(results[0].value.filter(c => c.coupon_status === 'ISSUED'))
+        // 사용 가능한 쿠폰만 필터링 (ISSUED: 발급됨, RESTORED: 복구됨)
+        setUserCoupons(results[0].value.filter(c => c.coupon_status === 'ISSUED' || c.coupon_status === 'RESTORED'))
       }
       if (results[1].status === 'fulfilled') {
         setDiscountPolicies(results[1].value)
