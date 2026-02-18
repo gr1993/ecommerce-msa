@@ -147,6 +147,99 @@ export const createOrder = async (request: OrderCreateRequest): Promise<OrderRes
   }
 }
 
+// ==================== My Order API Interfaces ====================
+
+/**
+ * 내 주문 상품 응답 DTO
+ */
+export interface MyOrderItemResponse {
+  orderItemId: number
+  productId: number
+  productName: string
+  productCode: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+}
+
+/**
+ * 내 주문 응답 DTO
+ */
+export interface MyOrderResponse {
+  orderId: number
+  orderNumber: string
+  orderStatus: OrderStatus
+  totalPaymentAmount: number
+  orderedAt: string
+  items: MyOrderItemResponse[]
+}
+
+/**
+ * 내 주문 목록 페이지네이션 응답
+ */
+export interface MyOrderPageResponse {
+  content: MyOrderResponse[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+// ==================== My Order API Functions ====================
+
+/**
+ * 내 주문 목록 조회 (페이지네이션)
+ *
+ * @param page - 페이지 번호 (0부터 시작)
+ * @param size - 페이지 크기
+ * @returns 페이지네이션된 주문 목록
+ */
+export const getMyOrders = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<MyOrderPageResponse> => {
+  try {
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', String(page))
+    queryParams.append('size', String(size))
+    queryParams.append('sort', 'orderedAt,desc')
+
+    const url = `${API_BASE_URL}/api/orders?${queryParams.toString()}`
+
+    const response = await userFetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error('주문 조회 권한이 없습니다.')
+      }
+      const error = await response.json().catch(() => ({ message: '주문 목록 조회에 실패했습니다.' }))
+      throw new Error(error.message || `주문 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: MyOrderPageResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get my orders error:', error)
+
+    if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) {
+      throw error
+    }
+
+    if (error instanceof Error) {
+      throw error
+    }
+
+    throw new Error('주문 목록 조회 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.')
+  }
+}
+
 // ==================== Admin API Interfaces ====================
 
 interface AdminOrderApiResponse {
