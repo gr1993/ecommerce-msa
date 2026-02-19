@@ -13,15 +13,15 @@ import lombok.Setter;
 @Schema(description = "배송 상세 이력")
 public class TrackingDetail {
 
-    @Schema(description = "처리 시간", example = "2026-02-19 10:00")
+    @Schema(description = "처리 시간", example = "2026-02-19 10:00:00")
     private String timeString;
 
     @Schema(description = "처리 장소", example = "서울 강남")
     private String where;
 
-    @Schema(description = "처리 내용", example = "배송 준비중")
+    @Schema(description = "처리 내용", example = "접수완료")
     private String remark;
 
-    @Schema(description = "처리 상태", example = "배송중")
+    @Schema(description = "처리 상태 (ACCEPTED, PICKED_UP, IN_TRANSIT, AT_DESTINATION, OUT_FOR_DELIVERY, DELIVERED, CANCELLED)", example = "ACCEPTED")
     private String kind;
 }

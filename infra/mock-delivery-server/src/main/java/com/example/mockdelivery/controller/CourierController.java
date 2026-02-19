@@ -97,8 +97,7 @@ public class CourierController {
                 order.setReceiverAddress(item.getReceiverAddress());
                 order.setGoodsName(item.getGoodsName());
                 order.setGoodsQty(item.getGoodsQty());
-                order.setStatus(DeliveryStatus.PREPARING);
-                order.addTrackingDetail("접수", "배송 준비중", "접수");
+                order.addTrackingDetail("접수", "접수완료", DeliveryStatus.ACCEPTED.name());
 
                 deliveryOrderStore.save(order);
 
@@ -186,7 +185,7 @@ public class CourierController {
                     failedCount++;
                 } else {
                     order.setStatus(DeliveryStatus.CANCELLED);
-                    order.addTrackingDetail("취소", "송장 취소됨", "취소");
+                    order.addTrackingDetail("시스템", "취소됨", DeliveryStatus.CANCELLED.name());
                     deliveryOrderStore.save(order);
 
                     results.add(new BulkCancelResult(i, true, trackingNumber, "취소 완료"));

@@ -37,35 +37,71 @@ public class TrackingController {
     }
 
     @Operation(summary = "배송 조회", description = "운송장 번호로 배송 상태를 조회합니다.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "배송 조회 요청",
+            required = true,
+            content = @Content(
+                    schema = @Schema(implementation = TrackingInfoRequest.class),
+                    examples = @ExampleObject(value = """
+                            {
+                              "t_code": "04",
+                              "t_invoice": "100000000000",
+                              "t_key": "SMART_DELIVERY_API_KEY_2024"
+                            }
+                            """)))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(schema = @Schema(implementation = TrackingInfoResponse.class),
                             examples = @ExampleObject(value = """
                                     {
-                                      "invoiceNo": "1234567890",
+                                      "invoiceNo": "100000000000",
                                       "orderNumber": "ORD-0001",
                                       "itemName": "애플망고 3kg",
                                       "receiverName": "홍길동",
                                       "receiverAddr": "서울시 강남구 테헤란로 123",
                                       "senderName": "샘플 판매자",
                                       "lastDetail": {
-                                        "timeString": "2026-02-19 10:00",
-                                        "where": "서울 강남",
-                                        "remark": "배송 준비중",
-                                        "kind": "배송중"
+                                        "timeString": "2026-02-19 10:00:50",
+                                        "where": "서울시 강남구 테헤란로 123",
+                                        "remark": "배송완료",
+                                        "kind": "DELIVERED"
                                       },
                                       "trackingDetails": [
                                         {
-                                          "timeString": "2026-02-19 10:00",
-                                          "where": "서울 강남",
-                                          "remark": "배송 준비중",
-                                          "kind": "배송중"
+                                          "timeString": "2026-02-19 10:00:00",
+                                          "where": "접수",
+                                          "remark": "접수완료",
+                                          "kind": "ACCEPTED"
                                         },
                                         {
-                                          "timeString": "2026-02-20 14:00",
-                                          "where": "서울 강남",
-                                          "remark": "배송 완료",
-                                          "kind": "배송완료"
+                                          "timeString": "2026-02-19 10:00:10",
+                                          "where": "○○허브",
+                                          "remark": "집하완료",
+                                          "kind": "PICKED_UP"
+                                        },
+                                        {
+                                          "timeString": "2026-02-19 10:00:20",
+                                          "where": "○○허브",
+                                          "remark": "간선상차",
+                                          "kind": "IN_TRANSIT"
+                                        },
+                                        {
+                                          "timeString": "2026-02-19 10:00:30",
+                                          "where": "△△허브",
+                                          "remark": "간선하차",
+                                          "kind": "AT_DESTINATION"
+                                        },
+                                        {
+                                          "timeString": "2026-02-19 10:00:40",
+                                          "where": "배송지 인근",
+                                          "remark": "배송출발",
+                                          "kind": "OUT_FOR_DELIVERY"
+                                        },
+                                        {
+                                          "timeString": "2026-02-19 10:00:50",
+                                          "where": "서울시 강남구 테헤란로 123",
+                                          "remark": "배송완료",
+                                          "kind": "DELIVERED"
                                         }
                                       ]
                                     }

@@ -1,8 +1,10 @@
 package com.example.mockdelivery.store;
 
 import com.example.mockdelivery.entity.DeliveryOrder;
+import com.example.mockdelivery.entity.DeliveryStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,5 +42,17 @@ public class DeliveryOrderStore {
 
     public int size() {
         return orders.size();
+    }
+
+    public List<DeliveryOrder> findByStatus(DeliveryStatus status) {
+        return orders.values().stream()
+                .filter(order -> order.getStatus() == status)
+                .toList();
+    }
+
+    public List<DeliveryOrder> findReadyForProgress(long secondsThreshold) {
+        return orders.values().stream()
+                .filter(order -> order.isReadyForNextStatus(secondsThreshold))
+                .toList();
     }
 }
