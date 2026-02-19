@@ -1,0 +1,88 @@
+package com.example.shippingservice.returns.entity;
+
+import com.example.shippingservice.returns.enums.ReturnStatus;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "order_return")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class OrderReturn {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "return_id")
+    private Long returnId;
+
+    @Column(name = "order_id", nullable = false)
+    private Long orderId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "return_status", nullable = false, length = 30)
+    private ReturnStatus returnStatus;
+
+    @Column(name = "tracking_number", length = 50)
+    private String trackingNumber;
+
+    @Column(name = "courier", length = 50)
+    private String courier;
+
+    @Column(name = "receiver_name", length = 100)
+    private String receiverName;
+
+    @Column(name = "receiver_phone", length = 20)
+    private String receiverPhone;
+
+    @Column(name = "return_address", length = 500)
+    private String returnAddress;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    @CreationTimestamp
+    @Column(name = "requested_at", updatable = false)
+    private LocalDateTime requestedAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Builder
+    public OrderReturn(Long orderId, ReturnStatus returnStatus, String trackingNumber,
+                       String courier, String receiverName, String receiverPhone,
+                       String returnAddress, String postalCode) {
+        this.orderId = orderId;
+        this.returnStatus = returnStatus;
+        this.trackingNumber = trackingNumber;
+        this.courier = courier;
+        this.receiverName = receiverName;
+        this.receiverPhone = receiverPhone;
+        this.returnAddress = returnAddress;
+        this.postalCode = postalCode;
+    }
+
+    public void updateReturnStatus(ReturnStatus returnStatus) {
+        this.returnStatus = returnStatus;
+    }
+
+    public void updateTrackingInfo(String courier, String trackingNumber) {
+        this.courier = courier;
+        this.trackingNumber = trackingNumber;
+    }
+
+    public void updateReturnAddress(String receiverName, String receiverPhone,
+                                    String returnAddress, String postalCode) {
+        this.receiverName = receiverName;
+        this.receiverPhone = receiverPhone;
+        this.returnAddress = returnAddress;
+        this.postalCode = postalCode;
+    }
+}
