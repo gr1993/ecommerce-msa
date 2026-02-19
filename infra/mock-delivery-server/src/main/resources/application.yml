@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: mock-delivery-server
+
+server:
+  port: 8080
+
+# API Keys
+mock-delivery:
+  courier:
+    account-key: CJ_COURIER_ACCOUNT_KEY_2024
+  smart-delivery:
+    api-key: SMART_DELIVERY_API_KEY_2024
