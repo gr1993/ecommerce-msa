@@ -6,6 +6,12 @@
 그리고 배송사 연동 상태를 통해 실제 택배가 현재 어떤 단계까지 진행되었는지를 보다 상세하게 파악할 수 있다.  
 
 
+### Full Sync API
+Full Sync API는 shipping-service 구축 시, order-service에 존재하는 배송 대상 주문 데이터를 이관하기  
+위해 사용된다. 상품 Full Sync API를 구현했던 방식과 동일하게 멱등성을 보장하여, 동일한 데이터를 여러 번  
+수신하더라도 문제가 발생하지 않도록 설계한다.  
+
+
 ### 배송 프로세스
 ```mermaid
 sequenceDiagram

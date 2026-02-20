@@ -14,6 +14,10 @@ java {
 	}
 }
 
+ext {
+	set('springCloudVersion', "2025.0.0")
+}
+
 repositories {
 	mavenCentral()
 }
@@ -24,18 +28,38 @@ configurations {
 	}
 }
 
-dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
 
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+dependencies {
+	// Spring Boot Starters
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
+	// OpenAPI/Swagger Documentation
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
+
+	// Config Client
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+	// Eureka Client
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	// OpenFeign
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {
