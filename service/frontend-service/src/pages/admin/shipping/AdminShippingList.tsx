@@ -1,31 +1,21 @@
-import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, message } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import { useState, useEffect, useCallback } from 'react'
+import { Table, Space, Input, Button, Select, Tag, Modal, Form, message } from 'antd'
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { PlusOutlined } from '@ant-design/icons'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from '../order/OrderDetailModal'
+import { getAdminShippings, type AdminShippingResponse } from '../../../api/shippingApi'
 import './AdminShippingList.css'
 
 const { Option } = Select
 
-interface Shipping {
-  shipping_id: string
-  order_id: string
-  order_number?: string
-  receiver_name: string
-  receiver_phone: string
-  address: string
-  postal_code?: string
-  shipping_status: 'READY' | 'SHIPPING' | 'DELIVERED' | 'RETURNED'
-  shipping_company?: string
-  tracking_number?: string
-  delivery_service_status?: 'NOT_SENT' | 'SENT' | 'IN_TRANSIT' | 'DELIVERED'
-  created_at: string
-  updated_at: string
-}
-
 function AdminShippingList() {
-  const [shippings, setShippings] = useState<Shipping[]>([])
-  const [filteredShippings, setFilteredShippings] = useState<Shipping[]>([])
+  const [shippings, setShippings] = useState<AdminShippingResponse[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0
+  })
   const [searchShippingStatus, setSearchShippingStatus] = useState<string | undefined>(undefined)
   const [searchTrackingNumber, setSearchTrackingNumber] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -33,7 +23,7 @@ function AdminShippingList() {
   const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isTrackingModalVisible, setIsTrackingModalVisible] = useState(false)
-  const [selectedShipping, setSelectedShipping] = useState<Shipping | null>(null)
+  const [selectedShipping, setSelectedShipping] = useState<AdminShippingResponse | null>(null)
   const [trackingForm] = Form.useForm()
 
   const shippingStatusMap: Record<string, { label: string; color: string }> = {
@@ -50,100 +40,57 @@ function AdminShippingList() {
     DELIVERED: { label: '배송 완료', color: 'green' }
   }
 
-  // 배송 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 배송 데이터 로드
-    const sampleShippings: Shipping[] = [
-      {
-        shipping_id: '1',
-        order_id: '1',
-        order_number: 'ORD-2024-001',
-        receiver_name: '홍길동',
-        receiver_phone: '010-1234-5678',
-        address: '서울특별시 강남구 테헤란로 123',
-        postal_code: '06234',
-        shipping_status: 'SHIPPING',
-        shipping_company: 'CJ대한통운',
-        tracking_number: '1234567890123',
-        delivery_service_status: 'IN_TRANSIT',
-        created_at: '2024-01-15 10:30:00',
-        updated_at: '2024-01-15 11:00:00'
-      },
-      {
-        shipping_id: '2',
-        order_id: '2',
-        order_number: 'ORD-2024-002',
-        receiver_name: '김철수',
-        receiver_phone: '010-2345-6789',
-        address: '서울특별시 서초구 서초대로 456',
-        postal_code: '06511',
-        shipping_status: 'DELIVERED',
-        shipping_company: '한진택배',
-        tracking_number: '9876543210987',
-        delivery_service_status: 'DELIVERED',
-        created_at: '2024-01-14 14:20:00',
-        updated_at: '2024-01-15 09:00:00'
-      },
-      {
-        shipping_id: '3',
-        order_id: '3',
-        order_number: 'ORD-2024-003',
-        receiver_name: '이영희',
-        receiver_phone: '010-3456-7890',
-        address: '서울특별시 송파구 올림픽로 789',
-        postal_code: '05510',
-        shipping_status: 'READY',
-        shipping_company: null,
-        tracking_number: null,
-        delivery_service_status: 'NOT_SENT',
-        created_at: '2024-01-13 16:45:00',
-        updated_at: '2024-01-13 16:45:00'
-      },
-      {
-        shipping_id: '4',
-        order_id: '4',
-        order_number: 'ORD-2024-004',
-        receiver_name: '박민수',
-        receiver_phone: '010-4567-8901',
-        address: '서울특별시 마포구 홍대로 321',
-        postal_code: '04066',
-        shipping_status: 'RETURNED',
-        shipping_company: 'CJ대한통운',
-        tracking_number: '1112223334445',
-        delivery_service_status: 'IN_TRANSIT',
-        created_at: '2024-01-12 11:20:00',
-        updated_at: '2024-01-12 15:00:00'
-      }
-    ]
-    setShippings(sampleShippings)
+  // 배송 데이터 로드
+  const fetchShippings = useCallback(async (
+    page: number = 0,
+    size: number = 20,
+    status?: string,
+    trackingNum?: string
+  ) => {
+    setLoading(true)
+    try {
+      const data = await getAdminShippings(status, trackingNum, page, size)
+      setShippings(data.content)
+      setPagination({
+        current: data.page + 1,
+        pageSize: data.size,
+        total: data.totalElements
+      })
+    } catch (error) {
+      console.error('Failed to fetch shippings:', error)
+      message.error(error instanceof Error ? error.message : '배송 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // 필터링된 데이터
   useEffect(() => {
-    const filtered = shippings.filter((shipping) => {
-      const statusMatch = !searchShippingStatus || shipping.shipping_status === searchShippingStatus
-      const trackingMatch = !searchTrackingNumber || 
-        (shipping.tracking_number && shipping.tracking_number.includes(searchTrackingNumber))
-      return statusMatch && trackingMatch
-    })
-    setFilteredShippings(filtered)
-  }, [searchShippingStatus, searchTrackingNumber, shippings])
+    fetchShippings(0, pagination.pageSize, searchShippingStatus, searchTrackingNumber)
+  }, [])
 
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+    fetchShippings(0, pagination.pageSize, searchShippingStatus, searchTrackingNumber)
   }
 
   const handleReset = () => {
     setSearchShippingStatus(undefined)
     setSearchTrackingNumber('')
+    fetchShippings(0, pagination.pageSize)
+  }
+
+  const handleTableChange = (paginationConfig: TablePaginationConfig) => {
+    const page = (paginationConfig.current || 1) - 1
+    const size = paginationConfig.pageSize || 20
+    fetchShippings(page, size, searchShippingStatus, searchTrackingNumber)
   }
 
   // 주문 상세 조회
-  const handleOrderClick = async (orderId: string) => {
+  const handleOrderClick = async (orderId: number) => {
     // TODO: API 호출로 주문 상세 데이터 로드
+    const shippingData = shippings.find(s => s.orderId === orderId)
     const sampleOrder: Order = {
-      order_id: orderId,
-      order_number: filteredShippings.find(s => s.order_id === orderId)?.order_number || `ORD-${orderId}`,
+      order_id: String(orderId),
+      order_number: shippingData?.orderNumber || `ORD-${orderId}`,
       user_id: '1',
       user_name: '홍길동',
       order_status: 'SHIPPING',
@@ -157,7 +104,7 @@ function AdminShippingList() {
     const sampleOrderItems: OrderItem[] = [
       {
         order_item_id: '1',
-        order_id: orderId,
+        order_id: String(orderId),
         product_id: '1',
         product_name: '노트북',
         product_code: 'PRD-001',
@@ -168,16 +115,15 @@ function AdminShippingList() {
       }
     ]
 
-    const shippingData = filteredShippings.find(s => s.order_id === orderId)
     const sampleShipping: OrderShipping = {
-      shipping_id: shippingData?.shipping_id || '1',
-      order_id: orderId,
-      receiver_name: shippingData?.receiver_name || '홍길동',
-      receiver_phone: shippingData?.receiver_phone || '010-1234-5678',
+      shipping_id: shippingData?.shippingId ? String(shippingData.shippingId) : '1',
+      order_id: String(orderId),
+      receiver_name: shippingData?.receiverName || '홍길동',
+      receiver_phone: shippingData?.receiverPhone || '010-1234-5678',
       address: shippingData?.address || '서울특별시 강남구 테헤란로 123',
-      postal_code: shippingData?.postal_code,
-      shipping_status: shippingData?.shipping_status || 'READY',
-      created_at: shippingData?.created_at || sampleOrder.ordered_at
+      postal_code: shippingData?.postalCode,
+      shipping_status: shippingData?.shippingStatus || 'READY',
+      created_at: shippingData?.createdAt || sampleOrder.ordered_at
     }
 
     setSelectedOrder(sampleOrder)
@@ -205,10 +151,10 @@ function AdminShippingList() {
   }
 
   // 운송장 번호 등록 모달 열기
-  const handleTrackingRegister = (shipping: Shipping) => {
+  const handleTrackingRegister = (shipping: AdminShippingResponse) => {
     setSelectedShipping(shipping)
     trackingForm.setFieldsValue({
-      shipping_company: shipping.shipping_company || '',
+      shipping_company: shipping.shippingCompany || '',
       tracking_number: ''
     })
     setIsTrackingModalVisible(true)
@@ -220,17 +166,17 @@ function AdminShippingList() {
 
     try {
       const values = await trackingForm.validateFields()
-      
+
       // TODO: API 호출로 운송장 번호 등록
       setShippings(prev =>
         prev.map(shipping =>
-          shipping.shipping_id === selectedShipping.shipping_id
+          shipping.shippingId === selectedShipping.shippingId
             ? {
                 ...shipping,
-                shipping_company: values.shipping_company,
-                tracking_number: values.tracking_number,
-                delivery_service_status: 'SENT' as const,
-                updated_at: new Date().toISOString()
+                shippingCompany: values.shipping_company,
+                trackingNumber: values.tracking_number,
+                deliveryServiceStatus: 'SENT' as const,
+                updatedAt: new Date().toISOString()
               }
             : shipping
         )
@@ -251,38 +197,38 @@ function AdminShippingList() {
     trackingForm.resetFields()
   }
 
-  const columns: ColumnsType<Shipping> = [
+  const columns: ColumnsType<AdminShippingResponse> = [
     {
       title: '배송 ID',
-      dataIndex: 'shipping_id',
-      key: 'shipping_id',
+      dataIndex: 'shippingId',
+      key: 'shippingId',
       width: 100,
     },
     {
       title: '주문 번호',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      sorter: (a, b) => (a.order_number || '').localeCompare(b.order_number || ''),
-      render: (text: string, record: Shipping) => (
-        <a 
-          onClick={() => handleOrderClick(record.order_id)}
+      dataIndex: 'orderNumber',
+      key: 'orderNumber',
+      sorter: (a, b) => (a.orderNumber || '').localeCompare(b.orderNumber || ''),
+      render: (text: string, record: AdminShippingResponse) => (
+        <a
+          onClick={() => handleOrderClick(record.orderId)}
           style={{ color: '#007BFF', cursor: 'pointer' }}
         >
           {text}
         </a>
       ),
-      width: 150,
+      width: 180,
     },
     {
       title: '수령인',
-      dataIndex: 'receiver_name',
-      key: 'receiver_name',
+      dataIndex: 'receiverName',
+      key: 'receiverName',
       width: 100,
     },
     {
       title: '연락처',
-      dataIndex: 'receiver_phone',
-      key: 'receiver_phone',
+      dataIndex: 'receiverPhone',
+      key: 'receiverPhone',
       width: 130,
     },
     {
@@ -294,15 +240,8 @@ function AdminShippingList() {
     },
     {
       title: '배송 상태',
-      dataIndex: 'shipping_status',
-      key: 'shipping_status',
-      filters: [
-        { text: '배송 준비', value: 'READY' },
-        { text: '배송 중', value: 'SHIPPING' },
-        { text: '배송 완료', value: 'DELIVERED' },
-        { text: '반품', value: 'RETURNED' },
-      ],
-      onFilter: (value, record) => record.shipping_status === value,
+      dataIndex: 'shippingStatus',
+      key: 'shippingStatus',
       render: (status: string) => {
         const statusInfo = shippingStatusMap[status]
         return (
@@ -315,16 +254,16 @@ function AdminShippingList() {
     },
     {
       title: '배송사',
-      dataIndex: 'shipping_company',
-      key: 'shipping_company',
+      dataIndex: 'shippingCompany',
+      key: 'shippingCompany',
       render: (company: string | null) => company || <span style={{ color: '#999' }}>-</span>,
       width: 120,
     },
     {
       title: '운송장 번호',
-      dataIndex: 'tracking_number',
-      key: 'tracking_number',
-      render: (tracking: string | null, record: Shipping) => {
+      dataIndex: 'trackingNumber',
+      key: 'trackingNumber',
+      render: (tracking: string | null, record: AdminShippingResponse) => {
         if (tracking) {
           return tracking
         }
@@ -344,8 +283,8 @@ function AdminShippingList() {
     },
     {
       title: '배송사 연동 상태',
-      dataIndex: 'delivery_service_status',
-      key: 'delivery_service_status',
+      dataIndex: 'deliveryServiceStatus',
+      key: 'deliveryServiceStatus',
       render: (status: string | null) => {
         if (!status) return <span style={{ color: '#999' }}>-</span>
         const statusInfo = deliveryServiceStatusMap[status]
@@ -359,18 +298,12 @@ function AdminShippingList() {
     },
     {
       title: '수정 일시',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
-      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      sorter: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
       render: (date: string) => {
-        const dateObj = new Date(date)
-        return dateObj.toLocaleString('ko-KR', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+        if (!date) return '-'
+        return date
       },
       width: 160,
     },
@@ -420,11 +353,15 @@ function AdminShippingList() {
 
         <Table
           columns={columns}
-          dataSource={filteredShippings}
-          rowKey="shipping_id"
+          dataSource={shippings}
+          rowKey="shippingId"
+          loading={loading}
           scroll={{ x: 'max-content' }}
+          onChange={handleTableChange}
           pagination={{
-            pageSize: 10,
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
             showSizeChanger: true,
             showTotal: (total) => `총 ${total}개`,
           }}

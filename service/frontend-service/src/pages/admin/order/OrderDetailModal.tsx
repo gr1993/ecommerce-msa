@@ -37,7 +37,7 @@ interface OrderShipping {
   receiver_phone: string
   address: string
   postal_code?: string
-  shipping_status: 'READY' | 'SHIPPING' | 'DELIVERED'
+  shipping_status: 'READY' | 'SHIPPING' | 'DELIVERED' | 'RETURNED'
   created_at: string
 }
 
