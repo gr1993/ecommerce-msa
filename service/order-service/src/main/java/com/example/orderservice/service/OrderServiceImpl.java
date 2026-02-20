@@ -20,8 +20,10 @@ import com.example.orderservice.dto.request.DeliveryInfoRequest;
 import com.example.orderservice.dto.request.DiscountRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
 import com.example.orderservice.dto.request.OrderItemRequest;
+import com.example.orderservice.dto.request.ShippingSyncRequest;
 import com.example.orderservice.dto.response.MyOrderResponse;
 import com.example.orderservice.dto.response.OrderResponse;
+import com.example.orderservice.dto.response.ShippingSyncOrderResponse;
 import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.repository.OrderRepository;
@@ -34,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
@@ -139,6 +142,14 @@ public class OrderServiceImpl implements OrderService {
     public PageResponse<MyOrderResponse> getMyOrders(Long userId, Pageable pageable) {
         Page<Order> orderPage = orderRepository.findByUserIdWithItems(userId, pageable);
         Page<MyOrderResponse> responsePage = orderPage.map(MyOrderResponse::from);
+        return PageResponse.from(responsePage);
+    }
+
+    @Override
+    public PageResponse<ShippingSyncOrderResponse> getOrdersForShippingSync(ShippingSyncRequest request) {
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize());
+        Page<Order> orderPage = orderRepository.findByOrderStatusWithDelivery(OrderStatus.PAID, pageable);
+        Page<ShippingSyncOrderResponse> responsePage = orderPage.map(ShippingSyncOrderResponse::from);
         return PageResponse.from(responsePage);
     }
 
