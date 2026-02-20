@@ -181,6 +181,18 @@ services:
     networks:
       - ecommerce-net
 
+  mock-delivery:
+    container_name: mock-delivery
+    build: ./mock-delivery-server
+    ports:
+      - "9082:8080"
+    privileged: true
+    mem_limit: 512m
+    environment:
+      JAVA_OPTS: -Xms256m -Xmx256m
+    networks:
+      - ecommerce-net
+
 
 networks:
   ecommerce-net:
