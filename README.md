@@ -32,6 +32,8 @@ flowchart TD
         Cat[catalog-service] --- CatES[(ES / Redis)]
         Order[order-service] --- OrderDB[(MySQL)]
         Pay[payment-service] --- PayDB[(MongoDB)]
+        Promo[promotion-service] --- PromotionDB[(MySQL)]
+        Ship[shipping-service] --- ShipDB[(MySQL)]
     end
 
     %% 중앙 메시지 브로커
@@ -56,6 +58,8 @@ flowchart TD
     click Cat "https://github.com/gr1993/ecommerce-msa/tree/main/service/catalog-service"
     click Order "https://github.com/gr1993/ecommerce-msa/tree/main/service/order-service"
     click Pay "https://github.com/gr1993/ecommerce-msa/tree/main/service/payment-service"
+    click Promo "https://github.com/gr1993/ecommerce-msa/tree/main/service/promotion-service"
+    click Ship "https://github.com/gr1993/ecommerce-msa/tree/main/service/shipping-service"
 ```
 
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
@@ -231,16 +235,58 @@ sequenceDiagram
 자신이 담당하는 작업 또는 보상 트랜잭션만 수행하며, 이벤트 순환 참조를 원천적으로 차단한다.  
 
 
-### 할인 / 정산 서비스
+### 프로모션 서비스
 
-상품 할인과 쿠폰 적용을 처리하는 서비스를 별도로 구성하여, 상품별 할인 및 쿠폰 적용 여부를 계산한 후  
-최종 결제 금액을 Order-Service에 제공하는 형태로 설계할 예정이다.  
-또한, 이 시스템에서 발생한 매출·거래 데이터는 정산 서비스에서 별도로 관리하여, 정산 프로세스가 다른 서비스와  
-분리된 상태에서 안정적으로 운영되도록 한다. Settlement-Service는 각 서비스에서 발생한 도메인 이벤트  
-(예: OrderCompleted, PaymentCancelled 등)를 구독하여, 정산 전용 DB에 저장하는 방식으로 동작한다.  
+```mermaid
+sequenceDiagram
+    participant Order as Order-Service
+    participant Kafka
+    participant Promotion as Promotion-Service
+
+    Note over Order, Promotion: 1. 주문 생성 전 할인/쿠폰 검증
+    Order->>Promotion: 쿠폰 및 할인 정책 검증 API 요청
+    Promotion-->>Order: 할인 금액 및 적용 가능 여부 반환
+
+    Note over Order, Kafka: 2. 주문 생성 및 쿠폰 사용 이벤트 발행
+    Order->>Order: 주문 생성 (최종 금액 확정)
+    Order-->>Kafka: coupon.used 이벤트 발행
+
+    Note over Kafka, Promotion: 3. 쿠폰 사용 처리
+    Kafka-->>Promotion: coupon.used 이벤트 전달
+    Promotion->>Promotion: 쿠폰 상태 변경 (ISSUED → USED)
+```
+
+Promotion-Service는 관리자 페이지를 통해 카테고리, 상품, 주문 단위의 할인 정책과 쿠폰을 등록·관리한다.  
+사용자는 쇼핑몰에서 쿠폰 번호를 등록함으로써 해당 쿠폰을 소유하게 되며, 이와 관련된 모든 데이터는 Promotion-Service에서 관리된다.  
+회원이 주문을 생성할 때, 적용 가능한 할인 정책이나 보유 쿠폰을 사용하려면 Order-Service는 Promotion-Service에  
+REST API로 검증 요청을 보낸다. Promotion-Service는 할인 적용 가능 여부와 최종 할인 금액을 반환하고,  
+이를 기반으로 Order-Service가 주문을 생성한다.  
+주문이 완료되어 쿠폰 사용이 확정되면, Order-Service는 쿠폰 사용 이벤트를 발행한다.  
+Promotion-Service는 해당 이벤트를 구독하여 쿠폰 상태를 최종적으로 사용 처리한다.  
 
 
 ### 배송 서비스(+ 반품, 교환)
+
+```mermaid
+sequenceDiagram
+    participant Order as Order Service
+    participant Ship as Shipping Service
+    participant Mock as Mock Delivery Server
+
+    Note over Order, Ship: 1. 주문 생성 이벤트 전달
+    Order->>Ship: order.created 이벤트 발행
+    Ship->>Ship: 배송 정보 저장 (status: READY)
+
+    Note over Ship, Mock: 2. 송장 발급 요청
+    Ship->>Mock: 송장 발급 API 호출
+    Mock-->>Ship: 운송장 번호 반환
+    Ship->>Ship: 운송장 번호 저장
+
+    Note over Ship, Mock: 3. 배송 상태 조회
+    Ship->>Mock: 배송 상태 조회 API 호출
+    Mock-->>Ship: 배송 상태 반환
+    Ship->>Ship: 배송 상태 업데이트 (SHIPPING → DELIVERED)
+```
 
 원래는 배송 서비스와 반품 서비스를 분리하여 개발할 계획이었다.  
 그러나 현재 모든 서비스를 로컬 PC에서 구동하고 있으며, 사이드 프로젝트 특성상 인프라 복잡도를 최소화하기 위해  
@@ -249,3 +295,10 @@ Shipping-Service에서 배송, 반품, 교환 기능을 모두 지원하도록 �
 송장 발급 및 발송을 처리하려 했으나, PG 결제 모듈과 달리 배송까지 테스트할 수 있는 서비스가 없었고, 조회 또한 실제 배송 중인 택배만 추적 가능했다.  
 따라서 직접 배송 및 추적을 지원하는 **Mock 서버를 구현**하고, 이를 Shipping-Service와 연동하여 시뮬레이션 환경을 구성하였다.  
 또한 배송과 관련된 테이블의 쓰기 책임은 Shipping-Service가 전담하며, Order-Service는 배송 처리 이벤트를 구독하여 배송 관련 정보를 읽기 전용으로 관리한다.  
+
+
+### 정산 서비스
+
+이 시스템에서 발생한 매출·거래 데이터는 정산 서비스에서 별도로 관리하여, 정산 프로세스가 다른 서비스와  
+분리된 상태에서 안정적으로 운영되도록 한다. Settlement-Service는 각 서비스에서 발생한 도메인 이벤트  
+(예: OrderCompleted, PaymentCancelled 등)를 구독하여, 정산 전용 DB에 저장하는 방식으로 동작한다.  
