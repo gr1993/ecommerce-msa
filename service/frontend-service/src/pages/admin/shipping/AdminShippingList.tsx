@@ -399,13 +399,11 @@ function AdminShippingList() {
               rules={[{ required: true, message: '배송사를 선택하세요' }]}
             >
               <Select placeholder="배송사를 선택하세요">
-                <Option value="CJ대한통운">CJ대한통운</Option>
-                <Option value="한진택배">한진택배</Option>
-                <Option value="로젠택배">로젠택배</Option>
-                <Option value="쿠팡배송">쿠팡배송</Option>
-                <Option value="롯데택배">롯데택배</Option>
-                <Option value="우체국택배">우체국택배</Option>
-                <Option value="기타">기타</Option>
+                <Option value="04">CJ대한통운</Option>
+                <Option value="05">한진택배</Option>
+                <Option value="06">로젠택배</Option>
+                <Option value="08">롯데택배</Option>
+                <Option value="01">우체국택배</Option>
               </Select>
             </Form.Item>
             <Form.Item
