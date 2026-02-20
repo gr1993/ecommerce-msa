@@ -72,6 +72,7 @@ public class OrderShippingSyncService {
     private OrderShipping toOrderShipping(ShippingSyncOrderResponse orderData) {
         return OrderShipping.builder()
                 .orderId(orderData.getOrderId())
+                .orderNumber(orderData.getOrderNumber())
                 .receiverName(orderData.getReceiverName())
                 .receiverPhone(orderData.getReceiverPhone())
                 .address(orderData.getAddress())

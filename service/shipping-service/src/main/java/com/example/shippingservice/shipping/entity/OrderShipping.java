@@ -28,6 +28,9 @@ public class OrderShipping {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "order_number", length = 50)
+    private String orderNumber;
+
     @Column(name = "receiver_name", nullable = false, length = 100)
     private String receiverName;
 
@@ -66,11 +69,12 @@ public class OrderShipping {
     private List<OrderShippingHistory> shippingHistories = new ArrayList<>();
 
     @Builder
-    public OrderShipping(Long orderId, String receiverName, String receiverPhone,
+    public OrderShipping(Long orderId, String orderNumber, String receiverName, String receiverPhone,
                          String address, String postalCode, ShippingStatus shippingStatus,
                          String shippingCompany, String trackingNumber,
                          DeliveryServiceStatus deliveryServiceStatus) {
         this.orderId = orderId;
+        this.orderNumber = orderNumber;
         this.receiverName = receiverName;
         this.receiverPhone = receiverPhone;
         this.address = address;
