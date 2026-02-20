@@ -3,6 +3,7 @@ CREATE DATABASE IF NOT EXISTS shipping_service;
 USE shipping_service;
 
 
+-- 배송 테이블
 CREATE TABLE order_shipping (
     shipping_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '배송 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
@@ -18,11 +19,7 @@ CREATE TABLE order_shipping (
     (NOT_SENT, SENT, IN_TRANSIT, DELIVERED)',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시',
-    CONSTRAINT fk_shipping_order
-        FOREIGN KEY (order_id)
-        REFERENCES orders(order_id)
-        ON DELETE CASCADE
+        ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 일시'
 ) COMMENT='주문 배송 정보';
 
 
