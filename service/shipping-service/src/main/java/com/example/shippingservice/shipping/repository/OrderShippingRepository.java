@@ -24,6 +24,8 @@ public interface OrderShippingRepository extends JpaRepository<OrderShipping, Lo
 
     boolean existsByOrderId(Long orderId);
 
+    List<OrderShipping> findByDeliveryServiceStatusIn(List<DeliveryServiceStatus> statuses);
+
     @Query("SELECT s FROM OrderShipping s WHERE " +
             "(:shippingStatus IS NULL OR s.shippingStatus = :shippingStatus) AND " +
             "(:trackingNumber IS NULL OR s.trackingNumber LIKE %:trackingNumber%)")

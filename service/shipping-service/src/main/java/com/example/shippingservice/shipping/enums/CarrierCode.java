@@ -23,4 +23,13 @@ public enum CarrierCode {
         }
         throw new IllegalArgumentException("Unknown carrier code: " + code);
     }
+
+    public static CarrierCode fromName(String name) {
+        for (CarrierCode carrier : values()) {
+            if (carrier.name.equals(name)) {
+                return carrier;
+            }
+        }
+        throw new IllegalArgumentException("Unknown carrier name: " + name);
+    }
 }
