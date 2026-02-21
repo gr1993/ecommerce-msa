@@ -50,22 +50,45 @@ sequenceDiagram
 
 
 ### 배송 취소 프로세스
+취소 가능 여부 확인은 Feign 동기 호출로 즉각적인 피드백을 제공하고,
+실제 배송 취소 처리는 `order.cancelled` 이벤트를 소비하여 비동기로 수행한다.
+
 ```mermaid
 sequenceDiagram
     participant User as 관리자/사용자
+    participant Order as Order Service
+    participant Broker as Message Broker (Kafka)
     participant Ship as Shipping Service
     participant Mock as Mock Delivery Server
 
-    User->>Ship: 배송 취소 요청 (Cancel Order)
-    
-    Ship->>Ship: 현재 상태 확인 (check service_status)
-    
-    alt 상태가 SENT (취소 가능)
-        Ship->>Mock: POST /api/v1/courier/orders/bulk-cancel
-        Mock-->>Ship: 200 OK (Success)
-        Ship->>Ship: 배송 상태 변경 (CANCELLED)
-    else 상태가 IN_TRANSIT 이상 (취소 불가)
-        Ship-->>User: 400 Error (이미 배송이 시작되어 취소할 수 없습니다)
+    User->>Order: 주문 취소 요청
+
+    Note over Order, Ship: [Phase 1: 배송 취소 가능 여부 확인 - Feign 동기 호출]
+    Order->>Ship: GET /internal/shipping/orders/{orderId}/cancellable
+
+    Ship->>Ship: deliveryServiceStatus 확인
+
+    alt IN_TRANSIT 이상 (취소 불가)
+        Ship-->>Order: { cancellable: false, reason: "이미 배송이 진행 중입니다." }
+        Order-->>User: 409 Conflict (이미 배송이 시작되었습니다)
+    else NOT_SENT 또는 SENT (취소 가능)
+        Ship-->>Order: { cancellable: true }
+
+        Note over Order, Broker: [Phase 2: 주문 취소 처리 및 이벤트 발행]
+        Order->>Order: 주문 상태 변경 (CANCELLED)
+        Order->>Broker: Publish (order.cancelled)
+        Order-->>User: 200 OK (취소 완료)
+
+        Note over Broker, Mock: [Phase 3: 배송 취소 처리 - 이벤트 소비]
+        Broker-->>Ship: Consume (order.cancelled)
+
+        alt deliveryServiceStatus = NOT_SENT (미발송)
+            Ship->>Ship: 배송 상태 변경 (CANCELLED)
+        else deliveryServiceStatus = SENT (발송 완료)
+            Ship->>Mock: POST /api/v1/courier/orders/bulk-cancel
+            Mock-->>Ship: 200 OK
+            Ship->>Ship: 배송 상태 변경 (CANCELLED)
+        end
     end
 ```
 
@@ -124,4 +147,4 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 | 구분 | 설명 |
 |-----|-----|
 | 발행(Published) |  |
-| 구독(Subscribed) | order.created |
+| 구독(Subscribed) | order.created, order.cancelled |
