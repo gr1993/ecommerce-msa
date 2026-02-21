@@ -1,10 +1,13 @@
 package com.example.orderservice.controller;
 
+import com.example.orderservice.dto.request.CancelOrderRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
+import com.example.orderservice.dto.response.CancelOrderResponse;
 import com.example.orderservice.dto.response.MyOrderResponse;
 import com.example.orderservice.dto.response.OrderResponse;
 import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.global.exception.ErrorResponse;
+import com.example.orderservice.service.OrderCancellationService;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderCancellationService orderCancellationService;
 
     @Operation(
             summary = "주문 생성",
@@ -108,5 +112,38 @@ public class OrderController {
             @PageableDefault(size = 10, sort = "orderedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<MyOrderResponse> orders = orderService.getMyOrders(userId, pageable);
         return ResponseEntity.ok(orders);
+    }
+
+    @Operation(
+            summary = "주문 취소",
+            description = "CREATED 또는 PAID 상태의 주문을 취소합니다. 이미 배송 중인 주문은 취소할 수 없습니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "취소 성공",
+                            content = @Content(schema = @Schema(implementation = CancelOrderResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "주문을 찾을 수 없음",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "409",
+                            description = "취소 불가 상태 (배송중, 배송완료 등)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    )
+            }
+    )
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<CancelOrderResponse> cancelOrder(
+            @Parameter(description = "사용자 ID", required = true)
+            @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "주문 ID", required = true, example = "1")
+            @PathVariable Long orderId,
+            @RequestBody(required = false) CancelOrderRequest request) {
+        String reason = (request != null) ? request.getCancellationReason() : null;
+        CancelOrderResponse response = orderCancellationService.cancelByUser(userId, orderId, reason);
+        return ResponseEntity.ok(response);
     }
 }

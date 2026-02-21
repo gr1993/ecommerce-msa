@@ -6,7 +6,10 @@ import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.domain.entity.Outbox;
 import com.example.orderservice.domain.event.CouponRestoredEvent;
 import com.example.orderservice.domain.event.OrderCancelledEvent;
+import com.example.orderservice.dto.response.CancelOrderResponse;
 import com.example.orderservice.global.common.EventTypeConstants;
+import com.example.orderservice.global.exception.OrderCancelException;
+import com.example.orderservice.global.exception.OrderNotFoundException;
 import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.repository.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,6 +29,11 @@ public class OrderCancellationService {
 
     private static final int EXPIRATION_MINUTES = 10;
     private static final String CANCELLATION_REASON_SYSTEM_TIMEOUT = "SYSTEM_TIMEOUT";
+    private static final String DEFAULT_CANCELLATION_REASON = "고객 요청";
+
+    private static final List<OrderStatus> CANCELLABLE_STATUSES = List.of(
+            OrderStatus.CREATED, OrderStatus.PAID
+    );
 
     private final OrderRepository orderRepository;
     private final OutboxRepository outboxRepository;
@@ -56,11 +64,56 @@ public class OrderCancellationService {
         }
     }
 
-    private void cancelOrder(Order order) {
+    @Transactional
+    public CancelOrderResponse cancelByUser(Long userId, Long orderId, String cancellationReason) {
+        Order order = orderRepository.findByIdWithOrderItems(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new IllegalArgumentException("본인 주문만 취소할 수 있습니다.");
+        }
+
+        validateCancellable(order);
+
+        String reason = (cancellationReason != null && !cancellationReason.isBlank())
+                ? cancellationReason : DEFAULT_CANCELLATION_REASON;
+
+        cancelOrder(order, reason);
+        log.info("사용자 주문 취소 완료: orderId={}, userId={}", orderId, userId);
+        return CancelOrderResponse.of(order, reason);
+    }
+
+    @Transactional
+    public CancelOrderResponse cancelByAdmin(Long orderId, String cancellationReason) {
+        Order order = orderRepository.findByIdWithOrderItems(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        validateCancellable(order);
+
+        String reason = (cancellationReason != null && !cancellationReason.isBlank())
+                ? cancellationReason : DEFAULT_CANCELLATION_REASON;
+
+        cancelOrder(order, reason);
+        log.info("관리자 주문 취소 완료: orderId={}", orderId);
+        return CancelOrderResponse.of(order, reason);
+    }
+
+    private void validateCancellable(Order order) {
+        if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
+            throw new OrderCancelException(
+                    "취소할 수 없는 주문 상태입니다. 현재 상태: " + order.getOrderStatus());
+        }
+    }
+
+    private void cancelOrder(Order order, String cancellationReason) {
         order.updateStatus(OrderStatus.CANCELED);
         orderRepository.save(order);
-        saveOrderCancelledOutbox(order);
+        saveOrderCancelledOutbox(order, cancellationReason);
         saveCouponRestoredOutboxes(order);
+    }
+
+    private void cancelOrder(Order order) {
+        cancelOrder(order, CANCELLATION_REASON_SYSTEM_TIMEOUT);
     }
 
     private void saveCouponRestoredOutboxes(Order order) {
@@ -91,11 +144,11 @@ public class OrderCancellationService {
                 });
     }
 
-    private void saveOrderCancelledOutbox(Order order) {
+    private void saveOrderCancelledOutbox(Order order, String cancellationReason) {
         OrderCancelledEvent event = OrderCancelledEvent.builder()
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
-                .cancellationReason(CANCELLATION_REASON_SYSTEM_TIMEOUT)
+                .cancellationReason(cancellationReason)
                 .userId(order.getUserId())
                 .cancelledItems(order.getOrderItems().stream()
                         .map(item -> OrderCancelledEvent.CancelledOrderItem.builder()
