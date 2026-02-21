@@ -58,6 +58,15 @@ CREATE TABLE order_return (
 ) COMMENT='주문 상품 반품 정보 테이블';
 
 
+-- Kafka 이벤트 멱등성 처리 테이블
+CREATE TABLE processed_events (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '처리 이벤트 ID',
+    event_id VARCHAR(100) NOT NULL UNIQUE COMMENT '이벤트 고유 식별자 (예: order.created:{orderId})',
+    event_type VARCHAR(50) NOT NULL COMMENT '이벤트 타입 (예: order.created)',
+    processed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '이벤트 처리 일시'
+) COMMENT='Kafka 이벤트 중복 처리 방지용 멱등성 테이블';
+
+
 -- 주문 교환 정보 테이블
 CREATE TABLE order_exchange (
     exchange_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 ID',
