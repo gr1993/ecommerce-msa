@@ -1,2 +1,5 @@
 product-service:
   url: http://localhost:8083
+
+shipping-service:
+  url: http://localhost:8088

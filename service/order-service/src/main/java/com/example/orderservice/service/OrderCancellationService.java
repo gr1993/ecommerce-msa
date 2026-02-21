@@ -6,6 +6,8 @@ import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.domain.entity.Outbox;
 import com.example.orderservice.domain.event.CouponRestoredEvent;
 import com.example.orderservice.domain.event.OrderCancelledEvent;
+import com.example.orderservice.client.ShippingServiceClient;
+import com.example.orderservice.client.dto.ShippingCancellableResponse;
 import com.example.orderservice.dto.response.CancelOrderResponse;
 import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.global.exception.OrderCancelException;
@@ -38,6 +40,7 @@ public class OrderCancellationService {
     private final OrderRepository orderRepository;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final ShippingServiceClient shippingServiceClient;
 
     @Transactional
     public void cancelExpiredOrders() {
@@ -74,6 +77,7 @@ public class OrderCancellationService {
         }
 
         validateCancellable(order);
+        validateShippingCancellable(orderId);
 
         String reason = (cancellationReason != null && !cancellationReason.isBlank())
                 ? cancellationReason : DEFAULT_CANCELLATION_REASON;
@@ -89,6 +93,7 @@ public class OrderCancellationService {
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         validateCancellable(order);
+        validateShippingCancellable(orderId);
 
         String reason = (cancellationReason != null && !cancellationReason.isBlank())
                 ? cancellationReason : DEFAULT_CANCELLATION_REASON;
@@ -102,6 +107,24 @@ public class OrderCancellationService {
         if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
             throw new OrderCancelException(
                     "취소할 수 없는 주문 상태입니다. 현재 상태: " + order.getOrderStatus());
+        }
+    }
+
+    private void validateShippingCancellable(Long orderId) {
+        try {
+            ShippingCancellableResponse shippingCheck = shippingServiceClient.checkCancellable(orderId);
+            if (!shippingCheck.isCancellable()) {
+                throw new OrderCancelException(
+                        shippingCheck.getReason() != null
+                                ? shippingCheck.getReason()
+                                : "배송 상태로 인해 주문을 취소할 수 없습니다.");
+            }
+        } catch (OrderCancelException e) {
+            throw e;
+        } catch (Exception e) {
+            // shipping-service 장애 시 취소 진행 불가 처리 (운영 정책에 따라 조정 가능)
+            log.error("shipping-service 배송 취소 가능 여부 확인 실패: orderId={}", orderId, e);
+            throw new OrderCancelException("배송 상태 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
         }
     }
 
