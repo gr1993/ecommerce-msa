@@ -8,6 +8,7 @@ CREATE TABLE order_shipping (
     shipping_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '배송 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
     order_number VARCHAR(50) NOT NULL UNIQUE COMMENT '주문 번호',
+    user_id BIGINT COMMENT '사용자 ID (order.created 이벤트 소비 시 저장)',
     receiver_name VARCHAR(100) NOT NULL COMMENT '수령인 이름',
     receiver_phone VARCHAR(20) NOT NULL COMMENT '수령인 연락처',
     address VARCHAR(500) NOT NULL COMMENT '배송 주소',

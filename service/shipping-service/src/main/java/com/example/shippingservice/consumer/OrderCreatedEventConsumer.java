@@ -82,6 +82,7 @@ public class OrderCreatedEventConsumer {
             OrderShipping orderShipping = OrderShipping.builder()
                     .orderId(event.getOrderId())
                     .orderNumber(event.getOrderNumber())
+                    .userId(event.getUserId())
                     .receiverName(delivery.getReceiverName())
                     .receiverPhone(delivery.getReceiverPhone())
                     .address(fullAddress)

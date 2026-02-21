@@ -24,6 +24,8 @@ public interface OrderShippingRepository extends JpaRepository<OrderShipping, Lo
 
     boolean existsByOrderId(Long orderId);
 
+    Page<OrderShipping> findByUserId(Long userId, Pageable pageable);
+
     List<OrderShipping> findByDeliveryServiceStatusIn(List<DeliveryServiceStatus> statuses);
 
     @Query("SELECT s FROM OrderShipping s WHERE " +
