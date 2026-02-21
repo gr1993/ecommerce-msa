@@ -3,7 +3,7 @@ import { Table, Space, Input, Button, Select, Tag, Modal, Form, message } from '
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import { PlusOutlined } from '@ant-design/icons'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from '../order/OrderDetailModal'
-import { getAdminShippings, type AdminShippingResponse } from '../../../api/shippingApi'
+import { getAdminShippings, registerTracking, type AdminShippingResponse } from '../../../api/shippingApi'
 import './AdminShippingList.css'
 
 const { Option } = Select
@@ -167,27 +167,23 @@ function AdminShippingList() {
     try {
       const values = await trackingForm.validateFields()
 
-      // TODO: API 호출로 운송장 번호 등록
+      const updated = await registerTracking(selectedShipping.shippingId, {
+        carrierCode: values.shipping_company,
+      })
+
       setShippings(prev =>
         prev.map(shipping =>
-          shipping.shippingId === selectedShipping.shippingId
-            ? {
-                ...shipping,
-                shippingCompany: values.shipping_company,
-                trackingNumber: values.tracking_number,
-                deliveryServiceStatus: 'SENT' as const,
-                updatedAt: new Date().toISOString()
-              }
-            : shipping
+          shipping.shippingId === updated.shippingId ? updated : shipping
         )
       )
 
-      message.success('운송장 번호가 등록되었습니다.')
+      message.success('운송장이 등록되었습니다.')
       setIsTrackingModalVisible(false)
       setSelectedShipping(null)
       trackingForm.resetFields()
     } catch (error) {
-      console.error('Validation failed:', error)
+      console.error('Register tracking failed:', error)
+      message.error(error instanceof Error ? error.message : '운송장 등록에 실패했습니다.')
     }
   }
 
@@ -405,19 +401,6 @@ function AdminShippingList() {
                 <Option value="08">롯데택배</Option>
                 <Option value="01">우체국택배</Option>
               </Select>
-            </Form.Item>
-            <Form.Item
-              label="운송장 번호"
-              name="tracking_number"
-              rules={[
-                { required: true, message: '운송장 번호를 입력하세요' },
-                { max: 100, message: '운송장 번호는 최대 100자까지 입력 가능합니다.' }
-              ]}
-            >
-              <Input
-                placeholder="운송장 번호를 입력하세요"
-                maxLength={100}
-              />
             </Form.Item>
           </Form>
         </Modal>

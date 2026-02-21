@@ -70,6 +70,14 @@ export interface PageResponse<T> {
  */
 export type AdminShippingPageResponse = PageResponse<AdminShippingResponse>
 
+/**
+ * 운송장 등록 요청 DTO
+ */
+export interface RegisterTrackingRequest {
+  /** 택배사 코드 (01: 우체국, 04: CJ대한통운, 05: 한진, 06: 로젠, 08: 롯데) */
+  carrierCode: string
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -119,5 +127,52 @@ export const getAdminShippings = async (
     console.error('Get admin shippings error:', error)
     if (error instanceof Error) throw error
     throw new Error('배송 목록 조회 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 운송장 등록
+ * 택배사 API를 통해 운송장을 발급하고 배송 정보를 업데이트합니다.
+ *
+ * @param shippingId - 배송 ID
+ * @param request    - 운송장 등록 요청 (택배사 코드)
+ * @returns 업데이트된 배송 정보
+ */
+export const registerTracking = async (
+  shippingId: number,
+  request: RegisterTrackingRequest,
+): Promise<AdminShippingResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/${shippingId}/tracking`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '배송 정보를 찾을 수 없습니다.')
+      }
+      if (response.status === 409) {
+        throw new Error(error.message || '이미 택배사에 전송된 배송 건입니다.')
+      }
+      throw new Error(error.message || `운송장 등록 실패 (HTTP ${response.status})`)
+    }
+
+    const data: AdminShippingResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Register tracking error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('운송장 등록 중 오류가 발생했습니다.')
   }
 }
