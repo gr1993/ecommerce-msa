@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Empty, message } from 'antd'
+import { Card, Table, Tag, Button, Empty, message, Modal, Space, Input } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
-import { EyeOutlined } from '@ant-design/icons'
-import { getMyOrders } from '../../../api/orderApi'
+import { EyeOutlined, StopOutlined } from '@ant-design/icons'
+import { getMyOrders, cancelOrder } from '../../../api/orderApi'
 import type { MyOrderResponse } from '../../../api/orderApi'
 import './MarketMyPageOrders.css'
+
+const { TextArea } = Input
+
+const CANCELLABLE_STATUSES = ['CREATED', 'PAID']
 
 function MarketMyPageOrders() {
   const [orders, setOrders] = useState<MyOrderResponse[]>([])
@@ -12,6 +16,10 @@ function MarketMyPageOrders() {
   const [totalElements, setTotalElements] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  const [cancelTargetOrder, setCancelTargetOrder] = useState<MyOrderResponse | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [isCancelling, setIsCancelling] = useState(false)
 
   useEffect(() => {
     loadOrders(currentPage, pageSize)
@@ -39,8 +47,27 @@ function MarketMyPageOrders() {
   }
 
   const handleViewDetail = (_orderId: number) => {
-    // TODO: 주문 상세 페이지로 이동
     message.info('주문 상세 페이지는 준비 중입니다.')
+  }
+
+  const handleCancelClick = (order: MyOrderResponse) => {
+    setCancelTargetOrder(order)
+    setCancelReason('')
+  }
+
+  const handleCancelConfirm = async () => {
+    if (!cancelTargetOrder) return
+    setIsCancelling(true)
+    try {
+      await cancelOrder(cancelTargetOrder.orderId, cancelReason || undefined)
+      message.success('주문이 취소되었습니다.')
+      setCancelTargetOrder(null)
+      loadOrders(currentPage, pageSize)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '주문 취소에 실패했습니다.')
+    } finally {
+      setIsCancelling(false)
+    }
   }
 
   const handleTableChange = (pagination: TablePaginationConfig) => {
@@ -104,15 +131,27 @@ function MarketMyPageOrders() {
     {
       title: '관리',
       key: 'action',
-      width: 100,
+      width: 160,
       render: (_, record: MyOrderResponse) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewDetail(record.orderId)}
-        >
-          상세보기
-        </Button>
+        <Space>
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record.orderId)}
+          >
+            상세보기
+          </Button>
+          {CANCELLABLE_STATUSES.includes(record.orderStatus) && (
+            <Button
+              type="link"
+              danger
+              icon={<StopOutlined />}
+              onClick={() => handleCancelClick(record)}
+            >
+              취소
+            </Button>
+          )}
+        </Space>
       )
     }
   ]
@@ -139,6 +178,51 @@ function MarketMyPageOrders() {
           />
         )}
       </Card>
+
+      {/* 주문 취소 확인 모달 */}
+      <Modal
+        title="주문 취소"
+        open={!!cancelTargetOrder}
+        onCancel={() => setCancelTargetOrder(null)}
+        footer={[
+          <Button key="back" onClick={() => setCancelTargetOrder(null)}>
+            닫기
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            danger
+            loading={isCancelling}
+            onClick={handleCancelConfirm}
+          >
+            취소 확인
+          </Button>
+        ]}
+      >
+        {cancelTargetOrder && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p>
+              <strong>{cancelTargetOrder.orderNumber}</strong> 주문을 취소하시겠습니까?
+            </p>
+            <p style={{ color: '#888', fontSize: '0.9rem' }}>
+              결제 취소는 영업일 기준 3~5일 내 처리됩니다.
+            </p>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                취소 사유 <span style={{ color: '#999', fontWeight: 400 }}>(선택)</span>
+              </label>
+              <TextArea
+                rows={3}
+                placeholder="취소 사유를 입력해 주세요. (예: 단순 변심, 주문 실수 등)"
+                maxLength={200}
+                showCount
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

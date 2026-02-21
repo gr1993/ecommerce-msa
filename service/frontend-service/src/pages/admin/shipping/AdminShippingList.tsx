@@ -30,7 +30,8 @@ function AdminShippingList() {
     READY: { label: '배송 준비', color: 'blue' },
     SHIPPING: { label: '배송 중', color: 'orange' },
     DELIVERED: { label: '배송 완료', color: 'green' },
-    RETURNED: { label: '반품', color: 'red' }
+    RETURNED: { label: '반품', color: 'red' },
+    CANCELLED: { label: '배송 취소', color: 'default' }
   }
 
   const deliveryServiceStatusMap: Record<string, { label: string; color: string }> = {

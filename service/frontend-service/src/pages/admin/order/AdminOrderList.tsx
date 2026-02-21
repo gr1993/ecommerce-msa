@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Table, Space, Input, Button, Select, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from './OrderDetailModal'
-import { getAdminOrders, getAdminOrderDetail, updateAdminOrder } from '../../../api/orderApi'
+import { getAdminOrders, getAdminOrderDetail, updateAdminOrder, cancelAdminOrder } from '../../../api/orderApi'
 import './AdminOrderList.css'
 
 const { Option } = Select
@@ -82,14 +82,12 @@ function AdminOrderList() {
     try {
       const result = await updateAdminOrder(orderId, orderStatus, orderMemo)
 
-      // 목록에서 해당 주문 업데이트
       setOrders(prev =>
         prev.map(order =>
           order.order_id === orderId ? result.order : order
         )
       )
 
-      // 선택된 주문도 업데이트
       setSelectedOrder(result.order)
       setOrderItems(result.orderItems)
       setOrderShipping(result.orderShipping)
@@ -97,6 +95,12 @@ function AdminOrderList() {
       message.error(error instanceof Error ? error.message : '주문 수정에 실패했습니다.')
       throw error
     }
+  }
+
+  const handleCancelOrder = async (orderId: string, reason: string) => {
+    await cancelAdminOrder(orderId, reason || undefined)
+    // 목록 갱신
+    fetchOrders(searchOrderNumber, searchStatus, currentPage, pageSize)
   }
 
   const columns: ColumnsType<Order> = [
@@ -279,6 +283,7 @@ function AdminOrderList() {
           orderShipping={orderShipping}
           onClose={handleModalClose}
           onSave={handleOrderSave}
+          onCancelOrder={handleCancelOrder}
         />
       </div>
     </div>

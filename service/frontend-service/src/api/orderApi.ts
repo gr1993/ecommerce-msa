@@ -240,6 +240,55 @@ export const getMyOrders = async (
   }
 }
 
+/**
+ * 주문 취소 응답 DTO
+ */
+export interface CancelOrderResponse {
+  orderId: number
+  orderNumber: string
+  orderStatus: OrderStatus
+  cancellationReason: string
+  cancelledAt: string
+}
+
+/**
+ * 주문 취소 (사용자)
+ *
+ * @param orderId - 주문 ID
+ * @param cancellationReason - 취소 사유 (생략 시 기본값 사용)
+ * @returns 취소된 주문 정보
+ */
+export const cancelOrder = async (
+  orderId: number,
+  cancellationReason?: string,
+): Promise<CancelOrderResponse> => {
+  try {
+    const response = await userFetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: cancellationReason ? JSON.stringify({ cancellationReason }) : '{}',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '주문 취소에 실패했습니다.' }))
+      if (response.status === 409) {
+        throw new Error(error.message || '취소할 수 없는 주문 상태입니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '주문을 찾을 수 없습니다.')
+      }
+      throw new Error(error.message || `주문 취소 실패 (HTTP ${response.status})`)
+    }
+
+    return await response.json() as CancelOrderResponse
+  } catch (error) {
+    console.error('Cancel order error:', error)
+    if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) throw error
+    if (error instanceof Error) throw error
+    throw new Error('주문 취소 중 오류가 발생했습니다.')
+  }
+}
+
 // ==================== Admin API Interfaces ====================
 
 interface AdminOrderApiResponse {
@@ -458,6 +507,40 @@ export const getAdminOrderDetail = async (orderId: string): Promise<{
  * @param orderMemo - 주문 메모
  * @returns 수정된 주문 상세
  */
+/**
+ * 관리자 주문 취소
+ *
+ * @param orderId - 주문 ID
+ * @param cancellationReason - 취소 사유 (생략 시 기본값 사용)
+ * @returns 취소된 주문 정보
+ */
+export const cancelAdminOrder = async (
+  orderId: string,
+  cancellationReason?: string,
+): Promise<CancelOrderResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}/cancel`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: cancellationReason ? JSON.stringify({ cancellationReason }) : '{}',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '주문 취소에 실패했습니다.' }))
+      if (response.status === 401) throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      if (response.status === 409) throw new Error(error.message || '취소할 수 없는 주문 상태입니다.')
+      if (response.status === 404) throw new Error(error.message || '주문을 찾을 수 없습니다.')
+      throw new Error(error.message || `주문 취소 실패 (HTTP ${response.status})`)
+    }
+
+    return await response.json() as CancelOrderResponse
+  } catch (error) {
+    console.error('Cancel admin order error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('주문 취소 중 오류가 발생했습니다.')
+  }
+}
+
 export const updateAdminOrder = async (orderId: string, orderStatus: string, orderMemo: string): Promise<{
   order: Order
   orderItems: OrderItem[]
