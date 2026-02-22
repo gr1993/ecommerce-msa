@@ -6,6 +6,8 @@ import com.example.shippingservice.returns.dto.request.AdminReturnRejectRequest;
 import com.example.shippingservice.returns.dto.response.AdminReturnResponse;
 import com.example.shippingservice.returns.entity.OrderReturn;
 import com.example.shippingservice.returns.enums.ReturnStatus;
+import com.example.shippingservice.returns.event.ReturnCompletedEvent;
+import com.example.shippingservice.returns.event.ReturnEventPublisher;
 import com.example.shippingservice.returns.repository.OrderReturnRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.ShippingStatus;
@@ -17,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ public class AdminReturnServiceImpl implements AdminReturnService {
 
     private final OrderReturnRepository orderReturnRepository;
     private final OrderShippingRepository orderShippingRepository;
+    private final ReturnEventPublisher returnEventPublisher;
 
     @Override
     public PageResponse<AdminReturnResponse> getReturns(String returnStatus, Long orderId, Pageable pageable) {
@@ -104,6 +109,16 @@ public class AdminReturnServiceImpl implements AdminReturnService {
 
         log.info("반품 완료 처리 - returnId={}, orderId={}, shippingId={}",
                 returnId, orderReturn.getOrderId(), shipping.getShippingId());
+
+        // return.completed 이벤트 발행 (환불 + 재고 복구 트리거)
+        ReturnCompletedEvent event = ReturnCompletedEvent.builder()
+                .returnId(orderReturn.getReturnId())
+                .orderId(orderReturn.getOrderId())
+                .userId(orderReturn.getUserId())
+                .reason(orderReturn.getReason())
+                .completedAt(LocalDateTime.now())
+                .build();
+        returnEventPublisher.publishReturnCompleted(event);
 
         return AdminReturnResponse.from(orderReturn);
     }

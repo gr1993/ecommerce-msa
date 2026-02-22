@@ -92,8 +92,10 @@ public class OrderCancelledEventConsumer {
 
             OrderShipping shipping = optShipping.get();
 
-            if (shipping.getShippingStatus() == ShippingStatus.CANCELLED) {
-                log.info("이미 취소된 배송 - 건너뜀: orderId={}", event.getOrderId());
+            if (shipping.getShippingStatus() == ShippingStatus.CANCELLED
+                    || shipping.getShippingStatus() == ShippingStatus.RETURNED) {
+                log.info("이미 취소/반품 완료된 배송 - 건너뜀: orderId={}, status={}",
+                        event.getOrderId(), shipping.getShippingStatus());
                 saveProcessedEvent(eventId);
                 return;
             }

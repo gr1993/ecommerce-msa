@@ -116,8 +116,11 @@ RETURN_REQUESTED → RETURN_APPROVED → RETURNED
 sequenceDiagram
     participant User as 사용자
     participant Order as Order Service
+    participant Broker as Message Broker (Kafka)
     participant Ship as Shipping Service
     participant Admin as 관리자
+    participant Payment as Payment Service
+    participant Product as Product Service
 
     Note over User, Ship: [Phase 1: 반품 신청 - Order Service 경유]
     User->>Order: POST /api/orders/{orderId}/returns
@@ -147,6 +150,16 @@ sequenceDiagram
     Ship->>Ship: order_return 상태 변경 (RETURNED)
     Ship->>Ship: order_shipping 상태 변경 (RETURNED)
     Ship-->>Admin: 반품 완료
+
+    Note over Ship, Order: [Phase 5: 환불 + 재고 복구 이벤트 흐름]
+    Ship->>Broker: Publish (return.completed)
+    Broker-->>Order: Consume (return.completed)
+    Order->>Order: 주문 상태 변경 (RETURNED)
+    Order->>Order: order.cancelled Outbox 저장
+    Order->>Broker: Publish (order.cancelled) via Outbox Scheduler
+    Broker-->>Payment: 환불 처리
+    Broker-->>Product: 재고 복구
+    Broker-->>Ship: Consume (order.cancelled) → 이미 RETURNED 상태이므로 skip
 ```
 
 #### 반품 REST API 설계
@@ -342,5 +355,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) |  |
+| 발행(Published) | return.completed |
 | 구독(Subscribed) | order.created, order.cancelled |
