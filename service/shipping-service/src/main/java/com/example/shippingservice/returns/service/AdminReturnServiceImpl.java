@@ -1,0 +1,126 @@
+package com.example.shippingservice.returns.service;
+
+import com.example.shippingservice.client.dto.PageResponse;
+import com.example.shippingservice.returns.dto.request.AdminReturnApproveRequest;
+import com.example.shippingservice.returns.dto.request.AdminReturnRejectRequest;
+import com.example.shippingservice.returns.dto.response.AdminReturnResponse;
+import com.example.shippingservice.returns.entity.OrderReturn;
+import com.example.shippingservice.returns.enums.ReturnStatus;
+import com.example.shippingservice.returns.repository.OrderReturnRepository;
+import com.example.shippingservice.shipping.entity.OrderShipping;
+import com.example.shippingservice.shipping.enums.ShippingStatus;
+import com.example.shippingservice.shipping.repository.OrderShippingRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class AdminReturnServiceImpl implements AdminReturnService {
+
+    private final OrderReturnRepository orderReturnRepository;
+    private final OrderShippingRepository orderShippingRepository;
+
+    @Override
+    public PageResponse<AdminReturnResponse> getReturns(String returnStatus, Long orderId, Pageable pageable) {
+        ReturnStatus status = parseReturnStatus(returnStatus);
+
+        Page<OrderReturn> returnPage = orderReturnRepository.findAllBySearchCondition(status, orderId, pageable);
+        Page<AdminReturnResponse> responsePage = returnPage.map(AdminReturnResponse::from);
+        return PageResponse.from(responsePage);
+    }
+
+    @Override
+    public AdminReturnResponse getReturn(Long returnId) {
+        OrderReturn orderReturn = findReturnById(returnId);
+        return AdminReturnResponse.from(orderReturn);
+    }
+
+    @Override
+    @Transactional
+    public AdminReturnResponse approveReturn(Long returnId, AdminReturnApproveRequest request) {
+        OrderReturn orderReturn = findReturnById(returnId);
+
+        if (orderReturn.getReturnStatus() != ReturnStatus.RETURN_REQUESTED) {
+            throw new IllegalStateException(
+                    "반품 신청 상태에서만 승인할 수 있습니다. 현재 상태: " + orderReturn.getReturnStatus());
+        }
+
+        orderReturn.updateReturnAddress(
+                request.getReceiverName(),
+                request.getReceiverPhone(),
+                request.getReturnAddress(),
+                request.getPostalCode()
+        );
+        orderReturn.updateReturnStatus(ReturnStatus.RETURN_APPROVED);
+
+        log.info("반품 승인 완료 - returnId={}, orderId={}", returnId, orderReturn.getOrderId());
+
+        return AdminReturnResponse.from(orderReturn);
+    }
+
+    @Override
+    @Transactional
+    public AdminReturnResponse rejectReturn(Long returnId, AdminReturnRejectRequest request) {
+        OrderReturn orderReturn = findReturnById(returnId);
+
+        if (orderReturn.getReturnStatus() != ReturnStatus.RETURN_REQUESTED) {
+            throw new IllegalStateException(
+                    "반품 신청 상태에서만 거절할 수 있습니다. 현재 상태: " + orderReturn.getReturnStatus());
+        }
+
+        orderReturn.reject(request.getRejectReason());
+
+        log.info("반품 거절 완료 - returnId={}, orderId={}, reason={}",
+                returnId, orderReturn.getOrderId(), request.getRejectReason());
+
+        return AdminReturnResponse.from(orderReturn);
+    }
+
+    @Override
+    @Transactional
+    public AdminReturnResponse completeReturn(Long returnId) {
+        OrderReturn orderReturn = findReturnById(returnId);
+
+        if (orderReturn.getReturnStatus() != ReturnStatus.RETURN_APPROVED) {
+            throw new IllegalStateException(
+                    "승인된 반품 건만 완료 처리할 수 있습니다. 현재 상태: " + orderReturn.getReturnStatus());
+        }
+
+        // 반품 완료 처리
+        orderReturn.updateReturnStatus(ReturnStatus.RETURNED);
+
+        // order_shipping 상태도 RETURNED로 변경
+        OrderShipping shipping = orderShippingRepository.findByOrderId(orderReturn.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "배송 정보를 찾을 수 없습니다. orderId=" + orderReturn.getOrderId()));
+
+        shipping.updateShippingStatus(ShippingStatus.RETURNED, "RETURN_COMPLETED");
+
+        log.info("반품 완료 처리 - returnId={}, orderId={}, shippingId={}",
+                returnId, orderReturn.getOrderId(), shipping.getShippingId());
+
+        return AdminReturnResponse.from(orderReturn);
+    }
+
+    private OrderReturn findReturnById(Long returnId) {
+        return orderReturnRepository.findById(returnId)
+                .orElseThrow(() -> new IllegalArgumentException("반품 정보를 찾을 수 없습니다. returnId=" + returnId));
+    }
+
+    private ReturnStatus parseReturnStatus(String returnStatus) {
+        if (returnStatus == null || returnStatus.isBlank()) {
+            return null;
+        }
+        try {
+            return ReturnStatus.valueOf(returnStatus);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("유효하지 않은 반품 상태입니다: " + returnStatus);
+        }
+    }
+}

@@ -16,4 +16,6 @@ public interface OrderExchangeRepository extends JpaRepository<OrderExchange, Lo
     List<OrderExchange> findByTrackingNumber(String trackingNumber);
 
     boolean existsByOrderId(Long orderId);
+
+    boolean existsByOrderIdAndExchangeStatusIn(Long orderId, List<ExchangeStatus> statuses);
 }

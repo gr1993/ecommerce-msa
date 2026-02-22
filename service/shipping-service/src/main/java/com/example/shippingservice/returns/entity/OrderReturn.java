@@ -25,9 +25,18 @@ public class OrderReturn {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "return_status", nullable = false, length = 30)
     private ReturnStatus returnStatus;
+
+    @Column(name = "reason", length = 500)
+    private String reason;
+
+    @Column(name = "reject_reason", length = 500)
+    private String rejectReason;
 
     @Column(name = "tracking_number", length = 50)
     private String trackingNumber;
@@ -56,11 +65,13 @@ public class OrderReturn {
     private LocalDateTime updatedAt;
 
     @Builder
-    public OrderReturn(Long orderId, ReturnStatus returnStatus, String trackingNumber,
-                       String courier, String receiverName, String receiverPhone,
-                       String returnAddress, String postalCode) {
+    public OrderReturn(Long orderId, Long userId, ReturnStatus returnStatus, String reason,
+                       String trackingNumber, String courier, String receiverName,
+                       String receiverPhone, String returnAddress, String postalCode) {
         this.orderId = orderId;
+        this.userId = userId;
         this.returnStatus = returnStatus;
+        this.reason = reason;
         this.trackingNumber = trackingNumber;
         this.courier = courier;
         this.receiverName = receiverName;
@@ -71,6 +82,11 @@ public class OrderReturn {
 
     public void updateReturnStatus(ReturnStatus returnStatus) {
         this.returnStatus = returnStatus;
+    }
+
+    public void reject(String rejectReason) {
+        this.returnStatus = ReturnStatus.RETURN_REJECTED;
+        this.rejectReason = rejectReason;
     }
 
     public void updateTrackingInfo(String courier, String trackingNumber) {
