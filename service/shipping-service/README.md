@@ -98,6 +98,10 @@ sequenceDiagram
 관리자가 승인한 뒤 물품을 회수하여 반품을 완료하는 흐름이다.
 반품이 완료되면 `order_shipping`의 상태도 `RETURNED`로 변경된다.
 
+기존 아키텍처와 동일하게 **사용자의 반품 신청은 Order-Service를 경유**하여 들어온다.
+Order-Service가 주문 상태를 검증한 뒤 Shipping-Service의 내부 API를 Feign으로 호출하여
+반품 레코드를 생성한다. 이후 물류 관리(승인, 거절, 완료)는 관리자가 Shipping-Service에서 직접 처리한다.
+
 반품 신청 시 해당 주문에 대한 진행 중인 반품 또는 교환 건이 없어야 한다.
 관리자가 반품을 거절하는 경우도 존재하며, 이를 위해 `ReturnStatus`에 `RETURN_REJECTED` 상태가 필요하다.
 
@@ -111,15 +115,18 @@ RETURN_REQUESTED → RETURN_APPROVED → RETURNED
 ```mermaid
 sequenceDiagram
     participant User as 사용자
+    participant Order as Order Service
     participant Ship as Shipping Service
     participant Admin as 관리자
 
-    Note over User, Ship: [Phase 1: 반품 신청]
-    User->>Ship: POST /api/shipping/returns
-    Ship->>Ship: order_shipping 상태 확인 (DELIVERED만 가능)
+    Note over User, Ship: [Phase 1: 반품 신청 - Order Service 경유]
+    User->>Order: POST /api/orders/{orderId}/returns
+    Order->>Order: 주문 소유권 및 상태 검증 (DELIVERED)
+    Order->>Ship: POST /internal/shipping/returns (Feign)
     Ship->>Ship: 진행 중인 반품/교환 건 존재 여부 확인
     Ship->>Ship: order_return 생성 (RETURN_REQUESTED)
-    Ship-->>User: 반품 신청 완료
+    Ship-->>Order: 반품 생성 결과 반환
+    Order-->>User: 반품 신청 완료
 
     Note over Admin, Ship: [Phase 2: 관리자 반품 승인]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/approve
@@ -144,16 +151,34 @@ sequenceDiagram
 
 #### 반품 REST API 설계
 
-| Method | Path | 설명 | 권한 |
-|--------|------|------|------|
-| POST | /api/shipping/returns | 반품 신청 | 사용자 |
-| GET | /api/shipping/returns | 내 반품 목록 조회 | 사용자 |
-| PATCH | /api/shipping/returns/{returnId}/tracking | 반품 운송장 등록 | 사용자 |
-| GET | /api/admin/shipping/returns | 반품 목록 조회 (페이징, 필터) | 관리자 |
-| GET | /api/admin/shipping/returns/{returnId} | 반품 상세 조회 | 관리자 |
-| PATCH | /api/admin/shipping/returns/{returnId}/approve | 반품 승인 (수거지 정보 포함) | 관리자 |
-| PATCH | /api/admin/shipping/returns/{returnId}/reject | 반품 거절 | 관리자 |
-| PATCH | /api/admin/shipping/returns/{returnId}/complete | 반품 완료 처리 | 관리자 |
+**Order-Service (사용자 진입점)**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | /api/orders/{orderId}/returns | 반품 신청 (주문 검증 후 Shipping-Service Feign 호출) |
+
+**Shipping-Service 내부 API (Order-Service에서 Feign으로 호출)**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | /internal/shipping/returns | 반품 레코드 생성 |
+
+**Shipping-Service 사용자 API**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | /api/shipping/returns | 내 반품 목록 조회 |
+| PATCH | /api/shipping/returns/{returnId}/tracking | 반품 운송장 등록 |
+
+**Shipping-Service 관리자 API**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | /api/admin/shipping/returns | 반품 목록 조회 (페이징, 필터) |
+| GET | /api/admin/shipping/returns/{returnId} | 반품 상세 조회 |
+| PATCH | /api/admin/shipping/returns/{returnId}/approve | 반품 승인 (수거지 정보 포함) |
+| PATCH | /api/admin/shipping/returns/{returnId}/reject | 반품 거절 |
+| PATCH | /api/admin/shipping/returns/{returnId}/complete | 반품 완료 처리 |
 
 #### 엔티티 수정 사항
 - `ReturnStatus`에 `RETURN_REJECTED` 추가
@@ -164,7 +189,9 @@ sequenceDiagram
 교환은 배송 완료(`DELIVERED`) 상태인 주문에 대해 사용자가 교환을 신청하고,
 관리자가 승인한 뒤 기존 물품을 회수하고 새 물품을 발송하여 교환을 완료하는 흐름이다.
 
+반품과 마찬가지로 **사용자의 교환 신청은 Order-Service를 경유**한다.
 교환은 반품과 달리 **회수 + 재발송**이 모두 필요하므로 프로세스가 더 복잡하다.
+관리자가 교환을 승인하면 Mock 택배사 API를 통해 교환품의 송장을 자동 발급한다.
 교환이 완료되면 기존 `order_shipping`의 상태는 변경하지 않으며(`DELIVERED` 유지),
 교환 배송 정보는 `order_exchange` 테이블에서 독립적으로 관리한다.
 
@@ -181,16 +208,19 @@ EXCHANGE_REQUESTED → EXCHANGE_APPROVED → EXCHANGED
 ```mermaid
 sequenceDiagram
     participant User as 사용자
+    participant Order as Order Service
     participant Ship as Shipping Service
     participant Admin as 관리자
     participant Mock as Mock Delivery Server
 
-    Note over User, Ship: [Phase 1: 교환 신청]
-    User->>Ship: POST /api/shipping/exchanges
-    Ship->>Ship: order_shipping 상태 확인 (DELIVERED만 가능)
+    Note over User, Ship: [Phase 1: 교환 신청 - Order Service 경유]
+    User->>Order: POST /api/orders/{orderId}/exchanges
+    Order->>Order: 주문 소유권 및 상태 검증 (DELIVERED)
+    Order->>Ship: POST /internal/shipping/exchanges (Feign)
     Ship->>Ship: 진행 중인 반품/교환 건 존재 여부 확인
     Ship->>Ship: order_exchange 생성 (EXCHANGE_REQUESTED)
-    Ship-->>User: 교환 신청 완료
+    Ship-->>Order: 교환 생성 결과 반환
+    Order-->>User: 교환 신청 완료
 
     Note over Admin, Ship: [Phase 2: 관리자 교환 승인 + 교환품 발송]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/approve
@@ -213,15 +243,33 @@ sequenceDiagram
 
 #### 교환 REST API 설계
 
-| Method | Path | 설명 | 권한 |
-|--------|------|------|------|
-| POST | /api/shipping/exchanges | 교환 신청 | 사용자 |
-| GET | /api/shipping/exchanges | 내 교환 목록 조회 | 사용자 |
-| GET | /api/admin/shipping/exchanges | 교환 목록 조회 (페이징, 필터) | 관리자 |
-| GET | /api/admin/shipping/exchanges/{exchangeId} | 교환 상세 조회 | 관리자 |
-| PATCH | /api/admin/shipping/exchanges/{exchangeId}/approve | 교환 승인 (교환품 발송 포함) | 관리자 |
-| PATCH | /api/admin/shipping/exchanges/{exchangeId}/reject | 교환 거절 | 관리자 |
-| PATCH | /api/admin/shipping/exchanges/{exchangeId}/complete | 교환 완료 처리 | 관리자 |
+**Order-Service (사용자 진입점)**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | /api/orders/{orderId}/exchanges | 교환 신청 (주문 검증 후 Shipping-Service Feign 호출) |
+
+**Shipping-Service 내부 API (Order-Service에서 Feign으로 호출)**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| POST | /internal/shipping/exchanges | 교환 레코드 생성 |
+
+**Shipping-Service 사용자 API**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | /api/shipping/exchanges | 내 교환 목록 조회 |
+
+**Shipping-Service 관리자 API**
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | /api/admin/shipping/exchanges | 교환 목록 조회 (페이징, 필터) |
+| GET | /api/admin/shipping/exchanges/{exchangeId} | 교환 상세 조회 |
+| PATCH | /api/admin/shipping/exchanges/{exchangeId}/approve | 교환 승인 (교환품 발송 포함) |
+| PATCH | /api/admin/shipping/exchanges/{exchangeId}/reject | 교환 거절 |
+| PATCH | /api/admin/shipping/exchanges/{exchangeId}/complete | 교환 완료 처리 |
 
 #### 엔티티 수정 사항
 - `ExchangeStatus`에 `EXCHANGE_REJECTED` 추가
@@ -229,10 +277,12 @@ sequenceDiagram
 
 
 ### 반품/교환 공통 정책
+- **사용자 신청은 Order-Service를 경유**하여 주문 소유권 및 상태 검증 후 Shipping-Service 내부 API를 Feign으로 호출한다
 - 반품·교환 신청 가능 조건: `order_shipping.shipping_status = DELIVERED`
 - 하나의 주문에 대해 **반품 또는 교환 중 하나만** 진행 가능 (진행 중인 건이 있으면 신규 신청 불가)
 - 거절된 건(`RETURN_REJECTED`, `EXCHANGE_REJECTED`)은 재신청 가능
 - 교환 승인 시 Mock 택배사 API를 통해 새 물품의 송장을 자동 발급하고, 반품은 사용자가 직접 발송 후 운송장을 등록하는 방식으로 차이를 둔다
+- 물류 조회(반품/교환 목록)와 관리(승인, 거절, 완료)는 Shipping-Service에서 직접 처리한다
 
 
 ### 프로젝트 패키지 구조
