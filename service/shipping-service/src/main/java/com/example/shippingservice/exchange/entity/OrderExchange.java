@@ -25,9 +25,18 @@ public class OrderExchange {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "exchange_status", nullable = false, length = 30)
     private ExchangeStatus exchangeStatus;
+
+    @Column(name = "reason", length = 500)
+    private String reason;
+
+    @Column(name = "reject_reason", length = 500)
+    private String rejectReason;
 
     @Column(name = "tracking_number", length = 50)
     private String trackingNumber;
@@ -56,11 +65,13 @@ public class OrderExchange {
     private LocalDateTime updatedAt;
 
     @Builder
-    public OrderExchange(Long orderId, ExchangeStatus exchangeStatus, String trackingNumber,
-                         String courier, String receiverName, String receiverPhone,
-                         String exchangeAddress, String postalCode) {
+    public OrderExchange(Long orderId, Long userId, ExchangeStatus exchangeStatus, String reason,
+                         String trackingNumber, String courier, String receiverName,
+                         String receiverPhone, String exchangeAddress, String postalCode) {
         this.orderId = orderId;
+        this.userId = userId;
         this.exchangeStatus = exchangeStatus;
+        this.reason = reason;
         this.trackingNumber = trackingNumber;
         this.courier = courier;
         this.receiverName = receiverName;
@@ -71,6 +82,11 @@ public class OrderExchange {
 
     public void updateExchangeStatus(ExchangeStatus exchangeStatus) {
         this.exchangeStatus = exchangeStatus;
+    }
+
+    public void reject(String rejectReason) {
+        this.exchangeStatus = ExchangeStatus.EXCHANGE_REJECTED;
+        this.rejectReason = rejectReason;
     }
 
     public void updateTrackingInfo(String courier, String trackingNumber) {
