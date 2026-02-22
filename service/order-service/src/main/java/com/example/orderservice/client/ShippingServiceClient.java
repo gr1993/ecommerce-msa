@@ -1,5 +1,7 @@
 package com.example.orderservice.client;
 
+import com.example.orderservice.client.dto.CreateExchangeRequest;
+import com.example.orderservice.client.dto.CreateExchangeResponse;
 import com.example.orderservice.client.dto.CreateReturnRequest;
 import com.example.orderservice.client.dto.CreateReturnResponse;
 import com.example.orderservice.client.dto.ShippingCancellableResponse;
@@ -17,4 +19,7 @@ public interface ShippingServiceClient {
 
     @PostMapping("/internal/shipping/returns")
     CreateReturnResponse createReturn(@RequestBody CreateReturnRequest request);
+
+    @PostMapping("/internal/shipping/exchanges")
+    CreateExchangeResponse createExchange(@RequestBody CreateExchangeRequest request);
 }
