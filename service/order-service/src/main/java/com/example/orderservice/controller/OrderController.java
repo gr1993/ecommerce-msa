@@ -2,12 +2,15 @@ package com.example.orderservice.controller;
 
 import com.example.orderservice.dto.request.CancelOrderRequest;
 import com.example.orderservice.dto.request.OrderCreateRequest;
+import com.example.orderservice.dto.request.ReturnOrderRequest;
 import com.example.orderservice.dto.response.CancelOrderResponse;
 import com.example.orderservice.dto.response.MyOrderResponse;
 import com.example.orderservice.dto.response.OrderResponse;
+import com.example.orderservice.dto.response.ReturnOrderResponse;
 import com.example.orderservice.global.common.dto.PageResponse;
 import com.example.orderservice.global.exception.ErrorResponse;
 import com.example.orderservice.service.OrderCancellationService;
+import com.example.orderservice.service.OrderReturnService;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,6 +36,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final OrderCancellationService orderCancellationService;
+    private final OrderReturnService orderReturnService;
 
     @Operation(
             summary = "주문 생성",
@@ -145,5 +149,44 @@ public class OrderController {
         String reason = (request != null) ? request.getCancellationReason() : null;
         CancelOrderResponse response = orderCancellationService.cancelByUser(userId, orderId, reason);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "반품 신청",
+            description = "배송 완료(DELIVERED) 상태의 주문에 대해 반품을 신청합니다. "
+                    + "주문 소유권 및 상태를 검증한 후 shipping-service에 반품 레코드를 생성합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "201",
+                            description = "반품 신청 성공",
+                            content = @Content(schema = @Schema(implementation = ReturnOrderResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "잘못된 요청 (배송 정보 없음 등)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "주문을 찾을 수 없음",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "409",
+                            description = "반품 불가 상태 (배송 미완료, 진행 중인 반품/교환 존재)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+                    )
+            }
+    )
+    @PostMapping("/{orderId}/returns")
+    public ResponseEntity<ReturnOrderResponse> requestReturn(
+            @Parameter(description = "사용자 ID", required = true)
+            @RequestHeader("X-User-Id") Long userId,
+            @Parameter(description = "주문 ID", required = true, example = "1")
+            @PathVariable Long orderId,
+            @RequestBody(required = false) ReturnOrderRequest request) {
+        String reason = (request != null) ? request.getReason() : null;
+        ReturnOrderResponse response = orderReturnService.requestReturn(userId, orderId, reason);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
