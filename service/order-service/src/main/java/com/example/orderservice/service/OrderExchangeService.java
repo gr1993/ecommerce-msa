@@ -21,7 +21,7 @@ public class OrderExchangeService {
     private final OrderRepository orderRepository;
     private final ShippingServiceClient shippingServiceClient;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ExchangeOrderResponse requestExchange(Long userId, Long orderId, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -46,6 +46,8 @@ public class OrderExchangeService {
 
         try {
             CreateExchangeResponse exchangeResponse = shippingServiceClient.createExchange(request);
+
+            order.updateStatus(OrderStatus.EXCHANGE_REQUESTED);
 
             log.info("교환 신청 완료 - orderId={}, exchangeId={}", orderId, exchangeResponse.getExchangeId());
 

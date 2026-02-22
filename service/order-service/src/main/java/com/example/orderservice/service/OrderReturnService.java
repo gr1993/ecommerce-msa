@@ -21,7 +21,7 @@ public class OrderReturnService {
     private final OrderRepository orderRepository;
     private final ShippingServiceClient shippingServiceClient;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ReturnOrderResponse requestReturn(Long userId, Long orderId, String reason) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -46,6 +46,8 @@ public class OrderReturnService {
 
         try {
             CreateReturnResponse returnResponse = shippingServiceClient.createReturn(request);
+
+            order.updateStatus(OrderStatus.RETURN_REQUESTED);
 
             log.info("반품 신청 완료 - orderId={}, returnId={}", orderId, returnResponse.getReturnId());
 
