@@ -6,6 +6,7 @@ import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.CarrierCode;
 import com.example.shippingservice.shipping.enums.DeliveryServiceStatus;
 import com.example.shippingservice.shipping.enums.ShippingStatus;
+import com.example.shippingservice.shipping.repository.OrderShippingHistoryRepository;
 import com.example.shippingservice.shipping.repository.OrderShippingRepository;
 import com.example.shippingservice.shipping.service.MockDeliveryService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 배송 상태 추적 스케줄러
@@ -22,8 +24,11 @@ import java.util.List;
  * deliveryServiceStatus 가 SENT 또는 IN_TRANSIT 인 배송 건을 대상으로
  * 외부 택배사 API를 주기적으로 폴링하여 배송 상태를 최신 상태로 동기화합니다.
  *
+ * 외부 택배사 상태(kind)가 변경될 때마다 이력을 저장하며,
+ * 내부 상태 매핑이 필요한 경우에만 내부 상태를 업데이트합니다.
+ *
  * 외부 API kind 값 → 내부 상태 매핑:
- * - ACCEPTED, PICKED_UP               → SENT       / READY    (변경 없음)
+ * - ACCEPTED, PICKED_UP               → 이력만 추가 (내부 상태 변경 없음)
  * - IN_TRANSIT, AT_DESTINATION,
  *   OUT_FOR_DELIVERY                  → IN_TRANSIT / SHIPPING
  * - DELIVERED                         → DELIVERED  / DELIVERED
@@ -34,6 +39,7 @@ import java.util.List;
 public class ShippingTrackingScheduler {
 
     private final OrderShippingRepository orderShippingRepository;
+    private final OrderShippingHistoryRepository orderShippingHistoryRepository;
     private final MockDeliveryService mockDeliveryService;
 
     @Scheduled(fixedRateString = "${shipping.tracking.poll-interval-ms:60000}")
@@ -83,40 +89,58 @@ public class ShippingTrackingScheduler {
         }
 
         TrackingDetail lastDetail = response.getLastDetail();
-        StatusMapping mapping = mapToInternalStatus(lastDetail.getKind());
+        String currentKind = lastDetail.getKind();
 
-        if (mapping == null) {
-            log.debug("매핑되지 않은 배송 상태 수신 - shippingId: {}, kind: {}",
-                    shipping.getShippingId(), lastDetail.getKind());
+        if (currentKind == null) {
+            log.debug("배송 상태 kind 없음 - shippingId: {}", shipping.getShippingId());
             return false;
         }
 
-        // 두 상태 모두 동일하면 업데이트 불필요
-        if (shipping.getDeliveryServiceStatus() == mapping.deliveryServiceStatus()
-                && shipping.getShippingStatus() == mapping.shippingStatus()) {
-            log.debug("배송 상태 변경 없음 - shippingId: {}, deliveryServiceStatus: {}",
-                    shipping.getShippingId(), mapping.deliveryServiceStatus());
+        // 마지막으로 기록된 외부 택배사 상태(kind) 조회
+        Optional<String> lastTrackingKind = orderShippingHistoryRepository
+                .findLastTrackingKindByShippingId(shipping.getShippingId());
+
+        // 외부 택배사 상태가 동일하면 업데이트 불필요
+        if (lastTrackingKind.isPresent() && lastTrackingKind.get().equals(currentKind)) {
+            log.debug("외부 택배사 상태 변경 없음 - shippingId: {}, kind: {}",
+                    shipping.getShippingId(), currentKind);
             return false;
         }
+
+        // 내부 상태 매핑 (null이면 내부 상태 변경 없이 이력만 추가)
+        StatusMapping mapping = mapToInternalStatus(currentKind);
 
         ShippingStatus previousShippingStatus = shipping.getShippingStatus();
         DeliveryServiceStatus previousDeliveryStatus = shipping.getDeliveryServiceStatus();
 
-        shipping.updateShippingStatusWithDetail(
-                mapping.shippingStatus(),
-                lastDetail.getWhere(),
-                lastDetail.getRemark(),
-                lastDetail.getKind(),
-                "DELIVERY_API"
-        );
-        shipping.updateDeliveryServiceStatus(mapping.deliveryServiceStatus());
+        if (mapping != null) {
+            // 내부 상태 변경이 필요한 경우
+            shipping.updateShippingStatusWithDetail(
+                    mapping.shippingStatus(),
+                    lastDetail.getWhere(),
+                    lastDetail.getRemark(),
+                    currentKind,
+                    "DELIVERY_API"
+            );
+            shipping.updateDeliveryServiceStatus(mapping.deliveryServiceStatus());
 
-        log.info("배송 상태 업데이트 - shippingId: {}, orderNumber: {}, "
-                        + "shippingStatus: {} → {}, deliveryServiceStatus: {} → {}, kind: {}",
-                shipping.getShippingId(), shipping.getOrderNumber(),
-                previousShippingStatus, mapping.shippingStatus(),
-                previousDeliveryStatus, mapping.deliveryServiceStatus(),
-                lastDetail.getKind());
+            log.info("배송 상태 업데이트 - shippingId: {}, orderNumber: {}, "
+                            + "shippingStatus: {} → {}, deliveryServiceStatus: {} → {}, kind: {}",
+                    shipping.getShippingId(), shipping.getOrderNumber(),
+                    previousShippingStatus, mapping.shippingStatus(),
+                    previousDeliveryStatus, mapping.deliveryServiceStatus(),
+                    currentKind);
+        } else {
+            // 내부 상태 변경 없이 이력만 추가 (ACCEPTED, PICKED_UP 등)
+            shipping.addTrackingDetail(
+                    lastDetail.getWhere(),
+                    lastDetail.getRemark(),
+                    currentKind
+            );
+
+            log.info("배송 이력 추가 (상태 변경 없음) - shippingId: {}, orderNumber: {}, kind: {}",
+                    shipping.getShippingId(), shipping.getOrderNumber(), currentKind);
+        }
 
         return true;
     }

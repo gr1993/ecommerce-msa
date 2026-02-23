@@ -47,7 +47,10 @@ CREATE TABLE order_shipping_history (
 CREATE TABLE order_return (
     return_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '반품 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
-    return_status VARCHAR(30) NOT NULL COMMENT '반품 상태 (RETURN_REQUESTED, RETURN_APPROVED, RETURNED)',
+    user_id BIGINT NOT NULL COMMENT '사용자 ID',
+    return_status VARCHAR(30) NOT NULL COMMENT '반품 상태 (RETURN_REQUESTED, RETURN_APPROVED, RETURN_REJECTED, RETURNED)',
+    reason VARCHAR(500) COMMENT '반품 사유',
+    reject_reason VARCHAR(500) COMMENT '반품 거절 사유',
     tracking_number VARCHAR(50) COMMENT '회수용 운송장 번호',
     courier VARCHAR(50) COMMENT '택배사',
     receiver_name VARCHAR(100) COMMENT '반품 수령인 이름',
@@ -72,7 +75,10 @@ CREATE TABLE processed_events (
 CREATE TABLE order_exchange (
     exchange_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
-    exchange_status VARCHAR(30) NOT NULL COMMENT '교환 상태 (EXCHANGE_REQUESTED, EXCHANGE_APPROVED, EXCHANGED)',
+    user_id BIGINT NOT NULL COMMENT '사용자 ID',
+    exchange_status VARCHAR(30) NOT NULL COMMENT '교환 상태 (EXCHANGE_REQUESTED, EXCHANGE_APPROVED, EXCHANGE_REJECTED, EXCHANGED)',
+    reason VARCHAR(500) COMMENT '교환 사유',
+    reject_reason VARCHAR(500) COMMENT '교환 거절 사유',
     tracking_number VARCHAR(50) COMMENT '회수/배송용 운송장 번호',
     courier VARCHAR(50) COMMENT '택배사',
     receiver_name VARCHAR(100) COMMENT '교환 수령인 이름',
