@@ -34,4 +34,6 @@ public interface OrderShippingRepository extends JpaRepository<OrderShipping, Lo
     Page<OrderShipping> findAllBySearchCondition(@Param("shippingStatus") ShippingStatus shippingStatus,
                                                   @Param("trackingNumber") String trackingNumber,
                                                   Pageable pageable);
+
+    List<OrderShipping> findByUserIdAndShippingStatus(Long userId, ShippingStatus shippingStatus);
 }

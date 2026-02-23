@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "Market Shipping", description = "사용자 배송 조회 API")
 @RestController
 @RequestMapping("/api/shipping")
@@ -45,6 +47,26 @@ public class MarketShippingController {
             @RequestHeader("X-User-Id") Long userId,
             @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         PageResponse<MarketShippingResponse> response = marketShippingService.getMyShippings(userId, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "반품 신청 가능 목록 조회",
+            description = "배송 완료(DELIVERED) 상태이며 진행 중인 반품/교환이 없는 주문 목록을 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "조회 성공",
+                            content = @Content(schema = @Schema(implementation = MarketShippingResponse.class))
+                    ),
+                    @ApiResponse(responseCode = "400", description = "X-User-Id 헤더 누락")
+            }
+    )
+    @GetMapping("/returnable")
+    public ResponseEntity<List<MarketShippingResponse>> getReturnableShippings(
+            @Parameter(description = "API Gateway가 JWT 검증 후 주입하는 사용자 ID", required = true)
+            @RequestHeader("X-User-Id") Long userId) {
+        List<MarketShippingResponse> response = marketShippingService.getReturnableShippings(userId);
         return ResponseEntity.ok(response);
     }
 }
