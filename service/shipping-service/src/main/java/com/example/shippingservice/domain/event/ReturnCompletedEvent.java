@@ -1,4 +1,4 @@
-package com.example.shippingservice.returns.event;
+package com.example.shippingservice.domain.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

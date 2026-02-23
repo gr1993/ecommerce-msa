@@ -2,7 +2,7 @@ package com.example.shippingservice.global.service.outbox;
 
 import com.example.shippingservice.domain.entity.Outbox;
 import com.example.shippingservice.global.common.EventTypeConstants;
-import com.example.shippingservice.returns.event.ReturnCompletedEvent;
+import com.example.shippingservice.domain.event.ReturnCompletedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;

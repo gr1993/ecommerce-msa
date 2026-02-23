@@ -9,7 +9,7 @@ import com.example.shippingservice.returns.dto.request.AdminReturnRejectRequest;
 import com.example.shippingservice.returns.dto.response.AdminReturnResponse;
 import com.example.shippingservice.returns.entity.OrderReturn;
 import com.example.shippingservice.returns.enums.ReturnStatus;
-import com.example.shippingservice.returns.event.ReturnCompletedEvent;
+import com.example.shippingservice.domain.event.ReturnCompletedEvent;
 import com.example.shippingservice.returns.repository.OrderReturnRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.ShippingStatus;
