@@ -42,10 +42,10 @@ public class AdminReturnController {
     public ResponseEntity<PageResponse<AdminReturnResponse>> getReturns(
             @Parameter(description = "반품 상태 (RETURN_REQUESTED, RETURN_APPROVED, RETURN_REJECTED, RETURNED)", example = "RETURN_REQUESTED")
             @RequestParam(required = false) String returnStatus,
-            @Parameter(description = "주문 ID", example = "1")
-            @RequestParam(required = false) Long orderId,
+            @Parameter(description = "주문 번호", example = "ORD-20250101-ABC123")
+            @RequestParam(required = false) String orderNumber,
             @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        PageResponse<AdminReturnResponse> response = adminReturnService.getReturns(returnStatus, orderId, pageable);
+        PageResponse<AdminReturnResponse> response = adminReturnService.getReturns(returnStatus, orderNumber, pageable);
         return ResponseEntity.ok(response);
     }
 

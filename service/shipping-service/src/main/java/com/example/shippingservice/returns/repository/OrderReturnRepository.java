@@ -25,10 +25,11 @@ public interface OrderReturnRepository extends JpaRepository<OrderReturn, Long> 
 
     Page<OrderReturn> findByUserId(Long userId, Pageable pageable);
 
-    @Query("SELECT r FROM OrderReturn r WHERE " +
-            "(:returnStatus IS NULL OR r.returnStatus = :returnStatus) AND " +
-            "(:orderId IS NULL OR r.orderId = :orderId)")
+    @Query("SELECT r FROM OrderReturn r " +
+            "LEFT JOIN OrderShipping s ON r.orderId = s.orderId " +
+            "WHERE (:returnStatus IS NULL OR r.returnStatus = :returnStatus) " +
+            "AND (:orderNumber IS NULL OR s.orderNumber = :orderNumber)")
     Page<OrderReturn> findAllBySearchCondition(@Param("returnStatus") ReturnStatus returnStatus,
-                                                @Param("orderId") Long orderId,
+                                                @Param("orderNumber") String orderNumber,
                                                 Pageable pageable);
 }

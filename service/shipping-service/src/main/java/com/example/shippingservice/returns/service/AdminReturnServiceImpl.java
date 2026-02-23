@@ -37,10 +37,10 @@ public class AdminReturnServiceImpl implements AdminReturnService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public PageResponse<AdminReturnResponse> getReturns(String returnStatus, Long orderId, Pageable pageable) {
+    public PageResponse<AdminReturnResponse> getReturns(String returnStatus, String orderNumber, Pageable pageable) {
         ReturnStatus status = parseReturnStatus(returnStatus);
 
-        Page<OrderReturn> returnPage = orderReturnRepository.findAllBySearchCondition(status, orderId, pageable);
+        Page<OrderReturn> returnPage = orderReturnRepository.findAllBySearchCondition(status, orderNumber, pageable);
         Page<AdminReturnResponse> responsePage = returnPage.map(AdminReturnResponse::from);
         return PageResponse.from(responsePage);
     }

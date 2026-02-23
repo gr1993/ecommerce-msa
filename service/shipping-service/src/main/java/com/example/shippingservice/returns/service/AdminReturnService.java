@@ -11,7 +11,7 @@ public interface AdminReturnService {
     /**
      * 반품 목록을 조회합니다. (페이징, 필터)
      */
-    PageResponse<AdminReturnResponse> getReturns(String returnStatus, Long orderId, Pageable pageable);
+    PageResponse<AdminReturnResponse> getReturns(String returnStatus, String orderNumber, Pageable pageable);
 
     /**
      * 반품 상세를 조회합니다.
