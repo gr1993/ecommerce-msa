@@ -1,5 +1,11 @@
 product-service:
   url: http://localhost:8083
 
+payment-service:
+  url: http://localhost:8086
+
+promotion-service:
+  url: http://localhost:8087
+
 shipping-service:
   url: http://localhost:8088

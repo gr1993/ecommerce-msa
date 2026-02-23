@@ -5,11 +5,10 @@ import com.example.orderservice.client.dto.CreateExchangeResponse;
 import com.example.orderservice.client.dto.CreateReturnRequest;
 import com.example.orderservice.client.dto.CreateReturnResponse;
 import com.example.orderservice.client.dto.ShippingCancellableResponse;
+import com.example.orderservice.client.dto.TestCreateShippingRequest;
+import com.example.orderservice.client.dto.TestCreateShippingResponse;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "shipping-service", url = "${shipping-service.url}")
 public interface ShippingServiceClient {
@@ -22,4 +21,10 @@ public interface ShippingServiceClient {
 
     @PostMapping("/internal/shipping/exchanges")
     CreateExchangeResponse createExchange(@RequestBody CreateExchangeRequest request);
+
+    @PostMapping("/internal/shipping/test/shipping")
+    TestCreateShippingResponse createShippingForTest(@RequestBody TestCreateShippingRequest request);
+
+    @DeleteMapping("/internal/shipping/test/shipping/orders/{orderId}")
+    void deleteShippingForTest(@PathVariable("orderId") Long orderId);
 }
