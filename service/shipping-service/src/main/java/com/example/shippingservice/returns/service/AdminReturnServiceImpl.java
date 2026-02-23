@@ -1,17 +1,21 @@
 package com.example.shippingservice.returns.service;
 
 import com.example.shippingservice.client.dto.PageResponse;
+import com.example.shippingservice.domain.entity.Outbox;
+import com.example.shippingservice.global.common.EventTypeConstants;
+import com.example.shippingservice.repository.OutboxRepository;
 import com.example.shippingservice.returns.dto.request.AdminReturnApproveRequest;
 import com.example.shippingservice.returns.dto.request.AdminReturnRejectRequest;
 import com.example.shippingservice.returns.dto.response.AdminReturnResponse;
 import com.example.shippingservice.returns.entity.OrderReturn;
 import com.example.shippingservice.returns.enums.ReturnStatus;
 import com.example.shippingservice.returns.event.ReturnCompletedEvent;
-import com.example.shippingservice.returns.event.ReturnEventPublisher;
 import com.example.shippingservice.returns.repository.OrderReturnRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.ShippingStatus;
 import com.example.shippingservice.shipping.repository.OrderShippingRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -29,7 +33,8 @@ public class AdminReturnServiceImpl implements AdminReturnService {
 
     private final OrderReturnRepository orderReturnRepository;
     private final OrderShippingRepository orderShippingRepository;
-    private final ReturnEventPublisher returnEventPublisher;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResponse<AdminReturnResponse> getReturns(String returnStatus, Long orderId, Pageable pageable) {
@@ -110,7 +115,13 @@ public class AdminReturnServiceImpl implements AdminReturnService {
         log.info("반품 완료 처리 - returnId={}, orderId={}, shippingId={}",
                 returnId, orderReturn.getOrderId(), shipping.getShippingId());
 
-        // return.completed 이벤트 발행 (환불 + 재고 복구 트리거)
+        // return.completed 이벤트 Outbox 저장 (환불 + 재고 복구 트리거)
+        saveReturnCompletedOutbox(orderReturn);
+
+        return AdminReturnResponse.from(orderReturn);
+    }
+
+    private void saveReturnCompletedOutbox(OrderReturn orderReturn) {
         ReturnCompletedEvent event = ReturnCompletedEvent.builder()
                 .returnId(orderReturn.getReturnId())
                 .orderId(orderReturn.getOrderId())
@@ -118,9 +129,21 @@ public class AdminReturnServiceImpl implements AdminReturnService {
                 .reason(orderReturn.getReason())
                 .completedAt(LocalDateTime.now())
                 .build();
-        returnEventPublisher.publishReturnCompleted(event);
 
-        return AdminReturnResponse.from(orderReturn);
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Return")
+                    .aggregateId(String.valueOf(orderReturn.getReturnId()))
+                    .eventType(EventTypeConstants.TOPIC_RETURN_COMPLETED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("Outbox 저장 완료: returnId={}", orderReturn.getReturnId());
+        } catch (JsonProcessingException e) {
+            log.error("ReturnCompletedEvent 직렬화 실패: returnId={}", orderReturn.getReturnId(), e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
     }
 
     private OrderReturn findReturnById(Long returnId) {
