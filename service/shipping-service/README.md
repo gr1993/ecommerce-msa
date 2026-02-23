@@ -109,7 +109,7 @@ sequenceDiagram
 
 ### 반품 프로세스
 반품은 배송 완료(`DELIVERED`) 상태인 주문에 대해 사용자가 반품을 신청하고,
-관리자가 승인한 뒤 물품을 회수하여 반품을 완료하는 흐름이다.
+관리자가 승인하면 **시스템이 자동으로 택배사에 회수 지시**를 내려 물품을 회수한 뒤 반품을 완료하는 흐름이다.
 반품이 완료되면 `order_shipping`의 상태도 `RETURNED`로 변경된다.
 
 기존 아키텍처와 동일하게 **사용자의 반품 신청은 Order-Service를 경유**하여 들어온다.
@@ -118,6 +118,9 @@ Order-Service가 주문 상태를 검증한 뒤 Shipping-Service의 내부 API�
 
 반품 신청 시 해당 주문에 대한 진행 중인 반품 또는 교환 건이 없어야 한다.
 관리자가 반품을 거절하는 경우도 존재하며, 이를 위해 `ReturnStatus`에 `RETURN_REJECTED` 상태가 필요하다.
+
+**현대적 반품 프로세스의 핵심:** 관리자가 반품을 승인하면 Mock 택배사 API를 통해 회수 운송장이 자동 발급된다.
+사용자는 물품을 문앞에 두기만 하면 택배 기사가 방문하여 회수해 가므로, 사용자가 직접 택배를 붙이거나 운송장을 등록할 필요가 없다.
 
 #### 상태 흐름
 ```
@@ -133,6 +136,7 @@ sequenceDiagram
     participant Broker as Message Broker (Kafka)
     participant Ship as Shipping Service
     participant Admin as 관리자
+    participant Mock as Mock Delivery Server
     participant Payment as Payment Service
     participant Product as Product Service
 
@@ -145,19 +149,21 @@ sequenceDiagram
     Ship-->>Order: 반품 생성 결과 반환
     Order-->>User: 반품 신청 완료
 
-    Note over Admin, Ship: [Phase 2: 관리자 반품 승인]
+    Note over Admin, Mock: [Phase 2: 관리자 반품 승인 + 회수 지시]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/approve
     Ship->>Ship: 반품 수거지 정보 설정 (창고 주소)
     Ship->>Ship: 상태 변경 (RETURN_APPROVED)
-    Ship-->>Admin: 승인 완료
+    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수 운송장 발급)
+    Mock-->>Ship: 운송장 번호 반환
+    Ship->>Ship: 운송장 번호 저장
+    Ship-->>Admin: 승인 완료 + 회수 지시 완료
 
     Note over Admin, Ship: [Phase 2-1: 관리자 반품 거절 시]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/reject
     Ship->>Ship: 상태 변경 (RETURN_REJECTED, 끝)
 
-    Note over User, Ship: [Phase 3: 반품 운송장 등록]
-    User->>Ship: PATCH /api/shipping/returns/{returnId}/tracking
-    Ship->>Ship: 운송장 번호 등록 (courier, trackingNumber)
+    Note over User: [Phase 3: 사용자 물품 준비]
+    User->>User: 물품을 문앞에 두면 택배 기사가 회수
 
     Note over Admin, Ship: [Phase 4: 반품 완료 처리]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/complete
@@ -239,7 +245,8 @@ sequenceDiagram
 - 반품·교환 신청 가능 조건: `order_shipping.shipping_status = DELIVERED`
 - 하나의 주문에 대해 **반품 또는 교환 중 하나만** 진행 가능 (진행 중인 건이 있으면 신규 신청 불가)
 - 거절된 건(`RETURN_REJECTED`, `EXCHANGE_REJECTED`)은 재신청 가능
-- 교환 승인 시 Mock 택배사 API를 통해 새 물품의 송장을 자동 발급하고, 반품은 사용자가 직접 발송 후 운송장을 등록하는 방식으로 차이를 둔다
+- 반품·교환 승인 시 **Mock 택배사 API를 통해 운송장을 자동 발급**한다 (반품은 회수 운송장, 교환은 새 물품 발송 운송장)
+- 사용자는 반품 승인 후 물품을 문앞에 두기만 하면 택배 기사가 회수해 간다 (사용자가 직접 택배를 붙이거나 운송장을 등록할 필요 없음)
 - 물류 조회(반품/교환 목록)와 관리(승인, 거절, 완료)는 Shipping-Service에서 직접 처리한다
 
 

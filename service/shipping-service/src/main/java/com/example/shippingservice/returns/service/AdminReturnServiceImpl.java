@@ -1,5 +1,8 @@
 package com.example.shippingservice.returns.service;
 
+import com.example.shippingservice.client.dto.BulkUploadItem;
+import com.example.shippingservice.client.dto.BulkUploadResponse;
+import com.example.shippingservice.client.dto.BulkUploadResult;
 import com.example.shippingservice.client.dto.PageResponse;
 import com.example.shippingservice.domain.entity.Outbox;
 import com.example.shippingservice.global.common.EventTypeConstants;
@@ -14,6 +17,7 @@ import com.example.shippingservice.returns.repository.OrderReturnRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.ShippingStatus;
 import com.example.shippingservice.shipping.repository.OrderShippingRepository;
+import com.example.shippingservice.shipping.service.MockDeliveryService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -35,6 +40,7 @@ public class AdminReturnServiceImpl implements AdminReturnService {
     private final OrderShippingRepository orderShippingRepository;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
+    private final MockDeliveryService mockDeliveryService;
 
     @Override
     public PageResponse<AdminReturnResponse> getReturns(String returnStatus, String orderNumber, Pageable pageable) {
@@ -61,6 +67,7 @@ public class AdminReturnServiceImpl implements AdminReturnService {
                     "반품 신청 상태에서만 승인할 수 있습니다. 현재 상태: " + orderReturn.getReturnStatus());
         }
 
+        // 회수지(창고) 주소 설정
         orderReturn.updateReturnAddress(
                 request.getReceiverName(),
                 request.getReceiverPhone(),
@@ -69,9 +76,44 @@ public class AdminReturnServiceImpl implements AdminReturnService {
         );
         orderReturn.updateReturnStatus(ReturnStatus.RETURN_APPROVED);
 
+        // Mock 택배사 API로 회수 운송장 자동 발급
+        String trackingNumber = issueReturnPickupTrackingNumber(orderReturn);
+        if (trackingNumber != null) {
+            orderReturn.updateTrackingInfo("CJ대한통운", trackingNumber);
+            log.info("반품 회수 운송장 발급 완료 - returnId={}, trackingNumber={}", returnId, trackingNumber);
+        } else {
+            log.warn("반품 회수 운송장 발급 실패 - returnId={}, 수동 처리가 필요합니다.", returnId);
+        }
+
         log.info("반품 승인 완료 - returnId={}, orderId={}", returnId, orderReturn.getOrderId());
 
         return AdminReturnResponse.from(orderReturn);
+    }
+
+    /**
+     * 반품 회수 운송장 발급
+     * Mock 택배사 API를 통해 회수 지시를 내리고 운송장 번호를 발급받습니다.
+     * 택배 기사가 사용자 주소로 방문하여 물품을 회수해 창고로 배송합니다.
+     */
+    private String issueReturnPickupTrackingNumber(OrderReturn orderReturn) {
+        BulkUploadItem item = BulkUploadItem.builder()
+                .receiverName(orderReturn.getReceiverName())
+                .receiverPhone1(orderReturn.getReceiverPhone())
+                .receiverAddress(orderReturn.getReturnAddress())
+                .goodsName("반품회수")
+                .goodsQty(1)
+                .build();
+
+        BulkUploadResponse response = mockDeliveryService.bulkUpload(List.of(item));
+
+        if (response.getIsSuccess() && !response.getResults().isEmpty()) {
+            BulkUploadResult result = response.getResults().get(0);
+            if (result.getIsSuccess()) {
+                return result.getTrackingNumber();
+            }
+        }
+
+        return null;
     }
 
     @Override
