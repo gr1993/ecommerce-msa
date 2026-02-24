@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Empty, message, Modal, Form, Input, Select, Descriptions, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { UndoOutlined, EyeOutlined, SwapOutlined } from '@ant-design/icons'
+import { getReturnableShippings, type MarketShippingResponse } from '../../../api/shippingApi'
 import './MarketMyPageReturns.css'
 
 const { TabPane } = Tabs
@@ -218,66 +219,45 @@ function MarketMyPageReturns() {
 
   const loadReturnableOrders = async () => {
     try {
-      // TODO: API 호출로 반품 신청 가능한 주문 가져오기
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      const sampleOrders: ReturnableOrder[] = [
-        {
-          order_id: '5',
-          order_number: 'ORD-20240105-005',
-          order_status: 'DELIVERED',
-          total_amount: 200000,
-          ordered_at: '2024-01-05 11:00:00',
-          delivered_at: '2024-01-07 15:00:00',
-          items: [
-            {
-              order_item_id: '5',
-              product_id: '6',
-              product_name: '프리미엄 티셔츠',
-              product_code: 'PRD-005',
-              quantity: 1,
-              price: 200000,
-              total_price: 200000
-            }
-          ]
-        }
-      ]
-      
-      setReturnableOrders(sampleOrders)
+      const data = await getReturnableShippings()
+
+      // 백엔드 응답을 프론트엔드 형식으로 매핑
+      const mappedOrders: ReturnableOrder[] = data.map((item: MarketShippingResponse) => ({
+        order_id: String(item.orderId),
+        order_number: item.orderNumber,
+        order_status: item.shippingStatus as 'DELIVERED' | 'SHIPPING',
+        total_amount: 0,
+        ordered_at: item.createdAt,
+        delivered_at: item.updatedAt,
+        items: []
+      }))
+
+      setReturnableOrders(mappedOrders)
     } catch (error) {
+      console.error('반품 신청 가능한 주문 조회 오류:', error)
       message.error('반품 신청 가능한 주문을 불러오는데 실패했습니다.')
     }
   }
 
   const loadExchangeableOrders = async () => {
     try {
-      // TODO: API 호출로 교환 신청 가능한 주문 가져오기
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      const sampleOrders: ReturnableOrder[] = [
-        {
-          order_id: '6',
-          order_number: 'ORD-20240106-006',
-          order_status: 'DELIVERED',
-          total_amount: 180000,
-          ordered_at: '2024-01-06 09:00:00',
-          delivered_at: '2024-01-08 12:00:00',
-          items: [
-            {
-              order_item_id: '6',
-              product_id: '7',
-              product_name: '스타일리시한 바지',
-              product_code: 'PRD-006',
-              quantity: 1,
-              price: 180000,
-              total_price: 180000
-            }
-          ]
-        }
-      ]
-      
-      setExchangeableOrders(sampleOrders)
+      // 교환 신청 가능 목록도 반품 신청 가능 목록과 동일 (배송 완료 + 진행 중인 반품/교환 없음)
+      const data = await getReturnableShippings()
+
+      // 백엔드 응답을 프론트엔드 형식으로 매핑
+      const mappedOrders: ReturnableOrder[] = data.map((item: MarketShippingResponse) => ({
+        order_id: String(item.orderId),
+        order_number: item.orderNumber,
+        order_status: item.shippingStatus as 'DELIVERED' | 'SHIPPING',
+        total_amount: 0,
+        ordered_at: item.createdAt,
+        delivered_at: item.updatedAt,
+        items: []
+      }))
+
+      setExchangeableOrders(mappedOrders)
     } catch (error) {
+      console.error('교환 신청 가능한 주문 조회 오류:', error)
       message.error('교환 신청 가능한 주문을 불러오는데 실패했습니다.')
     }
   }
@@ -439,7 +419,7 @@ function MarketMyPageReturns() {
       title: '주문번호',
       dataIndex: 'order_number',
       key: 'order_number',
-      width: 180,
+      width: 200,
       render: (text: string) => <strong>{text}</strong>
     },
     {
@@ -447,40 +427,23 @@ function MarketMyPageReturns() {
       dataIndex: 'ordered_at',
       key: 'ordered_at',
       width: 180,
-      render: (text: string) => text.split(' ')[0]
+      render: (text: string) => text ? text.split('T')[0] : '-'
     },
     {
       title: '배송완료일',
       dataIndex: 'delivered_at',
       key: 'delivered_at',
       width: 180,
-      render: (text: string | undefined) => text ? text.split(' ')[0] : <span style={{ color: '#999' }}>-</span>
+      render: (text: string | undefined) => text ? text.split('T')[0] : <span style={{ color: '#999' }}>-</span>
     },
     {
-      title: '주문 상품',
-      key: 'items',
-      render: (_, record: ReturnableOrder) => (
-        <div>
-          {record.items.length > 0 && (
-            <div>
-              <div>{record.items[0].product_name}</div>
-              {record.items.length > 1 && (
-                <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                  외 {record.items.length - 1}개
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+      title: '상태',
+      dataIndex: 'order_status',
+      key: 'order_status',
+      width: 100,
+      render: (status: string) => (
+        <Tag color="green">{status === 'DELIVERED' ? '배송완료' : status}</Tag>
       )
-    },
-    {
-      title: '주문금액',
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      width: 120,
-      align: 'right',
-      render: (amount: number) => <strong>{amount.toLocaleString()}원</strong>
     },
     {
       title: '관리',
@@ -588,7 +551,7 @@ function MarketMyPageReturns() {
       title: '주문번호',
       dataIndex: 'order_number',
       key: 'order_number',
-      width: 180,
+      width: 200,
       render: (text: string) => <strong>{text}</strong>
     },
     {
@@ -596,40 +559,23 @@ function MarketMyPageReturns() {
       dataIndex: 'ordered_at',
       key: 'ordered_at',
       width: 180,
-      render: (text: string) => text.split(' ')[0]
+      render: (text: string) => text ? text.split('T')[0] : '-'
     },
     {
       title: '배송완료일',
       dataIndex: 'delivered_at',
       key: 'delivered_at',
       width: 180,
-      render: (text: string | undefined) => text ? text.split(' ')[0] : <span style={{ color: '#999' }}>-</span>
+      render: (text: string | undefined) => text ? text.split('T')[0] : <span style={{ color: '#999' }}>-</span>
     },
     {
-      title: '주문 상품',
-      key: 'items',
-      render: (_, record: ReturnableOrder) => (
-        <div>
-          {record.items.length > 0 && (
-            <div>
-              <div>{record.items[0].product_name}</div>
-              {record.items.length > 1 && (
-                <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                  외 {record.items.length - 1}개
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+      title: '상태',
+      dataIndex: 'order_status',
+      key: 'order_status',
+      width: 100,
+      render: (status: string) => (
+        <Tag color="green">{status === 'DELIVERED' ? '배송완료' : status}</Tag>
       )
-    },
-    {
-      title: '주문금액',
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      width: 120,
-      align: 'right',
-      render: (amount: number) => <strong>{amount.toLocaleString()}원</strong>
     },
     {
       title: '관리',

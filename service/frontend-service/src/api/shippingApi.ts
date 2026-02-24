@@ -249,3 +249,36 @@ export const getMyShippings = async (
     throw new Error('배송 조회 중 오류가 발생했습니다.')
   }
 }
+
+/**
+ * 반품/교환 신청 가능한 배송 목록 조회
+ *
+ * 배송 완료(DELIVERED) 상태이며 진행 중인 반품/교환이 없는 주문 목록을 반환합니다.
+ *
+ * @returns 반품/교환 신청 가능한 배송 목록
+ */
+export const getReturnableShippings = async (): Promise<MarketShippingResponse[]> => {
+  try {
+    const url = `${API_BASE_URL}/api/shipping/returnable`
+
+    const response = await userFetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      throw new Error(error.message || `반품 가능 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: MarketShippingResponse[] = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get returnable shippings error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('반품 가능 목록 조회 중 오류가 발생했습니다.')
+  }
+}
