@@ -6,6 +6,12 @@
 그리고 배송사 연동 상태를 통해 실제 택배가 현재 어떤 단계까지 진행되었는지를 보다 상세하게 파악할 수 있다.  
 
 
+### 원배송과 클레임 도메인의 분리
+* 상태 관리의 주체 분리 : 주문 서비스(Order Service)는 주문 생성부터 교환/반품까지 전체 생명주기(Lifecycle)를 총괄한다. 반면 배송 서비스(Shipping Service) 내에서는 원배송(order_shipping)과 클레임(order_return, order_exchange) 테이블을 물리적으로 완전히 분리하여 관리한다.
+* 원배송의 생명주기 종료 : 배송 도메인의 책임은 상품이 고객에게 도달하는 '배송 완료' 시점에서 끝난다. 따라서 원배송 테이블은 이후 발생하는 반품이나 교환 프로세스의 영향을 받지 않으며, 클레임 처리는 전적으로 반품/교환 전용 테이블과 그 이력(History) 테이블에서 독립적으로 수행된다. (※ 이상적인 MSA 환경이라면 클레임 도메인을 별도의 서비스로 분리하는 것이 정석)
+* 조회(Read)와 쓰기(Write)의 분리 : 데이터 저장 구조는 도메인별로 분리되어 있지만, 사용자나 관리자가 '통합 배송 이력'을 조회할 때는 프론트엔드의 요구사항에 맞춰 데이터를 병합하여 제공한다. 단일 DB 환경이라면 UNION 쿼리를, 서비스가 분리된 환경이라면 API 단에서 이력을 조합(Aggregation)하여 시간순으로 일관된 응답을 내려줄 수 있다.
+
+
 ### Full Sync API
 Full Sync API는 shipping-service 구축 시, order-service에 존재하는 배송 대상 주문 데이터를 이관하기  
 위해 사용된다. 상품 Full Sync API를 구현했던 방식과 동일하게 멱등성을 보장하여, 동일한 데이터를 여러 번  
@@ -23,7 +29,7 @@ Full Sync API는 shipping-service 구축 시, order-service에 존재하는 배�
 
 이 테스트는 E2E 테스트를 목적으로 하며, 배송 로직 검증과 함께 각 서비스 간의 일관성 있는 흐름을 검증하는 것이 목표다.  
 만약 배송 로직만 단독으로 검증하려는 경우에는, 테스트 코드에서 외부 서비스 및 모듈을 Mock이나 Stub으로 처리하여  
-간단하게 테스트할 수도 있다. 마지막으로, 테스트 후 데이터를 깔끔하게 정리할 수 있도록 테스트 데이터 삭제 API도 구현하였다.  
+간단하게 테스트할 수도 있다. 마지막으로, 테스트 후 데이터를 깔끔하게 정리할 수 있도록 테스트 데이터 삭제 API도 구현하였다.
 
 
 ### 배송 프로세스
@@ -117,27 +123,22 @@ sequenceDiagram
 
 
 ### 반품 프로세스
-반품은 배송 완료(`DELIVERED`) 상태인 주문에 대해 사용자가 반품을 신청하고,
-관리자가 승인하면 **시스템이 자동으로 택배사에 회수 지시**를 내려 물품을 회수한 뒤 반품을 완료하는 흐름이다.
-반품이 완료되면 `order_shipping`의 상태도 `RETURNED`로 변경된다.
+반품은 배송 완료(DELIVERED)된 주문에 대해 사용자가 반품을 신청하고, 관리자가 승인하면  
+**시스템이 자동으로 택배사에 회수 지시**를 내려 물품을 회수하는 흐름이다. 반품의 모든 생명주기는 원배송을  
+오염시키지 않고 전용 클레임 테이블(order_return, order_return_history)에서 독립적으로 관리된다.  
 
-기존 아키텍처와 동일하게 **사용자의 반품 신청은 Order-Service를 경유**하여 들어온다.
-Order-Service가 주문 상태를 검증한 뒤 Shipping-Service의 내부 API를 Feign으로 호출하여
-반품 레코드를 생성한다. 이후 물류 관리(승인, 거절, 완료)는 관리자가 Shipping-Service에서 직접 처리한다.
+사용자의 반품 신청은 기존과 동일하게 Order-Service를 경유하여 들어온다. Order-Service가 주문 상태를  
+검증한 뒤 Shipping-Service의 내부 API를 호출(Feign)하여 반품 레코드를 생성한다.  
 
-반품 신청 시 해당 주문에 대한 진행 중인 반품 또는 교환 건이 없어야 한다.
-관리자가 반품을 거절하는 경우도 존재하며, 이를 위해 `ReturnStatus`에 `RETURN_REJECTED` 상태가 필요하다.
-
-**현대적 반품 프로세스의 핵심:** 관리자가 반품을 승인하면 Mock 택배사 API를 통해 회수 운송장이 자동 발급된다.
-사용자는 물품을 문앞에 두기만 하면 택배 기사가 방문하여 회수해 가므로, 사용자가 직접 택배를 붙이거나 운송장을 등록할 필요가 없다.
+현대적 반품 프로세스의 핵심: 관리자가 반품을 승인하면 Mock 택배사 API를 통해 회수 운송장이 자동 발급된다.  
+이후 반품 전용 스케줄러(ReturnTrackingScheduler)가 택배사 API를 폴링하여 물품 수거(RETURN_IN_TRANSIT)  
+상태를 추적하고, 카프카(Kafka) 이벤트를 통해 Order-Service로 즉각 동기화한다. 사용자는 문앞에 물품을 두기만  
+하면 되며, 직접 운송장을 등록할 필요가 없다.  
 
 #### 상태 흐름
 ```
-RETURN_REQUESTED → RETURN_APPROVED → RETURNED
+RETURN_REQUESTED → RETURN_APPROVED → RETURN_IN_TRANSIT → RETURNED
                  ↘ RETURN_REJECTED
-
-Order Service 주문 상태:
-DELIVERED → RETURN_REQUESTED → RETURN_APPROVED → RETURNED
 ```
 
 #### 시퀀스 다이어그램
@@ -163,34 +164,44 @@ sequenceDiagram
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/approve
     Ship->>Ship: 반품 수거지 정보 설정 (창고 주소)
     Ship->>Ship: order_return 상태 변경 (RETURN_APPROVED)
-    Ship->>Ship: order_shipping_history 이력 추가
     Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수 운송장 발급)
     Mock-->>Ship: 운송장 번호 반환
-    Ship->>Ship: 운송장 번호 저장
+    Ship->>Ship: order_return에 운송장 번호 저장
     Ship->>Broker: Publish (return.approved)
     Ship-->>Admin: 승인 완료 + 회수 지시 완료
-
-    Note over Broker, Order: [Phase 2-2: 반품 승인 상태 동기화]
     Broker-->>Order: Consume (return.approved)
     Order->>Order: 주문 상태 변경 (RETURN_REQUESTED → RETURN_APPROVED)
 
-    Note over Admin, Ship: [Phase 2-3: 관리자 반품 거절 시]
+    Note over Admin, Ship: [Phase 2-1: 관리자 반품 거절 시]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/reject
-    Ship->>Ship: 상태 변경 (RETURN_REJECTED, 끝)
+    Ship->>Ship: order_return 상태 변경 (RETURN_REJECTED)
+    Ship->>Broker: Publish (return.rejected)
+    Broker-->>Order: Consume (return.rejected)
+    Order->>Order: 주문 상태 복구 (RETURN_REQUESTED → DELIVERED)
 
-    Note over User: [Phase 3: 사용자 물품 준비]
-    User->>User: 물품을 문앞에 두면 택배 기사가 회수
+    Note over User: [Phase 3: 사용자 물품 인계]
+    User->>User: 물품을 문앞에 두면 택배 기사가 방문하여 수거
 
-    Note over Admin, Ship: [Phase 4: 반품 완료 처리]
+    Note over Ship, Mock: [Phase 4: 반품 수거 추적 및 상태 동기화]
+    loop 주기적 폴링 (ReturnTrackingScheduler)
+        Ship->>Mock: POST /api/v1/trackingInfo (배송 조회 요청)
+        Mock-->>Ship: Response (status: IN_TRANSIT)
+        
+        Ship->>Ship: order_return 상태 변경 (RETURN_IN_TRANSIT)
+        Ship->>Broker: Publish (return.in_transit)
+        Broker-->>Order: Consume (return.in_transit)
+        Order->>Order: 주문 상태 변경 (RETURN_APPROVED → RETURN_IN_TRANSIT)
+    end
+
+    Note over Admin, Ship: [Phase 5: 반품 완료 처리 (창고 도착 및 검수)]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/complete
     Ship->>Ship: order_return 상태 변경 (RETURNED)
-    Ship->>Ship: order_shipping 상태 변경 (RETURNED)
-    Ship-->>Admin: 반품 완료
-
-    Note over Ship, Order: [Phase 5: 반품 완료 상태 동기화]
+    Note over Ship: 원배송(order_shipping) 데이터는 DELIVERED 상태로 보존됨 (수정 안 함)
     Ship->>Broker: Publish (return.completed)
+    Ship-->>Admin: 반품 완료
+    
     Broker-->>Order: Consume (return.completed)
-    Order->>Order: 주문 상태 변경 (RETURN_APPROVED → RETURNED)
+    Order->>Order: 주문 상태 변경 (RETURN_IN_TRANSIT → RETURNED)
 ```
 
 
