@@ -3,7 +3,7 @@
 
 
 ### 주문 상태 머신 다이어그램
-```shell
+```mermaid
 stateDiagram-v2
     %% 초기 상태
     [*] --> CREATED : 주문 생성
