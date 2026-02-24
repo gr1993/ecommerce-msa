@@ -77,20 +77,23 @@ public class AdminReturnServiceImpl implements AdminReturnService {
         );
         orderReturn.updateReturnStatus(ReturnStatus.RETURN_APPROVED);
 
+        // order_shipping 조회
+        OrderShipping shipping = orderShippingRepository.findByOrderId(orderReturn.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "배송 정보를 찾을 수 없습니다. orderId=" + orderReturn.getOrderId()));
+
         // Mock 택배사 API로 회수 운송장 자동 발급
         String trackingNumber = issueReturnPickupTrackingNumber(orderReturn);
         if (trackingNumber != null) {
             orderReturn.updateTrackingInfo("CJ대한통운", trackingNumber);
+            // order_shipping의 tracking_number도 반품 회수 운송장으로 변경
+            shipping.updateTrackingInfo("CJ대한통운", trackingNumber);
             log.info("반품 회수 운송장 발급 완료 - returnId={}, trackingNumber={}", returnId, trackingNumber);
         } else {
             log.warn("반품 회수 운송장 발급 실패 - returnId={}, 수동 처리가 필요합니다.", returnId);
         }
 
-        // order_shipping에 이력 추가 (상태는 DELIVERED 유지)
-        OrderShipping shipping = orderShippingRepository.findByOrderId(orderReturn.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "배송 정보를 찾을 수 없습니다. orderId=" + orderReturn.getOrderId()));
-
+        // order_shipping에 이력 추가 (상태는 DELIVERED 유지, tracking_number는 반품 회수 운송장)
         String remarkMessage = trackingNumber != null
                 ? "반품 승인됨 - 회수 운송장: " + trackingNumber
                 : "반품 승인됨 - 운송장 미발급";

@@ -106,6 +106,7 @@ public class OrderShipping {
                 .location(location)
                 .remark(remark)
                 .trackingKind(trackingKind)
+                .trackingNumber(this.trackingNumber)
                 .changedBy(changedBy)
                 .build();
         this.shippingHistories.add(history);
@@ -119,6 +120,7 @@ public class OrderShipping {
                 .location(location)
                 .remark(remark)
                 .trackingKind(trackingKind)
+                .trackingNumber(this.trackingNumber)
                 .changedBy("DELIVERY_API")
                 .build();
         this.shippingHistories.add(history);

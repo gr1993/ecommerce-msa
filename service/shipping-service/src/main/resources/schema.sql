@@ -34,6 +34,7 @@ CREATE TABLE order_shipping_history (
     location VARCHAR(100) COMMENT '배송 위치 (외부 API where 필드)',
     remark VARCHAR(200) COMMENT '배송 상세 설명 (외부 API remark 필드)',
     tracking_kind VARCHAR(30) COMMENT '외부 배송사 상태 코드 (ACCEPTED, PICKED_UP 등)',
+    tracking_number VARCHAR(100) COMMENT '이력 기록 시점의 운송장 번호 (배송/반품 구분용)',
     changed_by VARCHAR(50) COMMENT '변경자 (관리자 계정 등)',
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '변경 일시',
     CONSTRAINT fk_shipping_history_shipping

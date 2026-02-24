@@ -42,6 +42,9 @@ public class OrderShippingHistory {
     @Column(name = "tracking_kind", length = 30)
     private String trackingKind;
 
+    @Column(name = "tracking_number", length = 100)
+    private String trackingNumber;
+
     @Column(name = "changed_by", length = 50)
     private String changedBy;
 
@@ -52,13 +55,14 @@ public class OrderShippingHistory {
     @Builder
     public OrderShippingHistory(OrderShipping orderShipping, ShippingStatus previousStatus,
                                  ShippingStatus newStatus, String location, String remark,
-                                 String trackingKind, String changedBy) {
+                                 String trackingKind, String trackingNumber, String changedBy) {
         this.orderShipping = orderShipping;
         this.previousStatus = previousStatus;
         this.newStatus = newStatus;
         this.location = location;
         this.remark = remark;
         this.trackingKind = trackingKind;
+        this.trackingNumber = trackingNumber;
         this.changedBy = changedBy;
     }
 }
