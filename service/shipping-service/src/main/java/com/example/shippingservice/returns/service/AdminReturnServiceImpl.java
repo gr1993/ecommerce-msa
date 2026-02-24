@@ -12,6 +12,7 @@ import com.example.shippingservice.returns.dto.request.AdminReturnRejectRequest;
 import com.example.shippingservice.returns.dto.response.AdminReturnResponse;
 import com.example.shippingservice.returns.entity.OrderReturn;
 import com.example.shippingservice.returns.enums.ReturnStatus;
+import com.example.shippingservice.domain.event.ReturnApprovedEvent;
 import com.example.shippingservice.domain.event.ReturnCompletedEvent;
 import com.example.shippingservice.returns.repository.OrderReturnRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
@@ -85,7 +86,26 @@ public class AdminReturnServiceImpl implements AdminReturnService {
             log.warn("반품 회수 운송장 발급 실패 - returnId={}, 수동 처리가 필요합니다.", returnId);
         }
 
-        log.info("반품 승인 완료 - returnId={}, orderId={}", returnId, orderReturn.getOrderId());
+        // order_shipping에 이력 추가 (상태는 DELIVERED 유지)
+        OrderShipping shipping = orderShippingRepository.findByOrderId(orderReturn.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "배송 정보를 찾을 수 없습니다. orderId=" + orderReturn.getOrderId()));
+
+        String remarkMessage = trackingNumber != null
+                ? "반품 승인됨 - 회수 운송장: " + trackingNumber
+                : "반품 승인됨 - 운송장 미발급";
+
+        shipping.addTrackingDetail(
+                "반품 수거지",
+                remarkMessage,
+                "RETURN_APPROVED"
+        );
+
+        log.info("반품 승인 완료 - returnId={}, orderId={}, shippingId={}",
+                returnId, orderReturn.getOrderId(), shipping.getShippingId());
+
+        // return.approved 이벤트 Outbox 저장
+        saveReturnApprovedOutbox(orderReturn, trackingNumber);
 
         return AdminReturnResponse.from(orderReturn);
     }
@@ -163,6 +183,32 @@ public class AdminReturnServiceImpl implements AdminReturnService {
         return AdminReturnResponse.from(orderReturn);
     }
 
+    private void saveReturnApprovedOutbox(OrderReturn orderReturn, String trackingNumber) {
+        ReturnApprovedEvent event = ReturnApprovedEvent.builder()
+                .returnId(orderReturn.getReturnId())
+                .orderId(orderReturn.getOrderId())
+                .userId(orderReturn.getUserId())
+                .courier(orderReturn.getCourier())
+                .trackingNumber(trackingNumber)
+                .approvedAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Return")
+                    .aggregateId(String.valueOf(orderReturn.getReturnId()))
+                    .eventType(EventTypeConstants.TOPIC_RETURN_APPROVED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("ReturnApprovedEvent Outbox 저장 완료: returnId={}", orderReturn.getReturnId());
+        } catch (JsonProcessingException e) {
+            log.error("ReturnApprovedEvent 직렬화 실패: returnId={}", orderReturn.getReturnId(), e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
+    }
+
     private void saveReturnCompletedOutbox(OrderReturn orderReturn) {
         ReturnCompletedEvent event = ReturnCompletedEvent.builder()
                 .returnId(orderReturn.getReturnId())
@@ -181,7 +227,7 @@ public class AdminReturnServiceImpl implements AdminReturnService {
                     .payload(payload)
                     .build();
             outboxRepository.save(outbox);
-            log.debug("Outbox 저장 완료: returnId={}", orderReturn.getReturnId());
+            log.debug("ReturnCompletedEvent Outbox 저장 완료: returnId={}", orderReturn.getReturnId());
         } catch (JsonProcessingException e) {
             log.error("ReturnCompletedEvent 직렬화 실패: returnId={}", orderReturn.getReturnId(), e);
             throw new RuntimeException("이벤트 직렬화 실패", e);

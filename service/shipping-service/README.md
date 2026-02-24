@@ -135,6 +135,9 @@ Order-Service가 주문 상태를 검증한 뒤 Shipping-Service의 내부 API�
 ```
 RETURN_REQUESTED → RETURN_APPROVED → RETURNED
                  ↘ RETURN_REJECTED
+
+Order Service 주문 상태:
+DELIVERED → RETURN_REQUESTED → RETURN_APPROVED → RETURNED
 ```
 
 #### 시퀀스 다이어그램
@@ -159,13 +162,19 @@ sequenceDiagram
     Note over Admin, Mock: [Phase 2: 관리자 반품 승인 + 회수 지시]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/approve
     Ship->>Ship: 반품 수거지 정보 설정 (창고 주소)
-    Ship->>Ship: 상태 변경 (RETURN_APPROVED)
+    Ship->>Ship: order_return 상태 변경 (RETURN_APPROVED)
+    Ship->>Ship: order_shipping_history 이력 추가
     Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수 운송장 발급)
     Mock-->>Ship: 운송장 번호 반환
     Ship->>Ship: 운송장 번호 저장
+    Ship->>Broker: Publish (return.approved)
     Ship-->>Admin: 승인 완료 + 회수 지시 완료
 
-    Note over Admin, Ship: [Phase 2-1: 관리자 반품 거절 시]
+    Note over Broker, Order: [Phase 2-2: 반품 승인 상태 동기화]
+    Broker-->>Order: Consume (return.approved)
+    Order->>Order: 주문 상태 변경 (RETURN_REQUESTED → RETURN_APPROVED)
+
+    Note over Admin, Ship: [Phase 2-3: 관리자 반품 거절 시]
     Admin->>Ship: PATCH /api/admin/shipping/returns/{returnId}/reject
     Ship->>Ship: 상태 변경 (RETURN_REJECTED, 끝)
 
@@ -181,7 +190,7 @@ sequenceDiagram
     Note over Ship, Order: [Phase 5: 반품 완료 상태 동기화]
     Ship->>Broker: Publish (return.completed)
     Broker-->>Order: Consume (return.completed)
-    Order->>Order: 주문 상태 변경 (RETURNED)
+    Order->>Order: 주문 상태 변경 (RETURN_APPROVED → RETURNED)
 ```
 
 
@@ -319,5 +328,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | shipping.started, shipping.delivered, return.completed |
+| 발행(Published) | shipping.started, shipping.delivered, return.approved, return.completed |
 | 구독(Subscribed) | order.created, order.cancelled |
