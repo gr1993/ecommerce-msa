@@ -2,6 +2,39 @@
 주문 데이터를 생성하고 관리를 담당하는 MSA 서비스
 
 
+### 주문 상태 머신 다이어그램
+```shell
+stateDiagram-v2
+    %% 초기 상태
+    [*] --> CREATED : 주문 생성
+
+    %% 결제 단계
+    CREATED --> PAID : 결제 완료
+    CREATED --> FAILED : 결제/재고차감 실패
+    CREATED --> CANCELED : 결제 전 취소
+
+    %% 배송 단계
+    PAID --> SHIPPING : 상품 발송
+    PAID --> CANCELED : 배송 전 취소 (환불)
+    
+    SHIPPING --> DELIVERED : 배송 완료
+
+    %% 반품(역방향 물류) 단계
+    DELIVERED --> RETURN_REQUESTED : 반품 신청
+    
+    RETURN_REQUESTED --> RETURN_APPROVED : 관리자 승인
+    RETURN_REQUESTED --> DELIVERED : 관리자 거절 (원상태 복구)
+
+    RETURN_APPROVED --> RETURN_IN_TRANSIT : 반품 수거 중 (택배사 연동)
+    RETURN_IN_TRANSIT --> RETURNED : 창고 도착 및 검수 완료 (환불)
+
+    %% 종료 상태
+    FAILED --> [*]
+    CANCELED --> [*]
+    RETURNED --> [*]
+```
+
+
 ### 주문 취소 프로세스
 ```mermaid
 sequenceDiagram
