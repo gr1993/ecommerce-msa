@@ -206,22 +206,25 @@ sequenceDiagram
 
 
 ### 교환 프로세스
-교환은 배송 완료(`DELIVERED`) 상태인 주문에 대해 사용자가 교환을 신청하고,
-관리자가 승인한 뒤 기존 물품을 회수하고 새 물품을 발송하여 교환을 완료하는 흐름이다.
+교환은 배송 완료(DELIVERED) 상태인 주문에 대해 사용자가 교환을 신청하고, 관리자가 승인하면 기존 물품을
+먼저 회수(Return)하고 검수를 거친 뒤, 새 물품을 재발송(Reship)하여 완료하는 복잡한 흐름을 가진다.
 
-반품과 마찬가지로 **사용자의 교환 신청은 Order-Service를 경유**한다.
-교환은 반품과 달리 **회수 + 재발송**이 모두 필요하므로 프로세스가 더 복잡하다.
-관리자가 교환을 승인하면 Mock 택배사 API를 통해 교환품의 송장을 자동 발급한다.
-교환이 완료되면 기존 `order_shipping`의 상태는 변경하지 않으며(`DELIVERED` 유지),
-교환 배송 정보는 `order_exchange` 테이블에서 독립적으로 관리한다.
+반품과 달리 회수용 운송장과 재발송용 운송장 두 개가 발급되며, 각각의 배송 상태를 순차적으로 추적해야 한다.  
+교환의 모든 생명주기는 원배송(order_shipping)을 오염시키지 않고 전용 클레임 테이블(order_exchange,  
+order_exchange_history)에서 독립적으로 관리된다.
 
-교환 신청 시 해당 주문에 대한 진행 중인 반품 또는 교환 건이 없어야 한다.
-관리자가 교환을 거절하는 경우도 존재하며, 이를 위해 `ExchangeStatus`에 `EXCHANGE_REJECTED` 상태가 필요하다.
+교환 신청은 Order-Service를 경유하며, 해당 주문에 진행 중인 다른 클레임(반품/교환)이 없어야 한다.
+스케줄러는 먼저 회수 상태를 폴링하여 완료를 감지하고, 이후 관리자의 검수/출고 처리가 이뤄지면 새 물품의 배송
+상태를 폴링하여 최종 완료 처리한다.
 
 #### 상태 흐름
 ```
-EXCHANGE_REQUESTED → EXCHANGE_APPROVED → EXCHANGED
-                   ↘ EXCHANGE_REJECTED
+EXCHANGE_REQUESTED (교환 신청) 
+  → EXCHANGE_APPROVED (승인 및 회수/발송 운송장 발급) 
+  → EXCHANGE_COLLECTING (기존 물품 회수 중) 
+  → EXCHANGE_RETURN_COMPLETED (회수 완료 및 검수 대기)
+  → EXCHANGE_SHIPPING (새 물품 발송 중)
+  → EXCHANGED (교환 최종 완료)
 ```
 
 #### 시퀀스 다이어그램
@@ -236,50 +239,54 @@ sequenceDiagram
 
     Note over User, Ship: [Phase 1: 교환 신청 - Order Service 경유]
     User->>Order: POST /api/orders/{orderId}/exchanges
-    Order->>Order: 주문 소유권 및 상태 검증 (DELIVERED)
+    Order->>Order: 상태 검증 (DELIVERED)
     Order->>Ship: POST /internal/shipping/exchanges (Feign)
     Ship->>Ship: 진행 중인 반품/교환 건 존재 여부 확인
     Ship->>Ship: order_exchange 생성 (EXCHANGE_REQUESTED)
-    Ship-->>Order: 교환 생성 결과 반환
+    Ship-->>Order: 200 OK
     Order-->>User: 교환 신청 완료
 
-    Note over Admin, Mock: [Phase 2: 관리자 교환 승인 + 교환품 발송 지시]
+    Note over Admin, Mock: [Phase 2: 승인 및 투트랙(회수/발송) 운송장 발급]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/approve
-    Ship->>Ship: 교환 배송지 및 수거지 정보 설정
-    Ship->>Ship: 상태 변경 (EXCHANGE_APPROVED)
-    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (교환 회수/발송 운송장 발급)
-    Mock-->>Ship: 운송장 번호 반환
-    Ship->>Ship: 운송장 번호 저장
-    Ship-->>Admin: 승인 완료 + 교환품 발송 지시 완료
+    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수용 1개, 발송용 1개)
+    Mock-->>Ship: 회수용 운송장(A), 발송용 운송장(B) 번호 반환
+    Ship->>Ship: order_exchange 상태 변경 (EXCHANGE_APPROVED) 및 운송장 저장
+    Ship->>Broker: Publish (exchange.approved)
+    Broker-->>Order: Consume (주문 상태 동기화)
 
-    Note over Admin, Ship: [Phase 2-1: 관리자 교환 거절 시]
-    Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/reject
-    Ship->>Ship: 상태 변경 (EXCHANGE_REJECTED, 끝)
+    Note over Ship, Mock: [Phase 3: 기존 물품 회수 추적 (Collection)]
+    loop 교환 회수 폴링 (ExchangeCollectionScheduler)
+        Ship->>Mock: POST /api/v1/trackingInfo (회수용 운송장 A 조회)
+        Mock-->>Ship: Response (status: IN_TRANSIT)
+        Ship->>Ship: 상태 변경 (EXCHANGE_COLLECTING)
+        Ship->>Broker: Publish (exchange.collecting)
+        
+        Mock-->>Ship: Response (status: DELIVERED - 창고 도착)
+        Ship->>Ship: 상태 변경 (EXCHANGE_RETURN_COMPLETED)
+        Ship->>Broker: Publish (exchange.return_completed)
+        Broker-->>Order: Consume (주문 상태 동기화)
+    end
 
-    Note over User: [Phase 3: 사용자 물품 인계 및 새 물품 수령]
-    User->>User: 기존 물품 반납 및 새 교환 물품 수령 (택배 기사 방문)
+    Note over Admin, Ship: [Phase 4: 물품 검수 및 새 물품 출고 지시]
+    Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/dispatch
+    Ship->>Ship: 새 물품 출고 처리 (물리적 발송 시작)
+    Ship->>Broker: Publish (exchange.dispatched)
+    Broker-->>Order: Consume (주문 상태 동기화)
 
-    Note over Admin, Ship: [Phase 4: 교환 완료 처리]
-    Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/complete
-    Ship->>Ship: order_exchange 상태 변경 (EXCHANGED)
-    Ship->>Ship: order_shipping 상태 변경 (EXCHANGED)
-    Ship-->>Admin: 교환 완료
-
-    Note over Ship, Order: [Phase 5: 교환 완료 상태 동기화]
-    Ship->>Broker: Publish (exchange.completed)
-    Broker-->>Order: Consume (exchange.completed)
-    Order->>Order: 주문 상태 변경 (EXCHANGED)
+    Note over Ship, Mock: [Phase 5: 새 물품 배송 추적 (Reshipping)]
+    loop 교환 발송 폴링 (ExchangeDeliveryScheduler)
+        Ship->>Mock: POST /api/v1/trackingInfo (발송용 운송장 B 조회)
+        Mock-->>Ship: Response (status: IN_TRANSIT)
+        Ship->>Ship: 상태 변경 (EXCHANGE_SHIPPING)
+        Ship->>Broker: Publish (exchange.shipping)
+        
+        Mock-->>Ship: Response (status: DELIVERED - 고객 수령)
+        Ship->>Ship: 상태 변경 (EXCHANGED)
+        Note over Ship: 원배송(order_shipping)은 DELIVERED로 보존
+        Ship->>Broker: Publish (exchange.completed)
+        Broker-->>Order: Consume (주문 상태 최종 변경: EXCHANGED)
+    end
 ```
-
-
-### 반품/교환 공통 정책
-- **사용자 신청은 Order-Service를 경유**하여 주문 소유권 및 상태 검증 후 Shipping-Service 내부 API를 Feign으로 호출한다
-- 반품·교환 신청 가능 조건: `order_shipping.shipping_status = DELIVERED`
-- 하나의 주문에 대해 **반품 또는 교환 중 하나만** 진행 가능 (진행 중인 건이 있으면 신규 신청 불가)
-- 거절된 건(`RETURN_REJECTED`, `EXCHANGE_REJECTED`)은 재신청 가능
-- 반품·교환 승인 시 **Mock 택배사 API를 통해 운송장을 자동 발급**한다 (반품은 회수 운송장, 교환은 새 물품 발송 운송장)
-- 사용자는 반품 승인 후 물품을 문앞에 두기만 하면 택배 기사가 회수해 간다 (사용자가 직접 택배를 붙이거나 운송장을 등록할 필요 없음)
-- 물류 조회(반품/교환 목록)와 관리(승인, 거절, 완료)는 Shipping-Service에서 직접 처리한다
 
 
 ### 프로젝트 패키지 구조
