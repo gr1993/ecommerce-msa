@@ -252,6 +252,58 @@ export interface CancelOrderResponse {
 }
 
 /**
+ * 반품 신청 요청 DTO
+ */
+export interface ReturnOrderRequest {
+  /** 반품 사유 */
+  reason?: string
+}
+
+/**
+ * 반품 신청 응답 DTO
+ */
+export interface ReturnOrderResponse {
+  /** 반품 ID */
+  returnId: number
+  /** 주문 ID */
+  orderId: number
+  /** 주문 번호 */
+  orderNumber: string
+  /** 반품 상태 */
+  returnStatus: string
+  /** 반품 사유 */
+  reason?: string
+  /** 신청 일시 */
+  requestedAt: string
+}
+
+/**
+ * 교환 신청 요청 DTO
+ */
+export interface ExchangeOrderRequest {
+  /** 교환 사유 */
+  reason?: string
+}
+
+/**
+ * 교환 신청 응답 DTO
+ */
+export interface ExchangeOrderResponse {
+  /** 교환 ID */
+  exchangeId: number
+  /** 주문 ID */
+  orderId: number
+  /** 주문 번호 */
+  orderNumber: string
+  /** 교환 상태 */
+  exchangeStatus: string
+  /** 교환 사유 */
+  reason?: string
+  /** 신청 일시 */
+  requestedAt: string
+}
+
+/**
  * 주문 취소 (사용자)
  *
  * @param orderId - 주문 ID
@@ -286,6 +338,86 @@ export const cancelOrder = async (
     if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) throw error
     if (error instanceof Error) throw error
     throw new Error('주문 취소 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 반품 신청
+ *
+ * 배송 완료(DELIVERED) 상태의 주문에 대해 반품을 신청합니다.
+ *
+ * @param orderId - 주문 ID
+ * @param reason - 반품 사유
+ * @returns 반품 신청 결과
+ */
+export const requestReturn = async (
+  orderId: number,
+  reason?: string,
+): Promise<ReturnOrderResponse> => {
+  try {
+    const response = await userFetch(`${API_BASE_URL}/api/orders/${orderId}/returns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: reason ? JSON.stringify({ reason }) : '{}',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '반품 신청에 실패했습니다.' }))
+      if (response.status === 409) {
+        throw new Error(error.message || '반품 신청이 불가능한 상태입니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '주문을 찾을 수 없습니다.')
+      }
+      throw new Error(error.message || `반품 신청 실패 (HTTP ${response.status})`)
+    }
+
+    return await response.json() as ReturnOrderResponse
+  } catch (error) {
+    console.error('Request return error:', error)
+    if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) throw error
+    if (error instanceof Error) throw error
+    throw new Error('반품 신청 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 교환 신청
+ *
+ * 배송 완료(DELIVERED) 상태의 주문에 대해 교환을 신청합니다.
+ *
+ * @param orderId - 주문 ID
+ * @param reason - 교환 사유
+ * @returns 교환 신청 결과
+ */
+export const requestExchange = async (
+  orderId: number,
+  reason?: string,
+): Promise<ExchangeOrderResponse> => {
+  try {
+    const response = await userFetch(`${API_BASE_URL}/api/orders/${orderId}/exchanges`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: reason ? JSON.stringify({ reason }) : '{}',
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: '교환 신청에 실패했습니다.' }))
+      if (response.status === 409) {
+        throw new Error(error.message || '교환 신청이 불가능한 상태입니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '주문을 찾을 수 없습니다.')
+      }
+      throw new Error(error.message || `교환 신청 실패 (HTTP ${response.status})`)
+    }
+
+    return await response.json() as ExchangeOrderResponse
+  } catch (error) {
+    console.error('Request exchange error:', error)
+    if (error instanceof TokenRefreshError || error instanceof AuthRequiredError) throw error
+    if (error instanceof Error) throw error
+    throw new Error('교환 신청 중 오류가 발생했습니다.')
   }
 }
 

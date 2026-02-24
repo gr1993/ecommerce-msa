@@ -3,6 +3,7 @@ import { Card, Table, Tag, Button, Space, Empty, message, Modal, Form, Input, Se
 import type { ColumnsType } from 'antd/es/table'
 import { UndoOutlined, EyeOutlined, SwapOutlined } from '@ant-design/icons'
 import { getReturnableShippings, type MarketShippingResponse } from '../../../api/shippingApi'
+import { requestReturn, requestExchange } from '../../../api/orderApi'
 import './MarketMyPageReturns.css'
 
 const { TabPane } = Tabs
@@ -289,17 +290,28 @@ function MarketMyPageReturns() {
     setIsRequestModalVisible(true)
   }
 
-  const handleSubmitReturn = async (values: any) => {
+  const handleSubmitReturn = async () => {
     try {
-      // TODO: API 호출로 반품 신청
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      if (!selectedOrder) return
+
+      const formValues = requestForm.getFieldsValue()
+      const reason = formValues.return_reason_detail
+        ? `${formValues.return_reason}: ${formValues.return_reason_detail}`
+        : formValues.return_reason
+
+      await requestReturn(Number(selectedOrder.order_id), reason)
+
       message.success('반품 신청이 완료되었습니다.')
       setIsRequestModalVisible(false)
       loadReturnRefunds()
       loadReturnableOrders()
     } catch (error) {
-      message.error('반품 신청에 실패했습니다.')
+      console.error('반품 신청 오류:', error)
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('반품 신청에 실패했습니다.')
+      }
     }
   }
 
@@ -314,24 +326,33 @@ function MarketMyPageReturns() {
     exchangeForm.setFieldsValue({
       order_id: order.order_id,
       exchange_reason: undefined,
-      exchange_reason_detail: '',
-      exchange_product_name: '',
-      exchange_product_code: ''
+      exchange_reason_detail: ''
     })
     setIsExchangeModalVisible(true)
   }
 
-  const handleSubmitExchange = async (values: any) => {
+  const handleSubmitExchange = async () => {
     try {
-      // TODO: API 호출로 교환 신청
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      if (!selectedExchangeOrder) return
+
+      const formValues = exchangeForm.getFieldsValue()
+      const reason = formValues.exchange_reason_detail
+        ? `${formValues.exchange_reason}: ${formValues.exchange_reason_detail}`
+        : formValues.exchange_reason
+
+      await requestExchange(Number(selectedExchangeOrder.order_id), reason)
+
       message.success('교환 신청이 완료되었습니다.')
       setIsExchangeModalVisible(false)
       loadExchanges()
       loadExchangeableOrders()
     } catch (error) {
-      message.error('교환 신청에 실패했습니다.')
+      console.error('교환 신청 오류:', error)
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('교환 신청에 실패했습니다.')
+      }
     }
   }
 
@@ -690,16 +711,6 @@ function MarketMyPageReturns() {
               <Descriptions.Item label="주문번호">
                 {selectedOrder.order_number}
               </Descriptions.Item>
-              <Descriptions.Item label="주문 상품">
-                {selectedOrder.items.map((item) => (
-                  <div key={item.order_item_id}>
-                    {item.product_name} ({item.product_code}) × {item.quantity}개
-                  </div>
-                ))}
-              </Descriptions.Item>
-              <Descriptions.Item label="주문금액">
-                {selectedOrder.total_amount.toLocaleString()}원
-              </Descriptions.Item>
             </Descriptions>
 
             <Form.Item
@@ -831,16 +842,6 @@ function MarketMyPageReturns() {
               <Descriptions.Item label="주문번호">
                 {selectedExchangeOrder.order_number}
               </Descriptions.Item>
-              <Descriptions.Item label="주문 상품">
-                {selectedExchangeOrder.items.map((item) => (
-                  <div key={item.order_item_id}>
-                    {item.product_name} ({item.product_code}) × {item.quantity}개
-                  </div>
-                ))}
-              </Descriptions.Item>
-              <Descriptions.Item label="주문금액">
-                {selectedExchangeOrder.total_amount.toLocaleString()}원
-              </Descriptions.Item>
             </Descriptions>
 
             <Form.Item
@@ -867,21 +868,6 @@ function MarketMyPageReturns() {
                 rows={4}
                 placeholder="교환 사유를 자세히 입력해주세요"
               />
-            </Form.Item>
-
-            <Form.Item
-              name="exchange_product_name"
-              label="교환 받을 상품명"
-              rules={[{ required: true, message: '교환 받을 상품명을 입력해주세요.' }]}
-            >
-              <Input placeholder="교환 받을 상품명을 입력해주세요" size="large" />
-            </Form.Item>
-
-            <Form.Item
-              name="exchange_product_code"
-              label="교환 받을 상품 코드 (선택사항)"
-            >
-              <Input placeholder="교환 받을 상품 코드를 입력해주세요" size="large" />
             </Form.Item>
 
             <Form.Item>
