@@ -110,6 +110,59 @@ export interface RegisterTrackingRequest {
   carrierCode: string
 }
 
+/**
+ * 반품 상태
+ */
+export type ReturnStatus = 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_REJECTED' | 'RETURNED'
+
+/**
+ * 관리자 반품 응답 DTO
+ */
+export interface AdminReturnResponse {
+  /** 반품 ID */
+  returnId: number
+  /** 주문 ID */
+  orderId: number
+  /** 사용자 ID */
+  userId: number
+  /** 반품 상태 */
+  returnStatus: ReturnStatus
+  /** 반품 사유 */
+  reason?: string
+  /** 거절 사유 */
+  rejectReason?: string
+  /** 택배사 */
+  courier?: string
+  /** 운송장 번호 */
+  trackingNumber?: string
+  /** 수거지 수령인 */
+  receiverName?: string
+  /** 수거지 연락처 */
+  receiverPhone?: string
+  /** 수거지 주소 */
+  returnAddress?: string
+  /** 우편번호 */
+  postalCode?: string
+  /** 신청 일시 */
+  requestedAt: string
+  /** 수정 일시 */
+  updatedAt: string
+}
+
+/**
+ * 반품 승인 요청 DTO
+ */
+export interface AdminReturnApproveRequest {
+  /** 수거지 수령인 */
+  receiverName: string
+  /** 수거지 연락처 */
+  receiverPhone: string
+  /** 수거지 주소 */
+  returnAddress: string
+  /** 우편번호 */
+  postalCode?: string
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -280,5 +333,152 @@ export const getReturnableShippings = async (): Promise<MarketShippingResponse[]
     console.error('Get returnable shippings error:', error)
     if (error instanceof Error) throw error
     throw new Error('반품 가능 목록 조회 중 오류가 발생했습니다.')
+  }
+}
+
+// ==================== Return Management APIs ====================
+
+/**
+ * 관리자 반품 목록 조회 (페이지네이션)
+ *
+ * @param returnStatus - 반품 상태 필터
+ * @param orderNumber - 주문 번호
+ * @param page - 페이지 번호 (0부터 시작)
+ * @param size - 페이지 크기
+ * @returns 페이지네이션된 반품 목록
+ */
+export const getAdminReturns = async (
+  returnStatus?: string,
+  orderNumber?: string,
+  page: number = 0,
+  size: number = 20,
+): Promise<PageResponse<AdminReturnResponse>> => {
+  try {
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', String(page))
+    queryParams.append('size', String(size))
+    queryParams.append('sort', 'updatedAt,desc')
+    if (returnStatus) queryParams.append('returnStatus', returnStatus)
+    if (orderNumber) queryParams.append('orderNumber', orderNumber)
+
+    const url = `${API_BASE_URL}/api/admin/shipping/returns?${queryParams.toString()}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAdminHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      throw new Error(error.message || `반품 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: PageResponse<AdminReturnResponse> = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get admin returns error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('반품 목록 조회 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 반품 승인
+ *
+ * 반품을 승인하고 수거지 정보를 설정합니다.
+ * RETURN_REQUESTED 상태에서만 가능합니다.
+ *
+ * @param returnId - 반품 ID
+ * @param request - 반품 승인 요청
+ * @returns 업데이트된 반품 정보
+ */
+export const approveReturn = async (
+  returnId: number,
+  request: AdminReturnApproveRequest,
+): Promise<AdminReturnResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/returns/${returnId}/approve`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '반품 정보를 찾을 수 없습니다.')
+      }
+      if (response.status === 409) {
+        throw new Error(error.message || '승인 불가 상태입니다.')
+      }
+      throw new Error(error.message || `반품 승인 실패 (HTTP ${response.status})`)
+    }
+
+    const data: AdminReturnResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Approve return error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('반품 승인 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 반품 완료 처리
+ *
+ * 반품을 완료 처리합니다. order_shipping 상태도 RETURNED로 변경됩니다.
+ * RETURN_APPROVED 상태에서만 가능합니다.
+ *
+ * @param returnId - 반품 ID
+ * @returns 업데이트된 반품 정보
+ */
+export const completeReturn = async (
+  returnId: number,
+): Promise<AdminReturnResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/returns/${returnId}/complete`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '반품 정보를 찾을 수 없습니다.')
+      }
+      if (response.status === 409) {
+        throw new Error(error.message || '완료 불가 상태입니다.')
+      }
+      throw new Error(error.message || `반품 완료 처리 실패 (HTTP ${response.status})`)
+    }
+
+    const data: AdminReturnResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Complete return error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('반품 완료 처리 중 오류가 발생했습니다.')
   }
 }

@@ -1,147 +1,94 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, message, Popconfirm } from 'antd'
+import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, message, Popconfirm, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { CheckOutlined, DollarOutlined } from '@ant-design/icons'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from '../order/OrderDetailModal'
+import { getAdminReturns, approveReturn, completeReturn } from '../../../api/shippingApi'
+import type { AdminReturnResponse } from '../../../api/shippingApi'
 import './AdminReturnManage.css'
 
 const { Option } = Select
 
-interface Return {
-  return_id: string
-  order_id: string
-  order_number?: string
-  return_status: 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_REJECTED' | 'RETURNED' | 'REFUNDED'
-  return_reason?: string
-  receiver_name: string
-  receiver_phone: string
-  return_address: string
-  postal_code?: string
-  created_at: string
-  updated_at: string
-}
-
 function AdminReturnManage() {
-  const [returns, setReturns] = useState<Return[]>([])
-  const [filteredReturns, setFilteredReturns] = useState<Return[]>([])
+  const [returns, setReturns] = useState<AdminReturnResponse[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchReturnStatus, setSearchReturnStatus] = useState<string | undefined>(undefined)
   const [searchOrderNumber, setSearchOrderNumber] = useState('')
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [totalElements, setTotalElements] = useState(0)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isApprovalModalVisible, setIsApprovalModalVisible] = useState(false)
-  const [selectedReturn, setSelectedReturn] = useState<Return | null>(null)
+  const [selectedReturn, setSelectedReturn] = useState<AdminReturnResponse | null>(null)
   const [approvalForm] = Form.useForm()
 
   const returnStatusMap: Record<string, { label: string; color: string }> = {
     RETURN_REQUESTED: { label: '반품 요청', color: 'blue' },
     RETURN_APPROVED: { label: '반품 승인', color: 'green' },
     RETURN_REJECTED: { label: '반품 거절', color: 'red' },
-    RETURNED: { label: '반품 완료', color: 'cyan' },
-    REFUNDED: { label: '환불 완료', color: 'purple' }
+    RETURNED: { label: '반품 완료', color: 'cyan' }
   }
 
-  // 반품 데이터 로드 (샘플 데이터)
-  useEffect(() => {
-    // TODO: API 호출로 반품 데이터 로드
-    const sampleReturns: Return[] = [
-      {
-        return_id: '1',
-        order_id: '1',
-        order_number: 'ORD-2024-001',
-        return_status: 'RETURN_REQUESTED',
-        return_reason: '상품 불량',
-        receiver_name: '홍길동',
-        receiver_phone: '010-1234-5678',
-        return_address: '서울특별시 강남구 테헤란로 123',
-        postal_code: '06234',
-        created_at: '2024-01-15 14:00:00',
-        updated_at: '2024-01-15 14:00:00'
-      },
-      {
-        return_id: '2',
-        order_id: '2',
-        order_number: 'ORD-2024-002',
-        return_status: 'RETURN_APPROVED',
-        return_reason: '단순 변심',
-        receiver_name: '김철수',
-        receiver_phone: '010-2345-6789',
-        return_address: '서울특별시 서초구 서초대로 456',
-        postal_code: '06511',
-        created_at: '2024-01-14 16:00:00',
-        updated_at: '2024-01-15 09:00:00'
-      },
-      {
-        return_id: '3',
-        order_id: '3',
-        order_number: 'ORD-2024-003',
-        return_status: 'RETURNED',
-        return_reason: '배송 지연',
-        receiver_name: '이영희',
-        receiver_phone: '010-3456-7890',
-        return_address: '서울특별시 송파구 올림픽로 789',
-        postal_code: '05510',
-        created_at: '2024-01-13 10:00:00',
-        updated_at: '2024-01-14 15:00:00'
-      },
-      {
-        return_id: '4',
-        order_id: '4',
-        order_number: 'ORD-2024-004',
-        return_status: 'REFUNDED',
-        return_reason: '상품 하자',
-        receiver_name: '박민수',
-        receiver_phone: '010-4567-8901',
-        return_address: '서울특별시 마포구 홍대로 321',
-        postal_code: '04066',
-        created_at: '2024-01-12 11:00:00',
-        updated_at: '2024-01-13 10:00:00'
-      }
-    ]
-    setReturns(sampleReturns)
-  }, [])
+  // 반품 데이터 로드
+  const fetchReturns = async () => {
+    setLoading(true)
+    try {
+      const data = await getAdminReturns(
+        searchReturnStatus,
+        searchOrderNumber,
+        currentPage,
+        pageSize
+      )
+      setReturns(data.content)
+      setTotalElements(data.totalElements)
+    } catch (error) {
+      console.error('반품 목록 조회 실패:', error)
+      message.error(error instanceof Error ? error.message : '반품 목록을 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  // 필터링된 데이터
   useEffect(() => {
-    const filtered = returns.filter((returnItem) => {
-      const statusMatch = !searchReturnStatus || returnItem.return_status === searchReturnStatus
-      const orderNumberMatch = !searchOrderNumber || 
-        (returnItem.order_number && returnItem.order_number.toLowerCase().includes(searchOrderNumber.toLowerCase()))
-      return statusMatch && orderNumberMatch
-    })
-    setFilteredReturns(filtered)
-  }, [searchReturnStatus, searchOrderNumber, returns])
+    fetchReturns()
+  }, [currentPage, pageSize])
 
   const handleSearch = () => {
-    // 검색 버튼 클릭 시 필터 적용 (현재는 실시간 필터링이므로 별도 로직 불필요)
+    setCurrentPage(0)
+    fetchReturns()
   }
 
   const handleReset = () => {
     setSearchReturnStatus(undefined)
     setSearchOrderNumber('')
+    setCurrentPage(0)
+    setTimeout(() => fetchReturns(), 0)
   }
 
   // 주문 상세 조회
-  const handleOrderClick = async (orderId: string) => {
+  const handleOrderClick = async (orderId: number) => {
     // TODO: API 호출로 주문 상세 데이터 로드
+    const returnData = returns.find(r => r.orderId === orderId)
     const sampleOrder: Order = {
-      order_id: orderId,
-      order_number: filteredReturns.find(r => r.order_id === orderId)?.order_number || `ORD-${orderId}`,
-      user_id: '1',
+      order_id: orderId.toString(),
+      order_number: `ORD-${orderId}`,
+      user_id: returnData?.userId.toString() || '1',
       user_name: '홍길동',
       order_status: 'CANCELED',
       total_product_amount: 150000,
       total_discount_amount: 10000,
       total_payment_amount: 140000,
-      ordered_at: '2024-01-15 10:30:00',
-      updated_at: '2024-01-15 14:00:00'
+      ordered_at: returnData?.requestedAt || '2024-01-15 10:30:00',
+      updated_at: returnData?.updatedAt || '2024-01-15 14:00:00'
     }
 
     const sampleOrderItems: OrderItem[] = [
       {
         order_item_id: '1',
-        order_id: orderId,
+        order_id: orderId.toString(),
         product_id: '1',
         product_name: '노트북',
         product_code: 'PRD-001',
@@ -152,16 +99,15 @@ function AdminReturnManage() {
       }
     ]
 
-    const returnData = filteredReturns.find(r => r.order_id === orderId)
     const sampleShipping: OrderShipping = {
       shipping_id: '1',
-      order_id: orderId,
-      receiver_name: returnData?.receiver_name || '홍길동',
-      receiver_phone: returnData?.receiver_phone || '010-1234-5678',
-      address: returnData?.return_address || '서울특별시 강남구 테헤란로 123',
-      postal_code: returnData?.postal_code,
+      order_id: orderId.toString(),
+      receiver_name: returnData?.receiverName || '홍길동',
+      receiver_phone: returnData?.receiverPhone || '010-1234-5678',
+      address: returnData?.returnAddress || '서울특별시 강남구 테헤란로 123',
+      postal_code: returnData?.postalCode,
       shipping_status: 'RETURNED',
-      created_at: returnData?.created_at || sampleOrder.ordered_at
+      created_at: returnData?.requestedAt || sampleOrder.ordered_at
     }
 
     setSelectedOrder(sampleOrder)
@@ -189,9 +135,14 @@ function AdminReturnManage() {
   }
 
   // 반품 승인 모달 열기
-  const handleApprovalClick = (returnItem: Return) => {
+  const handleApprovalClick = (returnItem: AdminReturnResponse) => {
     setSelectedReturn(returnItem)
-    approvalForm.resetFields()
+    approvalForm.setFieldsValue({
+      receiverName: '물류센터',
+      receiverPhone: '02-1234-5678',
+      returnAddress: '서울특별시 강남구 물류센터로 1',
+      postalCode: '06234'
+    })
     setIsApprovalModalVisible(true)
   }
 
@@ -201,28 +152,22 @@ function AdminReturnManage() {
 
     try {
       const values = await approvalForm.validateFields()
-      
-      // TODO: API 호출로 반품 승인 및 운송장 번호 등록
-      setReturns(prev =>
-        prev.map(returnItem =>
-          returnItem.return_id === selectedReturn.return_id
-            ? {
-                ...returnItem,
-                return_status: 'RETURN_APPROVED' as const,
-                shipping_company: values.shipping_company,
-                tracking_number: values.tracking_number,
-                updated_at: new Date().toISOString()
-              }
-            : returnItem
-        )
-      )
 
-      message.success('반품이 승인되었고 운송장 번호가 등록되었습니다.')
+      await approveReturn(selectedReturn.returnId, {
+        receiverName: values.receiverName,
+        receiverPhone: values.receiverPhone,
+        returnAddress: values.returnAddress,
+        postalCode: values.postalCode
+      })
+
+      message.success('반품이 승인되었습니다.')
       setIsApprovalModalVisible(false)
       setSelectedReturn(null)
       approvalForm.resetFields()
+      fetchReturns()
     } catch (error) {
-      console.error('Validation failed:', error)
+      console.error('반품 승인 실패:', error)
+      message.error(error instanceof Error ? error.message : '반품 승인에 실패했습니다.')
     }
   }
 
@@ -232,58 +177,52 @@ function AdminReturnManage() {
     approvalForm.resetFields()
   }
 
-  // 환불 처리
-  const handleRefund = (returnItem: Return) => {
-    // TODO: API 호출로 환불 처리
-    setReturns(prev =>
-      prev.map(item =>
-        item.return_id === returnItem.return_id
-          ? {
-              ...item,
-              return_status: 'REFUNDED' as const,
-              updated_at: new Date().toISOString()
-            }
-          : item
-      )
-    )
-    message.success('환불이 완료되었습니다.')
+  // 반품 완료 처리
+  const handleCompleteReturn = async (returnItem: AdminReturnResponse) => {
+    try {
+      await completeReturn(returnItem.returnId)
+      message.success('반품이 완료되었습니다.')
+      fetchReturns()
+    } catch (error) {
+      console.error('반품 완료 처리 실패:', error)
+      message.error(error instanceof Error ? error.message : '반품 완료 처리에 실패했습니다.')
+    }
   }
 
-  const columns: ColumnsType<Return> = [
+  const columns: ColumnsType<AdminReturnResponse> = [
     {
       title: '반품 ID',
-      dataIndex: 'return_id',
-      key: 'return_id',
+      dataIndex: 'returnId',
+      key: 'returnId',
       width: 100,
     },
     {
-      title: '주문 번호',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      sorter: (a, b) => (a.order_number || '').localeCompare(b.order_number || ''),
-      render: (text: string, record: Return) => (
-        <a 
-          onClick={() => handleOrderClick(record.order_id)}
+      title: '주문 ID',
+      dataIndex: 'orderId',
+      key: 'orderId',
+      sorter: (a, b) => a.orderId - b.orderId,
+      render: (orderId: number, record: AdminReturnResponse) => (
+        <a
+          onClick={() => handleOrderClick(record.orderId)}
           style={{ color: '#007BFF', cursor: 'pointer' }}
         >
-          {text}
+          {orderId}
         </a>
       ),
-      width: 150,
+      width: 100,
     },
     {
       title: '반품 상태',
-      dataIndex: 'return_status',
-      key: 'return_status',
+      dataIndex: 'returnStatus',
+      key: 'returnStatus',
       filters: [
         { text: '반품 요청', value: 'RETURN_REQUESTED' },
         { text: '반품 승인', value: 'RETURN_APPROVED' },
         { text: '반품 거절', value: 'RETURN_REJECTED' },
         { text: '반품 완료', value: 'RETURNED' },
-        { text: '환불 완료', value: 'REFUNDED' },
       ],
-      onFilter: (value, record) => record.return_status === value,
-      render: (status: string, record: Return) => {
+      onFilter: (value, record) => record.returnStatus === value,
+      render: (status: string, record: AdminReturnResponse) => {
         const statusInfo = returnStatusMap[status]
         return (
           <Space>
@@ -301,11 +240,11 @@ function AdminReturnManage() {
                 승인
               </Button>
             )}
-            {status === 'RETURNED' && (
+            {status === 'RETURN_APPROVED' && (
               <Popconfirm
-                title="환불 확인"
-                description="상품 회수를 확인해주세요. 정말 환불하시겠습니까?"
-                onConfirm={() => handleRefund(record)}
+                title="반품 완료 확인"
+                description="상품 회수를 확인했습니까? 반품을 완료 처리하시겠습니까?"
+                onConfirm={() => handleCompleteReturn(record)}
                 okText="확인"
                 cancelText="취소"
                 okButtonProps={{
@@ -315,10 +254,10 @@ function AdminReturnManage() {
                 <Button
                   type="primary"
                   size="small"
-                  icon={<DollarOutlined />}
+                  icon={<CheckOutlined />}
                   style={{ backgroundColor: '#28a745', borderColor: '#28a745' }}
                 >
-                  환불
+                  완료
                 </Button>
               </Popconfirm>
             )}
@@ -329,36 +268,36 @@ function AdminReturnManage() {
     },
     {
       title: '반품 사유',
-      dataIndex: 'return_reason',
-      key: 'return_reason',
+      dataIndex: 'reason',
+      key: 'reason',
       ellipsis: true,
       render: (reason: string | null) => reason || <span style={{ color: '#999' }}>-</span>,
       width: 150,
     },
     {
       title: '수령인',
-      dataIndex: 'receiver_name',
-      key: 'receiver_name',
+      dataIndex: 'receiverName',
+      key: 'receiverName',
       width: 100,
     },
     {
       title: '연락처',
-      dataIndex: 'receiver_phone',
-      key: 'receiver_phone',
+      dataIndex: 'receiverPhone',
+      key: 'receiverPhone',
       width: 130,
     },
     {
       title: '반품 주소',
-      dataIndex: 'return_address',
-      key: 'return_address',
+      dataIndex: 'returnAddress',
+      key: 'returnAddress',
       ellipsis: true,
       width: 200,
     },
     {
       title: '요청 일시',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      dataIndex: 'requestedAt',
+      key: 'requestedAt',
+      sorter: (a, b) => new Date(a.requestedAt).getTime() - new Date(b.requestedAt).getTime(),
       render: (date: string) => {
         const dateObj = new Date(date)
         return dateObj.toLocaleString('ko-KR', {
@@ -373,9 +312,9 @@ function AdminReturnManage() {
     },
     {
       title: '수정 일시',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
-      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      sorter: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
       render: (date: string) => {
         const dateObj = new Date(date)
         return dateObj.toLocaleString('ko-KR', {
@@ -419,7 +358,6 @@ function AdminReturnManage() {
                 <Option value="RETURN_APPROVED">반품 승인</Option>
                 <Option value="RETURN_REJECTED">반품 거절</Option>
                 <Option value="RETURNED">반품 완료</Option>
-                <Option value="REFUNDED">환불 완료</Option>
               </Select>
             </Space>
           </div>
@@ -433,17 +371,25 @@ function AdminReturnManage() {
           </div>
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={filteredReturns}
-          rowKey="return_id"
-          scroll={{ x: 'max-content' }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `총 ${total}개`,
-          }}
-        />
+        <Spin spinning={loading}>
+          <Table
+            columns={columns}
+            dataSource={returns}
+            rowKey="returnId"
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              current: currentPage + 1,
+              pageSize: pageSize,
+              total: totalElements,
+              showSizeChanger: true,
+              showTotal: (total) => `총 ${total}개`,
+              onChange: (page, size) => {
+                setCurrentPage(page - 1)
+                setPageSize(size)
+              },
+            }}
+          />
+        </Spin>
 
         {/* 주문 상세 모달 */}
         <OrderDetailModal
@@ -457,20 +403,20 @@ function AdminReturnManage() {
 
         {/* 반품 승인 모달 */}
         <Modal
-          title="반품 승인 및 운송장 번호 등록"
+          title="반품 승인 및 수거지 정보 설정"
           open={isApprovalModalVisible}
           onCancel={handleApprovalModalClose}
           onOk={handleApprovalSave}
-          okText="승인 및 저장"
+          okText="승인"
           cancelText="취소"
           okButtonProps={{
             style: { backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }
           }}
         >
           {selectedReturn && (
-            <div style={{ marginBottom: '1rem' }}>
-              <p><strong>주문 번호:</strong> {selectedReturn.order_number}</p>
-              <p><strong>반품 사유:</strong> {selectedReturn.return_reason || '-'}</p>
+            <div style={{ marginBottom: '1rem', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+              <p style={{ margin: '4px 0' }}><strong>주문 ID:</strong> {selectedReturn.orderId}</p>
+              <p style={{ margin: '4px 0' }}><strong>반품 사유:</strong> {selectedReturn.reason || '-'}</p>
             </div>
           )}
           <Form
@@ -478,31 +424,52 @@ function AdminReturnManage() {
             layout="vertical"
           >
             <Form.Item
-              label="배송사"
-              name="shipping_company"
-              rules={[{ required: true, message: '배송사를 선택하세요' }]}
+              label="수거지 수령인"
+              name="receiverName"
+              rules={[{ required: true, message: '수령인을 입력하세요' }]}
             >
-              <Select placeholder="배송사를 선택하세요">
-                <Option value="CJ대한통운">CJ대한통운</Option>
-                <Option value="한진택배">한진택배</Option>
-                <Option value="로젠택배">로젠택배</Option>
-                <Option value="쿠팡배송">쿠팡배송</Option>
-                <Option value="롯데택배">롯데택배</Option>
-                <Option value="우체국택배">우체국택배</Option>
-                <Option value="기타">기타</Option>
-              </Select>
+              <Input
+                placeholder="수령인을 입력하세요"
+                maxLength={100}
+              />
             </Form.Item>
             <Form.Item
-              label="운송장 번호"
-              name="tracking_number"
+              label="수거지 연락처"
+              name="receiverPhone"
               rules={[
-                { required: true, message: '운송장 번호를 입력하세요' },
-                { max: 100, message: '운송장 번호는 최대 100자까지 입력 가능합니다.' }
+                { required: true, message: '연락처를 입력하세요' },
+                { max: 20, message: '연락처는 최대 20자까지 입력 가능합니다.' }
               ]}
             >
               <Input
-                placeholder="운송장 번호를 입력하세요"
-                maxLength={100}
+                placeholder="연락처를 입력하세요"
+                maxLength={20}
+              />
+            </Form.Item>
+            <Form.Item
+              label="수거지 주소"
+              name="returnAddress"
+              rules={[
+                { required: true, message: '수거지 주소를 입력하세요' },
+                { max: 500, message: '주소는 최대 500자까지 입력 가능합니다.' }
+              ]}
+            >
+              <Input.TextArea
+                placeholder="수거지 주소를 입력하세요"
+                maxLength={500}
+                rows={3}
+              />
+            </Form.Item>
+            <Form.Item
+              label="우편번호"
+              name="postalCode"
+              rules={[
+                { max: 20, message: '우편번호는 최대 20자까지 입력 가능합니다.' }
+              ]}
+            >
+              <Input
+                placeholder="우편번호를 입력하세요 (선택)"
+                maxLength={20}
               />
             </Form.Item>
           </Form>
