@@ -29,36 +29,45 @@ Full Sync API는 shipping-service 구축 시, order-service에 존재하는 배�
 ### 배송 프로세스
 ```mermaid
 sequenceDiagram
-    participant Order as Order Service (Publisher)
+    participant Order as Order Service (Publisher/Subscriber)
     participant Broker as Message Broker (Kafka/RabbitMQ)
-    participant Ship as Shipping Service (Subscriber)
+    participant Ship as Shipping Service (Subscriber/Publisher)
+    participant ShipDB as Shipping DB (Outbox)
     participant Mock as Mock Delivery Server (CJ/SmartTracker)
 
     Note over Order, Ship: [Phase 1: 주문 데이터 동기화]
     Order->>Broker: Publish (order.created)
     Broker-->>Ship: Consume (order.created)
     
-    Ship->>Ship: 로컬 DB 저장 (order_shipping)<br/>status: READY<br/>service_status: NOT_SENT
+    Ship->>ShipDB: 로컬 DB 저장 (order_shipping)<br/>status: READY<br/>service_status: NOT_SENT
 
     Note over Ship, Mock: [Phase 2: 송장 발급 처리]
     Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (송장 발급 요청)
     Mock-->>Ship: Response (invoice_no: 12345...)
     
-    Ship->>Ship: 로컬 DB 업데이트<br/>status: READY<br/>service_status: SENT<br/>tracking_number: 12345
+    Ship->>ShipDB: 로컬 DB 업데이트<br/>status: READY<br/>service_status: SENT<br/>tracking_number: 12345
 
-    Note over Ship, Mock: [Phase 3: 배송 추적 및 상태 변경]
+    Note over Ship, Mock: [Phase 3: 배송 추적, 상태 변경 및 주문 동기화]
     loop 주기적 폴링 (Scheduler)
         Ship->>Mock: POST /api/v1/trackingInfo (배송 조회 요청)
         Mock-->>Ship: Response (status: IN_TRANSIT)
         
-        Ship->>Ship: 로컬 DB 업데이트<br/>status: SHIPPING<br/>service_status: IN_TRANSIT
+        Note over Ship, Broker: 배송 시작 상태 전파
+        Ship->>ShipDB: 로컬 DB 업데이트 & Outbox 저장 (shipping.started)<br/>status: SHIPPING<br/>service_status: IN_TRANSIT
+        Ship->>Broker: Publish (shipping.started) via Outbox Scheduler
+        Broker-->>Order: Consume (shipping.started)
+        Order->>Order: 주문 상태 업데이트 (PAID ➔ SHIPPING)
     end
 
     loop 주기적 폴링 (배송 완료 시점)
         Ship->>Mock: POST /api/v1/trackingInfo (배송 조회 요청)
         Mock-->>Ship: Response (status: DELIVERED)
         
-        Ship->>Ship: 로컬 DB 업데이트<br/>status: DELIVERED<br/>service_status: DELIVERED
+        Note over Ship, Broker: 배송 완료 상태 전파
+        Ship->>ShipDB: 로컬 DB 업데이트 & Outbox 저장 (shipping.delivered)<br/>status: DELIVERED<br/>service_status: DELIVERED
+        Ship->>Broker: Publish (shipping.delivered) via Outbox Scheduler
+        Broker-->>Order: Consume (shipping.delivered)
+        Order->>Order: 주문 상태 업데이트 (SHIPPING ➔ DELIVERED)
     end
 ```
 
@@ -137,8 +146,6 @@ sequenceDiagram
     participant Ship as Shipping Service
     participant Admin as 관리자
     participant Mock as Mock Delivery Server
-    participant Payment as Payment Service
-    participant Product as Product Service
 
     Note over User, Ship: [Phase 1: 반품 신청 - Order Service 경유]
     User->>Order: POST /api/orders/{orderId}/returns
@@ -171,15 +178,10 @@ sequenceDiagram
     Ship->>Ship: order_shipping 상태 변경 (RETURNED)
     Ship-->>Admin: 반품 완료
 
-    Note over Ship, Order: [Phase 5: 환불 + 재고 복구 이벤트 흐름]
+    Note over Ship, Order: [Phase 5: 반품 완료 상태 동기화]
     Ship->>Broker: Publish (return.completed)
     Broker-->>Order: Consume (return.completed)
     Order->>Order: 주문 상태 변경 (RETURNED)
-    Order->>Order: order.cancelled Outbox 저장
-    Order->>Broker: Publish (order.cancelled) via Outbox Scheduler
-    Broker-->>Payment: 환불 처리
-    Broker-->>Product: 재고 복구
-    Broker-->>Ship: Consume (order.cancelled) → 이미 RETURNED 상태이므로 skip
 ```
 
 
@@ -207,6 +209,7 @@ EXCHANGE_REQUESTED → EXCHANGE_APPROVED → EXCHANGED
 sequenceDiagram
     participant User as 사용자
     participant Order as Order Service
+    participant Broker as Message Broker (Kafka)
     participant Ship as Shipping Service
     participant Admin as 관리자
     participant Mock as Mock Delivery Server
@@ -220,23 +223,32 @@ sequenceDiagram
     Ship-->>Order: 교환 생성 결과 반환
     Order-->>User: 교환 신청 완료
 
-    Note over Admin, Ship: [Phase 2: 관리자 교환 승인 + 교환품 발송]
+    Note over Admin, Mock: [Phase 2: 관리자 교환 승인 + 교환품 발송 지시]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/approve
-    Ship->>Ship: 교환 배송지 정보 설정 (사용자 주소)
+    Ship->>Ship: 교환 배송지 및 수거지 정보 설정
     Ship->>Ship: 상태 변경 (EXCHANGE_APPROVED)
-    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (교환품 송장 발급)
+    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (교환 회수/발송 운송장 발급)
     Mock-->>Ship: 운송장 번호 반환
     Ship->>Ship: 운송장 번호 저장
-    Ship-->>Admin: 승인 완료 + 교환품 발송
+    Ship-->>Admin: 승인 완료 + 교환품 발송 지시 완료
 
     Note over Admin, Ship: [Phase 2-1: 관리자 교환 거절 시]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/reject
     Ship->>Ship: 상태 변경 (EXCHANGE_REJECTED, 끝)
 
-    Note over Admin, Ship: [Phase 3: 교환 완료 처리]
+    Note over User: [Phase 3: 사용자 물품 인계 및 새 물품 수령]
+    User->>User: 기존 물품 반납 및 새 교환 물품 수령 (택배 기사 방문)
+
+    Note over Admin, Ship: [Phase 4: 교환 완료 처리]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/complete
     Ship->>Ship: order_exchange 상태 변경 (EXCHANGED)
+    Ship->>Ship: order_shipping 상태 변경 (EXCHANGED)
     Ship-->>Admin: 교환 완료
+
+    Note over Ship, Order: [Phase 5: 교환 완료 상태 동기화]
+    Ship->>Broker: Publish (exchange.completed)
+    Broker-->>Order: Consume (exchange.completed)
+    Order->>Order: 주문 상태 변경 (EXCHANGED)
 ```
 
 
@@ -307,5 +319,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | return.completed |
+| 발행(Published) | shipping.started, shipping.delivered, return.completed |
 | 구독(Subscribed) | order.created, order.cancelled |

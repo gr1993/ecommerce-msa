@@ -2,6 +2,11 @@ package com.example.shippingservice.shipping.scheduler;
 
 import com.example.shippingservice.client.dto.TrackingDetail;
 import com.example.shippingservice.client.dto.TrackingInfoResponse;
+import com.example.shippingservice.domain.entity.Outbox;
+import com.example.shippingservice.domain.event.ShippingDeliveredEvent;
+import com.example.shippingservice.domain.event.ShippingStartedEvent;
+import com.example.shippingservice.global.common.EventTypeConstants;
+import com.example.shippingservice.repository.OutboxRepository;
 import com.example.shippingservice.shipping.entity.OrderShipping;
 import com.example.shippingservice.shipping.enums.CarrierCode;
 import com.example.shippingservice.shipping.enums.DeliveryServiceStatus;
@@ -9,12 +14,15 @@ import com.example.shippingservice.shipping.enums.ShippingStatus;
 import com.example.shippingservice.shipping.repository.OrderShippingHistoryRepository;
 import com.example.shippingservice.shipping.repository.OrderShippingRepository;
 import com.example.shippingservice.shipping.service.MockDeliveryService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,6 +49,8 @@ public class ShippingTrackingScheduler {
     private final OrderShippingRepository orderShippingRepository;
     private final OrderShippingHistoryRepository orderShippingHistoryRepository;
     private final MockDeliveryService mockDeliveryService;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Scheduled(fixedRateString = "${shipping.tracking.poll-interval-ms:60000}")
     @Transactional
@@ -130,6 +140,15 @@ public class ShippingTrackingScheduler {
                     previousShippingStatus, mapping.shippingStatus(),
                     previousDeliveryStatus, mapping.deliveryServiceStatus(),
                     currentKind);
+
+            // 배송 출발/완료 이벤트 Outbox 저장 (Order Service 연동)
+            if (previousShippingStatus != ShippingStatus.SHIPPING
+                    && mapping.shippingStatus() == ShippingStatus.SHIPPING) {
+                saveShippingStartedOutbox(shipping);
+            } else if (previousShippingStatus != ShippingStatus.DELIVERED
+                    && mapping.shippingStatus() == ShippingStatus.DELIVERED) {
+                saveShippingDeliveredOutbox(shipping);
+            }
         } else {
             // 내부 상태 변경 없이 이력만 추가 (ACCEPTED, PICKED_UP 등)
             shipping.addTrackingDetail(
@@ -177,4 +196,54 @@ public class ShippingTrackingScheduler {
     }
 
     private record StatusMapping(DeliveryServiceStatus deliveryServiceStatus, ShippingStatus shippingStatus) {}
+
+    private void saveShippingStartedOutbox(OrderShipping shipping) {
+        ShippingStartedEvent event = ShippingStartedEvent.builder()
+                .shippingId(shipping.getShippingId())
+                .orderId(shipping.getOrderId())
+                .trackingNumber(shipping.getTrackingNumber())
+                .startedAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Shipping")
+                    .aggregateId(String.valueOf(shipping.getShippingId()))
+                    .eventType(EventTypeConstants.TOPIC_SHIPPING_STARTED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("배송 출발 Outbox 저장 완료: shippingId={}, orderId={}",
+                    shipping.getShippingId(), shipping.getOrderId());
+        } catch (JsonProcessingException e) {
+            log.error("ShippingStartedEvent 직렬화 실패: shippingId={}", shipping.getShippingId(), e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
+    }
+
+    private void saveShippingDeliveredOutbox(OrderShipping shipping) {
+        ShippingDeliveredEvent event = ShippingDeliveredEvent.builder()
+                .shippingId(shipping.getShippingId())
+                .orderId(shipping.getOrderId())
+                .trackingNumber(shipping.getTrackingNumber())
+                .deliveredAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Shipping")
+                    .aggregateId(String.valueOf(shipping.getShippingId()))
+                    .eventType(EventTypeConstants.TOPIC_SHIPPING_DELIVERED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("배송 완료 Outbox 저장 완료: shippingId={}, orderId={}",
+                    shipping.getShippingId(), shipping.getOrderId());
+        } catch (JsonProcessingException e) {
+            log.error("ShippingDeliveredEvent 직렬화 실패: shippingId={}", shipping.getShippingId(), e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
+    }
 }

@@ -54,6 +54,12 @@ public class OutboxEventPublisher {
 		String eventType = outbox.getEventType();
 
 		switch (eventType) {
+			// Shipping Events
+			case EventTypeConstants.TOPIC_SHIPPING_STARTED ->
+				shippingEventPublisher.publishShippingStartedEvent(outbox);
+			case EventTypeConstants.TOPIC_SHIPPING_DELIVERED ->
+				shippingEventPublisher.publishShippingDeliveredEvent(outbox);
+
 			// Return Events
 			case EventTypeConstants.TOPIC_RETURN_COMPLETED ->
 				shippingEventPublisher.publishReturnCompletedEvent(outbox);
