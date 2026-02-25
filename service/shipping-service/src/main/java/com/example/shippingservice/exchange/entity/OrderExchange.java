@@ -10,6 +10,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "order_exchange")
@@ -64,6 +66,9 @@ public class OrderExchange {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "orderExchange", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderExchangeHistory> exchangeHistories = new ArrayList<>();
+
     @Builder
     public OrderExchange(Long orderId, Long userId, ExchangeStatus exchangeStatus, String reason,
                          String trackingNumber, String courier, String receiverName,
@@ -100,5 +105,20 @@ public class OrderExchange {
         this.receiverPhone = receiverPhone;
         this.exchangeAddress = exchangeAddress;
         this.postalCode = postalCode;
+    }
+
+    public void addExchangeHistory(ExchangeStatus previousStatus, ExchangeStatus newStatus, String location,
+                                   String remark, String trackingKind, String changedBy) {
+        OrderExchangeHistory history = OrderExchangeHistory.builder()
+                .orderExchange(this)
+                .previousStatus(previousStatus)
+                .newStatus(newStatus)
+                .location(location)
+                .remark(remark)
+                .trackingKind(trackingKind)
+                .trackingNumber(this.trackingNumber)
+                .changedBy(changedBy)
+                .build();
+        this.exchangeHistories.add(history);
     }
 }

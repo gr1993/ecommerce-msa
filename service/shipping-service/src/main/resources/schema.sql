@@ -110,6 +110,25 @@ CREATE TABLE order_exchange (
 ) COMMENT='주문 상품 교환 정보 테이블';
 
 
+-- 주문 교환 상태 변경 이력 테이블
+CREATE TABLE order_exchange_history (
+    exchange_history_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 상태 이력 ID',
+    exchange_id BIGINT NOT NULL COMMENT '교환 ID',
+    previous_status VARCHAR(30) COMMENT '이전 교환 상태 (예: EXCHANGE_APPROVED)',
+    new_status VARCHAR(30) COMMENT '변경 후 교환 상태 (예: EXCHANGE_IN_TRANSIT)',
+    location VARCHAR(100) COMMENT '교환 회수 위치 (외부 API where 필드)',
+    remark VARCHAR(200) COMMENT '교환 회수 상세 설명 (외부 API remark 필드)',
+    tracking_kind VARCHAR(30) COMMENT '외부 배송사 상태 코드 (ACCEPTED, PICKED_UP 등)',
+    tracking_number VARCHAR(100) COMMENT '이력 기록 시점의 교환 회수 운송장 번호',
+    changed_by VARCHAR(50) COMMENT '변경자 (시스템 스케줄러, 관리자 계정, 사용자 등)',
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '변경 일시',
+    CONSTRAINT fk_exchange_history_exchange
+        FOREIGN KEY (exchange_id)
+        REFERENCES order_exchange(exchange_id)
+        ON DELETE CASCADE
+) COMMENT='교환 상태 변경 이력 테이블';
+
+
 -- 이벤트 Outbox 테이블 (Transaction Outbox Pattern)
 CREATE TABLE outbox (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '이벤트 ID',

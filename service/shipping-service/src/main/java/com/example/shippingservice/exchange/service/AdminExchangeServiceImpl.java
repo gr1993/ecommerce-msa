@@ -61,6 +61,7 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
                 request.getExchangeAddress(),
                 request.getPostalCode()
         );
+        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
         orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_APPROVED);
 
         // Mock 택배사 API로 교환품 송장 발급
@@ -68,6 +69,16 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         if (trackingNumber != null) {
             orderExchange.updateTrackingInfo("CJ대한통운", trackingNumber);
             log.info("교환품 송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, trackingNumber);
+
+            // 교환 이력 우선 기록 (교환품 배송 접수 상태)
+            orderExchange.addExchangeHistory(
+                    previousStatus,
+                    ExchangeStatus.EXCHANGE_APPROVED,
+                    "배송 준비 중",
+                    "교환품 배송 운송장 정상 발급 (배송 지시 완료)",
+                    "ACCEPTED",
+                    "ADMIN"
+            );
         } else {
             log.warn("교환품 송장 발급 실패 - exchangeId={}, 수동 발급이 필요합니다.", exchangeId);
         }
