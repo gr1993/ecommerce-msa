@@ -71,6 +71,7 @@ public class AdminReturnServiceImpl implements AdminReturnService {
                 request.getReturnAddress(),
                 request.getPostalCode()
         );
+        ReturnStatus previousStatus = orderReturn.getReturnStatus();
         orderReturn.updateReturnStatus(ReturnStatus.RETURN_APPROVED);
 
         // Mock 택배사 API로 회수 운송장 자동 발급
@@ -78,6 +79,16 @@ public class AdminReturnServiceImpl implements AdminReturnService {
         if (trackingNumber != null) {
             orderReturn.updateTrackingInfo("CJ대한통운", trackingNumber);
             log.info("반품 회수 운송장 발급 완료 - returnId={}, trackingNumber={}", returnId, trackingNumber);
+
+            // 반품 이력 우선 기록 (회수 접수 상태)
+            orderReturn.addReturnHistory(
+                    previousStatus,
+                    ReturnStatus.RETURN_APPROVED,
+                    "수거지 (집하 처리 전)",
+                    "반품 수거 운송장 정상 발급 (회수 지시 완료)",
+                    "ACCEPTED",
+                    "ADMIN"
+            );
         } else {
             log.warn("반품 회수 운송장 발급 실패 - returnId={}, 수동 처리가 필요합니다.", returnId);
         }

@@ -64,6 +64,8 @@ public class OutboxEventPublisher {
 			// Return Events
 			case EventTypeConstants.TOPIC_RETURN_APPROVED ->
 				returnEventPublisher.publishReturnApprovedEvent(outbox);
+			case EventTypeConstants.TOPIC_RETURN_IN_TRANSIT ->
+				returnEventPublisher.publishReturnInTransitEvent(outbox);
 			case EventTypeConstants.TOPIC_RETURN_COMPLETED ->
 				returnEventPublisher.publishReturnCompletedEvent(outbox);
 

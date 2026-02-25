@@ -63,6 +63,25 @@ CREATE TABLE order_return (
 ) COMMENT='주문 상품 반품 정보 테이블';
 
 
+-- 주문 반품 상태 변경 이력 테이블
+CREATE TABLE order_return_history (
+    return_history_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '반품 상태 이력 ID',
+    return_id BIGINT NOT NULL COMMENT '반품 ID',
+    previous_status VARCHAR(30) COMMENT '이전 반품 상태 (예: RETURN_APPROVED)',
+    new_status VARCHAR(30) COMMENT '변경 후 반품 상태 (예: RETURN_IN_TRANSIT)',
+    location VARCHAR(100) COMMENT '반품 회수 위치 (외부 API where 필드)',
+    remark VARCHAR(200) COMMENT '반품 회수 상세 설명 (외부 API remark 필드)',
+    tracking_kind VARCHAR(30) COMMENT '외부 배송사 상태 코드 (ACCEPTED, PICKED_UP 등)',
+    tracking_number VARCHAR(100) COMMENT '이력 기록 시점의 반품 회수 운송장 번호',
+    changed_by VARCHAR(50) COMMENT '변경자 (시스템 스케줄러, 관리자 계정, 사용자 등)',
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '변경 일시',
+    CONSTRAINT fk_return_history_return
+        FOREIGN KEY (return_id)
+        REFERENCES order_return(return_id)
+        ON DELETE CASCADE
+) COMMENT='반품 상태 변경 이력 테이블';
+
+
 -- Kafka 이벤트 멱등성 처리 테이블
 CREATE TABLE processed_events (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '처리 이벤트 ID',

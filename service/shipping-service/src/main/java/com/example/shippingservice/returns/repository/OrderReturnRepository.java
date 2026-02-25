@@ -17,6 +17,8 @@ public interface OrderReturnRepository extends JpaRepository<OrderReturn, Long> 
 
     List<OrderReturn> findByReturnStatus(ReturnStatus returnStatus);
 
+    List<OrderReturn> findByReturnStatusIn(List<ReturnStatus> returnStatuses);
+
     List<OrderReturn> findByTrackingNumber(String trackingNumber);
 
     boolean existsByOrderId(Long orderId);

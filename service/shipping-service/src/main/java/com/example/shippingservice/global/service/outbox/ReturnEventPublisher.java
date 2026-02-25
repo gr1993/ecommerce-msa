@@ -70,6 +70,48 @@ public class ReturnEventPublisher {
 
 	@AsyncPublisher(
 		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_RETURN_IN_TRANSIT,
+			description = "반품 수거 중(배송 진행) 이벤트 발행",
+			payloadType = com.example.shippingservice.domain.event.ReturnInTransitEvent.class,
+			headers = @Headers(
+				schemaName = "ReturnInTransitEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_RETURN_IN_TRANSIT
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Return-123"
+			)
+		)
+	)
+	public void publishReturnInTransitEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_RETURN_IN_TRANSIT;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			com.example.shippingservice.domain.event.ReturnInTransitEvent event = objectMapper.readValue(outbox.getPayload(), com.example.shippingservice.domain.event.ReturnInTransitEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
 			channelName = EventTypeConstants.TOPIC_RETURN_COMPLETED,
 			description = "반품 완료 이벤트 발행",
 			payloadType = ReturnCompletedEvent.class,

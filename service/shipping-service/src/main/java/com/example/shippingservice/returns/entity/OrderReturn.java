@@ -10,6 +10,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "order_return")
@@ -64,6 +66,9 @@ public class OrderReturn {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "orderReturn", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderReturnHistory> returnHistories = new ArrayList<>();
+
     @Builder
     public OrderReturn(Long orderId, Long userId, ReturnStatus returnStatus, String reason,
                        String trackingNumber, String courier, String receiverName,
@@ -100,5 +105,20 @@ public class OrderReturn {
         this.receiverPhone = receiverPhone;
         this.returnAddress = returnAddress;
         this.postalCode = postalCode;
+    }
+
+    public void addReturnHistory(ReturnStatus previousStatus, ReturnStatus newStatus, String location,
+                                 String remark, String trackingKind, String changedBy) {
+        OrderReturnHistory history = OrderReturnHistory.builder()
+                .orderReturn(this)
+                .previousStatus(previousStatus)
+                .newStatus(newStatus)
+                .location(location)
+                .remark(remark)
+                .trackingKind(trackingKind)
+                .trackingNumber(this.trackingNumber)
+                .changedBy(changedBy)
+                .build();
+        this.returnHistories.add(history);
     }
 }
