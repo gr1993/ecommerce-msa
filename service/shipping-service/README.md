@@ -208,23 +208,40 @@ sequenceDiagram
 
 
 ### 교환 프로세스
-교환은 배송 완료(DELIVERED) 상태인 주문에 대해 사용자가 교환을 신청하고, 관리자가 승인하면 기존 물품을
-먼저 회수(Return)하고 검수를 거친 뒤, 새 물품을 재발송(Reship)하여 완료하는 복잡한 흐름을 가진다.
+교환은 배송 완료(DELIVERED) 상태인 주문에 대해 사용자가 교환을 신청하고, 관리자가 승인하면 기존 물품을  
+먼저 회수(Return)하고 검수를 거친 뒤, 새 물품을 재발송(Reship)하여 완료하는 복잡한 흐름을 가진다.  
 
 반품과 달리 회수용 운송장과 재발송용 운송장 두 개가 발급되며, 각각의 배송 상태를 순차적으로 추적해야 한다.  
 교환의 모든 생명주기는 원배송(order_shipping)을 오염시키지 않고 전용 클레임 테이블(order_exchange,  
-order_exchange_history)에서 독립적으로 관리된다.
+order_exchange_history)에서 독립적으로 관리된다.  
 
-교환 신청은 Order-Service를 경유하며, 해당 주문에 진행 중인 다른 클레임(반품/교환)이 없어야 한다.
-스케줄러는 먼저 회수 상태를 폴링하여 완료를 감지하고, 이후 관리자의 검수/출고 처리가 이뤄지면 새 물품의 배송
-상태를 폴링하여 최종 완료 처리한다.
+교환 신청은 Order-Service를 경유하며, 해당 주문에 진행 중인 다른 클레임(반품/교환)이 없어야 한다.  
+ExchangeCollectionScheduler는 먼저 회수 상태를 폴링하여 완료를 감지하고, 이후 관리자의 검수/출고 처리가  
+이뤄지면 ExchangeDeliveryScheduler가 새 물품의 배송 상태를 폴링하여 최종 완료 처리한다.  
+
+#### 교환 지원 범위
+교환 기능을 설계하며 가장 먼저 고민한 부분은 교환 지원 범위였다.  
+실무 환경에서는 단순 파손·불량·오배송과 같은 사유에 대해서는 동일 옵션 교환을 지원하고, 동일 상품 내에서  
+옵션을 변경하는 경우에는 가격 차액이나 단순 변심에 따른 왕복 배송비를 고객이 추가 결제하는 방식으로 운영한다.  
+또한, 완전히 다른 상품으로의 교환은 일반적으로 지원하지 않으며, 기존 주문을 반품(환불)한 뒤 새로운 상품을  
+재주문하도록 유도하는 방식을 사용한다.  
+
+본 프로젝트에서는 사이드 프로젝트의 범위를 고려하여 다음과 같이 간소화된 정책을 적용하였다.  
+* 동일 옵션 교환 지원
+* 동일 상품 내 옵션 변경 교환 지원 (추가 결제 및 차액 정산은 지원하지 않음, 재고 증가/차감만 지원)
+* 다른 상품으로의 교환은 지원하지 않음 (반품 후 재주문 유도)
+
+옵션 변경 교환의 경우 금액 정산 로직은 제외하고, 재고 수량 조정만으로 처리하도록 설계하였다.  
+교환 승인 시점에 새로운 옵션의 재고를 1개 선차감한다. 이후 고객이 반품한 원상품이 창고에 입고되어 검수가  
+완료되면(EXCHANGE_RETURN_COMPLETED), 기존 옵션의 재고를 1개 증가시켜 복구한다.  
+이를 통해 추가 결제 및 복잡한 정산 로직 없이도 재고 정합성을 유지하도록 구현하였다.  
 
 #### 상태 흐름
 ```
-EXCHANGE_REQUESTED (교환 신청) 
-  → EXCHANGE_APPROVED (승인 및 회수/발송 운송장 발급) 
-  → EXCHANGE_COLLECTING (기존 물품 회수 중) 
-  → EXCHANGE_RETURN_COMPLETED (회수 완료 및 검수 대기)
+EXCHANGE_REQUESTED (교환 신청)
+  → EXCHANGE_APPROVED (승인 및 회수/발송 운송장 발급, 이 시점에 새 옵션 재고 -1)
+  → EXCHANGE_COLLECTING (기존 물품 회수 중)
+  → EXCHANGE_RETURN_COMPLETED (회수 완료 및 검수 대기, 이 시점에 기존 옵션 재고 +1)
   → EXCHANGE_SHIPPING (새 물품 발송 중)
   → EXCHANGED (교환 최종 완료)
 ```
@@ -348,5 +365,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | shipping.started, shipping.delivered, return.approved, return.in-transit, return.completed |
+| 발행(Published) | shipping.started, shipping.delivered, return.approved, return.in-transit, return.completed, exchange.approved, exchange.collecting, exchange.return-completed, exchange.shipping, exchange.completed |
 | 구독(Subscribed) | order.created, order.cancelled |
