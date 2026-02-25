@@ -113,7 +113,7 @@ export interface RegisterTrackingRequest {
 /**
  * 반품 상태
  */
-export type ReturnStatus = 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_REJECTED' | 'RETURNED'
+export type ReturnStatus = 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_IN_TRANSIT' | 'RETURN_REJECTED' | 'RETURNED'
 
 /**
  * 관리자 반품 응답 DTO
@@ -143,6 +143,32 @@ export interface AdminReturnResponse {
   returnAddress?: string
   /** 우편번호 */
   postalCode?: string
+  /** 신청 일시 */
+  requestedAt: string
+  /** 수정 일시 */
+  updatedAt: string
+}
+
+/**
+ * 사용자 반품 조회 응답 DTO
+ */
+export interface MarketReturnResponse {
+  /** 반품 ID */
+  returnId: number
+  /** 주문 ID */
+  orderId: number
+  /** 반품 상태 */
+  returnStatus: ReturnStatus
+  /** 반품 사유 */
+  reason?: string
+  /** 거절 사유 */
+  rejectReason?: string
+  /** 택배사 */
+  courier?: string
+  /** 운송장 번호 */
+  trackingNumber?: string
+  /** 수거지 주소 */
+  returnAddress?: string
   /** 신청 일시 */
   requestedAt: string
   /** 수정 일시 */
@@ -480,5 +506,48 @@ export const completeReturn = async (
     console.error('Complete return error:', error)
     if (error instanceof Error) throw error
     throw new Error('반품 완료 처리 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 내 반품 목록 조회
+ *
+ * 로그인한 사용자의 반품 목록을 최신순으로 조회합니다.
+ *
+ * @param page - 페이지 번호 (0부터 시작)
+ * @param size - 페이지 크기
+ * @returns 페이지네이션된 반품 목록
+ */
+export const getMyReturns = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<PageResponse<MarketReturnResponse>> => {
+  try {
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', String(page))
+    queryParams.append('size', String(size))
+    queryParams.append('sort', 'updatedAt,desc')
+
+    const url = `${API_BASE_URL}/api/shipping/returns?${queryParams.toString()}`
+
+    const response = await userFetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      throw new Error(error.message || `반품 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: PageResponse<MarketReturnResponse> = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get my returns error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('반품 목록 조회 중 오류가 발생했습니다.')
   }
 }

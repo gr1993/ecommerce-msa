@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Space, Empty, message, Modal, Form, Input, Select, Descriptions, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { UndoOutlined, EyeOutlined, SwapOutlined } from '@ant-design/icons'
-import { getReturnableShippings, type MarketShippingResponse } from '../../../api/shippingApi'
+import { getReturnableShippings, getMyReturns, type MarketShippingResponse, type MarketReturnResponse } from '../../../api/shippingApi'
 import { requestReturn, requestExchange } from '../../../api/orderApi'
 import './MarketMyPageReturns.css'
 
@@ -23,17 +23,14 @@ interface OrderItem {
 interface ReturnRefund {
   return_id: string
   order_id: string
-  order_number: string
-  return_status: 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_REJECTED' | 'RETURNED' | 'REFUNDED'
+  return_status: 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_IN_TRANSIT' | 'RETURN_REJECTED' | 'RETURNED'
   return_reason?: string
-  return_reason_detail?: string
-  refund_amount?: number
-  refund_method?: string
+  reject_reason?: string
   return_shipping_company?: string
   return_tracking_number?: string
+  return_address?: string
   created_at: string
   updated_at: string
-  items: OrderItem[]
 }
 
 interface ReturnableOrder {
@@ -92,59 +89,25 @@ function MarketMyPageReturns() {
   const loadReturnRefunds = async () => {
     setLoading(true)
     try {
-      // TODO: API 호출로 반품/환불 내역 가져오기
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const sampleReturns: ReturnRefund[] = [
-        {
-          return_id: '1',
-          order_id: '1',
-          order_number: 'ORD-20240101-001',
-          return_status: 'RETURN_REQUESTED',
-          return_reason: '단순 변심',
-          return_reason_detail: '다른 상품으로 변경하고 싶습니다.',
-          refund_amount: 1200000,
-          created_at: '2024-01-15 14:00:00',
-          updated_at: '2024-01-15 14:00:00',
-          items: [
-            {
-              order_item_id: '1',
-              product_id: '1',
-              product_name: '프리미엄 노트북',
-              product_code: 'PRD-001',
-              quantity: 1,
-              price: 1200000,
-              total_price: 1200000
-            }
-          ]
-        },
-        {
-          return_id: '2',
-          order_id: '2',
-          order_number: 'ORD-20240102-002',
-          return_status: 'REFUNDED',
-          return_reason: '상품 불량',
-          return_reason_detail: '화면에 불량이 있습니다.',
-          refund_amount: 800000,
-          refund_method: '신용카드',
-          created_at: '2024-01-10 10:00:00',
-          updated_at: '2024-01-12 15:00:00',
-          items: [
-            {
-              order_item_id: '2',
-              product_id: '2',
-              product_name: '최신 스마트폰',
-              product_code: 'PRD-002',
-              quantity: 1,
-              price: 800000,
-              total_price: 800000
-            }
-          ]
-        }
-      ]
-      
-      setReturnRefunds(sampleReturns)
+      const response = await getMyReturns(0, 100) // 모든 반품 내역 조회
+
+      // API 응답을 프론트엔드 형식으로 매핑
+      const mappedReturns: ReturnRefund[] = response.content.map((item: MarketReturnResponse) => ({
+        return_id: String(item.returnId),
+        order_id: String(item.orderId),
+        return_status: item.returnStatus,
+        return_reason: item.reason,
+        reject_reason: item.rejectReason,
+        return_shipping_company: item.courier,
+        return_tracking_number: item.trackingNumber,
+        return_address: item.returnAddress,
+        created_at: item.requestedAt,
+        updated_at: item.updatedAt
+      }))
+
+      setReturnRefunds(mappedReturns)
     } catch (error) {
+      console.error('반품 내역 조회 오류:', error)
       message.error('반품/환불 내역을 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
@@ -266,9 +229,9 @@ function MarketMyPageReturns() {
   const statusMap: Record<string, { label: string; color: string }> = {
     RETURN_REQUESTED: { label: '반품 요청', color: 'blue' },
     RETURN_APPROVED: { label: '반품 승인', color: 'green' },
+    RETURN_IN_TRANSIT: { label: '수거 중', color: 'orange' },
     RETURN_REJECTED: { label: '반품 거절', color: 'red' },
-    RETURNED: { label: '반품 완료', color: 'cyan' },
-    REFUNDED: { label: '환불 완료', color: 'purple' }
+    RETURNED: { label: '반품 완료', color: 'cyan' }
   }
 
   const exchangeStatusMap: Record<string, { label: string; color: string }> = {
@@ -363,10 +326,17 @@ function MarketMyPageReturns() {
 
   const returnRefundColumns: ColumnsType<ReturnRefund> = [
     {
-      title: '주문번호',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      width: 180,
+      title: '반품 ID',
+      dataIndex: 'return_id',
+      key: 'return_id',
+      width: 100,
+      render: (text: string) => <strong>#{text}</strong>
+    },
+    {
+      title: '주문 ID',
+      dataIndex: 'order_id',
+      key: 'order_id',
+      width: 100,
       render: (text: string) => <strong>{text}</strong>
     },
     {
@@ -374,40 +344,35 @@ function MarketMyPageReturns() {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
-      render: (text: string) => text.split(' ')[0]
-    },
-    {
-      title: '반품 상품',
-      key: 'items',
-      render: (_, record: ReturnRefund) => (
-        <div>
-          {record.items.length > 0 && (
-            <div>
-              <div>{record.items[0].product_name}</div>
-              {record.items.length > 1 && (
-                <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                  외 {record.items.length - 1}개
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )
+      render: (text: string) => text ? text.replace('T', ' ').substring(0, 16) : '-'
     },
     {
       title: '반품 사유',
       dataIndex: 'return_reason',
       key: 'return_reason',
-      width: 120
+      width: 200,
+      render: (text: string | undefined) => text || <span style={{ color: '#999' }}>-</span>
     },
     {
-      title: '환불금액',
-      dataIndex: 'refund_amount',
-      key: 'refund_amount',
-      width: 120,
-      align: 'right',
-      render: (amount: number | undefined) => 
-        amount ? <strong>{amount.toLocaleString()}원</strong> : <span style={{ color: '#999' }}>-</span>
+      title: '운송장 번호',
+      key: 'tracking',
+      width: 200,
+      render: (_, record: ReturnRefund) => (
+        <div>
+          {record.return_tracking_number ? (
+            <>
+              <div>{record.return_tracking_number}</div>
+              {record.return_shipping_company && (
+                <div style={{ color: '#999', fontSize: '0.85rem' }}>
+                  {record.return_shipping_company}
+                </div>
+              )}
+            </>
+          ) : (
+            <span style={{ color: '#999' }}>-</span>
+          )}
+        </div>
+      )
     },
     {
       title: '상태',
@@ -755,7 +720,7 @@ function MarketMyPageReturns() {
 
       {/* 반품/환불 상세 모달 */}
       <Modal
-        title="반품/환불 상세 정보"
+        title="반품 상세 정보"
         open={isDetailModalVisible}
         onCancel={() => setIsDetailModalVisible(false)}
         footer={[
@@ -767,37 +732,23 @@ function MarketMyPageReturns() {
       >
         {selectedReturn && (
           <Descriptions column={1} bordered>
-            <Descriptions.Item label="주문번호">
-              {selectedReturn.order_number}
+            <Descriptions.Item label="반품 ID">
+              #{selectedReturn.return_id}
+            </Descriptions.Item>
+            <Descriptions.Item label="주문 ID">
+              {selectedReturn.order_id}
             </Descriptions.Item>
             <Descriptions.Item label="상태">
               <Tag color={statusMap[selectedReturn.return_status]?.color}>
                 {statusMap[selectedReturn.return_status]?.label}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="반품 상품">
-              {selectedReturn.items.map((item) => (
-                <div key={item.order_item_id} style={{ marginBottom: '0.5rem' }}>
-                  {item.product_name} ({item.product_code}) × {item.quantity}개
-                </div>
-              ))}
-            </Descriptions.Item>
             <Descriptions.Item label="반품 사유">
-              {selectedReturn.return_reason}
+              {selectedReturn.return_reason || '-'}
             </Descriptions.Item>
-            {selectedReturn.return_reason_detail && (
-              <Descriptions.Item label="상세 사유">
-                {selectedReturn.return_reason_detail}
-              </Descriptions.Item>
-            )}
-            {selectedReturn.refund_amount && (
-              <Descriptions.Item label="환불금액">
-                <strong>{selectedReturn.refund_amount.toLocaleString()}원</strong>
-              </Descriptions.Item>
-            )}
-            {selectedReturn.refund_method && (
-              <Descriptions.Item label="환불 방법">
-                {selectedReturn.refund_method}
+            {selectedReturn.reject_reason && (
+              <Descriptions.Item label="거절 사유">
+                <span style={{ color: '#ff4d4f' }}>{selectedReturn.reject_reason}</span>
               </Descriptions.Item>
             )}
             {selectedReturn.return_tracking_number && (
@@ -810,11 +761,16 @@ function MarketMyPageReturns() {
                 )}
               </Descriptions.Item>
             )}
+            {selectedReturn.return_address && (
+              <Descriptions.Item label="수거지 주소">
+                {selectedReturn.return_address}
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="신청일시">
-              {selectedReturn.created_at}
+              {selectedReturn.created_at ? selectedReturn.created_at.replace('T', ' ') : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="최종 수정일시">
-              {selectedReturn.updated_at}
+              {selectedReturn.updated_at ? selectedReturn.updated_at.replace('T', ' ') : '-'}
             </Descriptions.Item>
           </Descriptions>
         )}
