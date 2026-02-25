@@ -19,6 +19,7 @@ public class OutboxEventPublisher {
 	private final OutboxRepository outboxRepository;
 	private final ShippingEventPublisher shippingEventPublisher;
 	private final ReturnEventPublisher returnEventPublisher;
+	private final ExchangeEventPublisher exchangeEventPublisher;
 
 	/**
 	 * DB 트랜잭션으로 Outbox 상태를 관리하고 Kafka 트랜잭션은
@@ -68,6 +69,16 @@ public class OutboxEventPublisher {
 				returnEventPublisher.publishReturnInTransitEvent(outbox);
 			case EventTypeConstants.TOPIC_RETURN_COMPLETED ->
 				returnEventPublisher.publishReturnCompletedEvent(outbox);
+
+			// Exchange Events
+			case EventTypeConstants.TOPIC_EXCHANGE_COLLECTING ->
+				exchangeEventPublisher.publishExchangeCollectingEvent(outbox);
+			case EventTypeConstants.TOPIC_EXCHANGE_RETURN_COMPLETED ->
+				exchangeEventPublisher.publishExchangeReturnCompletedEvent(outbox);
+			case EventTypeConstants.TOPIC_EXCHANGE_SHIPPING ->
+				exchangeEventPublisher.publishExchangeShippingEvent(outbox);
+			case EventTypeConstants.TOPIC_EXCHANGE_COMPLETED ->
+				exchangeEventPublisher.publishExchangeCompletedEvent(outbox);
 
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);
