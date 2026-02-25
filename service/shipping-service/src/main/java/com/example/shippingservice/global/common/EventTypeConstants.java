@@ -12,7 +12,7 @@ public final class EventTypeConstants {
 
 	// Kafka Topics - Return
 	public static final String TOPIC_RETURN_APPROVED = "return.approved";
-	public static final String TOPIC_RETURN_IN_TRANSIT = "return.in_transit";
+	public static final String TOPIC_RETURN_IN_TRANSIT = "return.in-transit";
 	public static final String TOPIC_RETURN_COMPLETED = "return.completed";
 
 	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Shipping
