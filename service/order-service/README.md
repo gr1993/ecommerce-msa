@@ -28,10 +28,23 @@ stateDiagram-v2
     RETURN_APPROVED --> RETURN_IN_TRANSIT : 반품 수거 중 (택배사 연동)
     RETURN_IN_TRANSIT --> RETURNED : 창고 도착 및 검수 완료 (환불)
 
+    %% 교환 프로세스 단계 (투트랙 운송장 처리)
+    DELIVERED --> EXCHANGE_REQUESTED : 교환 신청
+    
+    EXCHANGE_REQUESTED --> EXCHANGE_APPROVED : 관리자 승인 (회수/발송 운송장 발급)
+    EXCHANGE_REQUESTED --> DELIVERED : 관리자 거절 (원상태 복구)
+
+    EXCHANGE_APPROVED --> EXCHANGE_COLLECTING : 기존 물품 회수 중
+    EXCHANGE_COLLECTING --> EXCHANGE_RETURN_COMPLETED : 회수 완료 및 검수 대기
+    
+    EXCHANGE_RETURN_COMPLETED --> EXCHANGE_SHIPPING : 관리자 출고 지시 및 새 물품 발송 중
+    EXCHANGE_SHIPPING --> EXCHANGED : 새 물품 배송 완료 (교환 최종 완료)
+
     %% 종료 상태
     FAILED --> [*]
     CANCELED --> [*]
     RETURNED --> [*]
+    EXCHANGED --> [*]
 ```
 
 
