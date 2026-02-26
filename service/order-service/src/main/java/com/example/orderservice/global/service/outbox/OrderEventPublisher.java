@@ -3,6 +3,7 @@ package com.example.orderservice.global.service.outbox;
 import com.example.orderservice.domain.entity.Outbox;
 import com.example.orderservice.domain.event.CouponRestoredEvent;
 import com.example.orderservice.domain.event.CouponUsedEvent;
+import com.example.orderservice.domain.event.InventoryDecreaseEvent;
 import com.example.orderservice.domain.event.OrderCancelledEvent;
 import com.example.orderservice.domain.event.OrderCreatedEvent;
 import com.example.orderservice.global.common.EventTypeConstants;
@@ -198,5 +199,47 @@ public class OrderEventPublisher {
 
 	private String buildKey(String aggregateType, String aggregateId) {
 		return aggregateType + "-" + aggregateId;
+	}
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_INVENTORY_DECREASE,
+			description = "재고 차감 이벤트 발행 (교환 승인 시 신규 옵션 재고 차감)",
+			payloadType = InventoryDecreaseEvent.class,
+			headers = @Headers(
+				schemaName = "InventoryDecreaseEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_INVENTORY_DECREASE
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Order-123"
+			)
+		)
+	)
+	public void publishInventoryDecreaseEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_INVENTORY_DECREASE;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			InventoryDecreaseEvent event = objectMapper.readValue(outbox.getPayload(), InventoryDecreaseEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
 	}
 }

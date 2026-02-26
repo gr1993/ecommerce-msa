@@ -18,6 +18,7 @@ public final class EventTypeConstants {
 	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Order
 	public static final String TYPE_ID_ORDER_CREATED = "orderCreatedEvent";
 	public static final String TYPE_ID_ORDER_CANCELLED = "orderCancelledEvent";
+	public static final String TYPE_ID_INVENTORY_DECREASE = "inventoryDecreaseEvent";
 
 	// Kafka Type IDs - Coupon
 	public static final String TYPE_ID_COUPON_USED = "couponUsedEvent";
