@@ -557,7 +557,13 @@ export const getMyReturns = async (
 /**
  * 교환 상태
  */
-export type ExchangeStatus = 'EXCHANGE_REQUESTED' | 'EXCHANGE_APPROVED' | 'RETURNED' | 'EXCHANGE_SHIPPING' | 'EXCHANGED'
+export type ExchangeStatus =
+  | 'EXCHANGE_REQUESTED'       // 교환 신청
+  | 'EXCHANGE_COLLECTING'      // 회수 중 (승인 후)
+  | 'EXCHANGE_RETURN_COMPLETED'// 회수 완료
+  | 'EXCHANGE_SHIPPING'        // 교환품 발송 중
+  | 'EXCHANGED'                // 교환 완료
+  | 'EXCHANGE_REJECTED'        // 교환 거절
 
 /**
  * 관리자 교환 응답 DTO
@@ -567,8 +573,6 @@ export interface AdminExchangeResponse {
   exchangeId: number
   /** 주문 ID */
   orderId: number
-  /** 주문 번호 (백엔드 수정 필요 - order_shipping join) */
-  orderNumber?: string
   /** 사용자 ID */
   userId: number
   /** 교환 상품 목록 */
@@ -577,18 +581,32 @@ export interface AdminExchangeResponse {
   exchangeStatus: ExchangeStatus
   /** 교환 사유 */
   reason?: string
-  /** 수령인 이름 */
-  receiverName: string
-  /** 수령인 연락처 */
-  receiverPhone: string
-  /** 교환 주소 */
-  address: string
-  /** 우편번호 */
-  postalCode?: string
-  /** 택배사 */
+  /** 거절 사유 */
+  rejectReason?: string
+  /** 회수 택배사 */
+  collectCourier?: string
+  /** 회수 운송장 번호 */
+  collectTrackingNumber?: string
+  /** 회수 수령인 */
+  collectReceiverName?: string
+  /** 회수 수령인 연락처 */
+  collectReceiverPhone?: string
+  /** 회수 주소 */
+  collectAddress?: string
+  /** 회수 우편번호 */
+  collectPostalCode?: string
+  /** 교환 배송 택배사 */
   courier?: string
-  /** 운송장 번호 */
+  /** 교환 배송 운송장 번호 */
   trackingNumber?: string
+  /** 교환품 수령인 */
+  receiverName?: string
+  /** 교환품 수령 연락처 */
+  receiverPhone?: string
+  /** 교환품 배송 주소 */
+  exchangeAddress?: string
+  /** 교환품 배송 우편번호 */
+  postalCode?: string
   /** 신청 일시 */
   requestedAt: string
   /** 수정 일시 */
@@ -607,26 +625,20 @@ export interface ExchangeItemDto {
   newOptionId: number
   /** 교환 수량 */
   quantity: number
-  /** 상품명 (추가 필요 - 백엔드 수정 대기) */
-  productName?: string
-  /** 원래 SKU 이름 (추가 필요 - 백엔드 수정 대기) */
-  originalSkuName?: string
-  /** 새 SKU 이름 (추가 필요 - 백엔드 수정 대기) */
-  newSkuName?: string
 }
 
 /**
- * 교환 승인 요청 DTO
+ * 교환 승인 요청 DTO (회수 수거지 정보)
  */
 export interface AdminExchangeApproveRequest {
-  /** 교환품 수령인 */
-  receiverName: string
-  /** 교환품 수령 연락처 */
-  receiverPhone: string
-  /** 교환품 배송 주소 */
-  exchangeAddress: string
-  /** 우편번호 */
-  postalCode?: string
+  /** 회수 수령인 */
+  collectReceiverName: string
+  /** 회수 수령인 연락처 */
+  collectReceiverPhone: string
+  /** 회수 주소 */
+  collectAddress: string
+  /** 회수 우편번호 */
+  collectPostalCode?: string
 }
 
 /**
@@ -727,6 +739,39 @@ export const approveExchange = async (
     console.error('Approve exchange error:', error)
     if (error instanceof Error) throw error
     throw new Error('교환 승인 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 회수 완료 처리
+ *
+ * EXCHANGE_COLLECTING → EXCHANGE_RETURN_COMPLETED
+ */
+export const completeExchangeCollect = async (
+  exchangeId: number,
+): Promise<AdminExchangeResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/collect-complete`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      if (response.status === 403) throw new Error(error.message || '접근 권한이 없습니다.')
+      if (response.status === 404) throw new Error(error.message || '교환 정보를 찾을 수 없습니다.')
+      if (response.status === 409) throw new Error(error.message || '회수 완료 처리 불가 상태입니다.')
+      throw new Error(error.message || `회수 완료 처리 실패 (HTTP ${response.status})`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Complete exchange collect error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('회수 완료 처리 중 오류가 발생했습니다.')
   }
 }
 

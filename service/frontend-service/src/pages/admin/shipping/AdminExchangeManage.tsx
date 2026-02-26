@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Table, Card, Space, Input, Button, Select, Tag, Modal, Form, message, Popconfirm } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { CheckOutlined, TruckOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import { CheckOutlined, CheckCircleOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import OrderDetailModal, { type Order, type OrderItem, type OrderShipping } from '../order/OrderDetailModal'
 import ExchangeItemsModal from './ExchangeItemsModal'
 import {
   getAdminExchanges,
   approveExchange,
+  completeExchangeCollect,
   completeExchange,
   type AdminExchangeResponse,
   type ExchangeStatus,
@@ -24,12 +25,21 @@ interface Exchange {
   exchange_status: ExchangeStatus
   exchange_items: ExchangeItemDto[]
   exchange_reason?: string
-  receiver_name: string
-  receiver_phone: string
-  exchange_address: string
-  postal_code?: string
+  reject_reason?: string
+  // 회수 정보
+  collect_courier?: string
+  collect_tracking_number?: string
+  collect_receiver_name?: string
+  collect_receiver_phone?: string
+  collect_address?: string
+  collect_postal_code?: string
+  // 교환 배송 정보
   courier?: string
   tracking_number?: string
+  receiver_name?: string
+  receiver_phone?: string
+  exchange_address?: string
+  postal_code?: string
   created_at: string
   updated_at: string
 }
@@ -44,9 +54,12 @@ function AdminExchangeManage() {
   const [orderShipping, setOrderShipping] = useState<OrderShipping | null>(null)
   const [isOrderModalVisible, setIsOrderModalVisible] = useState(false)
   const [isApprovalModalVisible, setIsApprovalModalVisible] = useState(false)
+  // 교환품 배송지 모달 — 나중에 EXCHANGE_RETURN_COMPLETED → EXCHANGE_SHIPPING 시 사용
+  const [isShippingModalVisible, setIsShippingModalVisible] = useState(false)
   const [isExchangeItemsModalVisible, setIsExchangeItemsModalVisible] = useState(false)
   const [selectedExchange, setSelectedExchange] = useState<Exchange | null>(null)
   const [approvalForm] = Form.useForm()
+  const [shippingForm] = Form.useForm()
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -55,12 +68,13 @@ function AdminExchangeManage() {
 
   const exchangeStatusMap: Record<string, { label: string; color: string }> = {
     EXCHANGE_REQUESTED: { label: '교환 요청', color: 'blue' },
-    EXCHANGE_APPROVED: { label: '교환 승인 (배송 중)', color: 'orange' },
+    EXCHANGE_COLLECTING: { label: '회수 중', color: 'orange' },
+    EXCHANGE_RETURN_COMPLETED: { label: '회수 완료', color: 'cyan' },
+    EXCHANGE_SHIPPING: { label: '교환 배송 중', color: 'purple' },
     EXCHANGED: { label: '교환 완료', color: 'green' },
-    EXCHANGE_REJECTED: { label: '교환 거절', color: 'red' }
+    EXCHANGE_REJECTED: { label: '교환 거절', color: 'red' },
   }
 
-  // 교환 데이터 로드
   useEffect(() => {
     loadExchanges()
   }, [])
@@ -83,12 +97,19 @@ function AdminExchangeManage() {
         exchange_status: item.exchangeStatus,
         exchange_items: item.exchangeItems,
         exchange_reason: item.reason,
-        receiver_name: item.receiverName,
-        receiver_phone: item.receiverPhone,
-        exchange_address: item.address,
-        postal_code: item.postalCode,
+        reject_reason: item.rejectReason,
+        collect_courier: item.collectCourier,
+        collect_tracking_number: item.collectTrackingNumber,
+        collect_receiver_name: item.collectReceiverName,
+        collect_receiver_phone: item.collectReceiverPhone,
+        collect_address: item.collectAddress,
+        collect_postal_code: item.collectPostalCode,
         courier: item.courier,
         tracking_number: item.trackingNumber,
+        receiver_name: item.receiverName,
+        receiver_phone: item.receiverPhone,
+        exchange_address: item.exchangeAddress,
+        postal_code: item.postalCode,
         created_at: item.requestedAt,
         updated_at: item.updatedAt,
       }))
@@ -140,17 +161,6 @@ function AdminExchangeManage() {
     setOrderShipping(null)
   }
 
-  // 교환 품목 모달 열기
-  const handleExchangeItemsClick = (exchange: Exchange) => {
-    setSelectedExchange(exchange)
-    setIsExchangeItemsModalVisible(true)
-  }
-
-  const handleExchangeItemsModalClose = () => {
-    setIsExchangeItemsModalVisible(false)
-    setSelectedExchange(null)
-  }
-
   const handleOrderSave = async (orderId: string, orderStatus: string, orderMemo: string) => {
     if (selectedOrder && selectedOrder.order_id === orderId) {
       setSelectedOrder({
@@ -161,28 +171,35 @@ function AdminExchangeManage() {
     }
   }
 
-  // 교환 승인 모달 열기
+  // 교환 품목 모달
+  const handleExchangeItemsClick = (exchange: Exchange) => {
+    setSelectedExchange(exchange)
+    setIsExchangeItemsModalVisible(true)
+  }
+
+  const handleExchangeItemsModalClose = () => {
+    setIsExchangeItemsModalVisible(false)
+    setSelectedExchange(null)
+  }
+
+  // 교환 승인 모달 (회수 수거지 입력)
   const handleApprovalClick = (exchange: Exchange) => {
     setSelectedExchange(exchange)
     approvalForm.resetFields()
     setIsApprovalModalVisible(true)
   }
 
-  // 교환 승인 저장 (교환품 배송지 설정)
   const handleApprovalSave = async () => {
     if (!selectedExchange) return
-
     try {
       const values = await approvalForm.validateFields()
-
       await approveExchange(selectedExchange.exchange_id, {
-        receiverName: values.receiver_name,
-        receiverPhone: values.receiver_phone,
-        exchangeAddress: values.exchange_address,
-        postalCode: values.postal_code,
+        collectReceiverName: values.collect_receiver_name,
+        collectReceiverPhone: values.collect_receiver_phone,
+        collectAddress: values.collect_address,
+        collectPostalCode: values.collect_postal_code,
       })
-
-      message.success('교환이 승인되었고 택배사를 통해 자동으로 운송장이 발급되었습니다.')
+      message.success('교환이 승인되었습니다. 회수 운송장이 자동 발급되었습니다.')
       setIsApprovalModalVisible(false)
       setSelectedExchange(null)
       approvalForm.resetFields()
@@ -199,27 +216,27 @@ function AdminExchangeManage() {
     approvalForm.resetFields()
   }
 
+  // 회수 완료 처리
+  const handleCollectComplete = async (exchange: Exchange) => {
+    try {
+      await completeExchangeCollect(exchange.exchange_id)
+      message.success('회수 완료 처리되었습니다.')
+      loadExchanges(pagination.current - 1)
+    } catch (error) {
+      console.error('회수 완료 처리 실패:', error)
+      message.error(error instanceof Error ? error.message : '회수 완료 처리에 실패했습니다.')
+    }
+  }
+
   // 교환 완료 처리
   const handleExchangeComplete = async (exchange: Exchange) => {
     try {
       await completeExchange(exchange.exchange_id)
-      message.success('교환이 완료되었습니다.')
+      message.success('교환이 완료 처리되었습니다.')
       loadExchanges(pagination.current - 1)
     } catch (error) {
       console.error('교환 완료 처리 실패:', error)
       message.error(error instanceof Error ? error.message : '교환 완료 처리에 실패했습니다.')
-    }
-  }
-
-  // 교환 거절
-  const handleExchangeReject = async (exchange: Exchange) => {
-    try {
-      // TODO: 교환 거절 API 호출
-      message.success('교환이 거절되었습니다.')
-      loadExchanges(pagination.current - 1)
-    } catch (error) {
-      console.error('교환 거절 실패:', error)
-      message.error(error instanceof Error ? error.message : '교환 거절에 실패했습니다.')
     }
   }
 
@@ -247,12 +264,8 @@ function AdminExchangeManage() {
       title: '주문 번호',
       dataIndex: 'order_number',
       key: 'order_number',
-      sorter: (a, b) => (a.order_number || '').localeCompare(b.order_number || ''),
       render: (text: string, record: Exchange) => (
-        <a
-          onClick={() => handleOrderClick(record.order_id)}
-          style={{ color: '#007BFF', cursor: 'pointer' }}
-        >
+        <a onClick={() => handleOrderClick(record.order_id)} style={{ color: '#007BFF', cursor: 'pointer' }}>
           {text}
         </a>
       ),
@@ -262,20 +275,14 @@ function AdminExchangeManage() {
       title: '교환 상태',
       dataIndex: 'exchange_status',
       key: 'exchange_status',
-      filters: [
-        { text: '교환 요청', value: 'EXCHANGE_REQUESTED' },
-        { text: '교환 승인', value: 'EXCHANGE_APPROVED' },
-        { text: '교환 완료', value: 'EXCHANGED' },
-        { text: '교환 거절', value: 'EXCHANGE_REJECTED' },
-      ],
-      onFilter: (value, record) => record.exchange_status === value,
       render: (status: string, record: Exchange) => {
         const statusInfo = exchangeStatusMap[status]
         return (
-          <Space>
+          <Space direction="vertical" size={4}>
             <Tag color={statusInfo?.color || 'default'}>
               {statusInfo?.label || status}
             </Tag>
+            {/* EXCHANGE_REQUESTED: 승인/거절 */}
             {status === 'EXCHANGE_REQUESTED' && (
               <Space>
                 <Button
@@ -287,50 +294,50 @@ function AdminExchangeManage() {
                 >
                   승인
                 </Button>
-                <Popconfirm
-                  title="교환 거절 확인"
-                  description="정말 교환을 거절하시겠습니까?"
-                  onConfirm={() => handleExchangeReject(record)}
-                  okText="확인"
-                  cancelText="취소"
-                  okButtonProps={{
-                    danger: true
-                  }}
-                >
-                  <Button
-                    danger
-                    size="small"
-                  >
-                    거절
-                  </Button>
-                </Popconfirm>
               </Space>
             )}
-            {status === 'EXCHANGE_APPROVED' && (
+            {/* EXCHANGE_COLLECTING: 회수 완료 */}
+            {status === 'EXCHANGE_COLLECTING' && (
               <Popconfirm
-                title="교환 완료 확인"
-                description="교환 상품 배송이 완료되었나요? 정말 교환을 완료하시겠습니까?"
-                onConfirm={() => handleExchangeComplete(record)}
-                okText="확인"
+                title="회수 완료 확인"
+                description="반품 상품 회수가 완료되었나요?"
+                onConfirm={() => handleCollectComplete(record)}
+                okText="완료 처리"
                 cancelText="취소"
-                okButtonProps={{
-                  style: { backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }
-                }}
               >
                 <Button
                   type="primary"
                   size="small"
                   icon={<CheckCircleOutlined />}
-                  style={{ backgroundColor: '#FFC107', borderColor: '#FFC107', color: '#343A40', fontWeight: 600 }}
+                  style={{ backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
                 >
-                  완료
+                  회수 완료
+                </Button>
+              </Popconfirm>
+            )}
+            {/* EXCHANGE_SHIPPING: 교환 완료 */}
+            {status === 'EXCHANGE_SHIPPING' && (
+              <Popconfirm
+                title="교환 완료 확인"
+                description="교환 상품 배송이 완료되었나요?"
+                onConfirm={() => handleExchangeComplete(record)}
+                okText="완료 처리"
+                cancelText="취소"
+              >
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
+                >
+                  교환 완료
                 </Button>
               </Popconfirm>
             )}
           </Space>
         )
       },
-      width: 280,
+      width: 150,
     },
     {
       title: '교환 사유',
@@ -341,28 +348,25 @@ function AdminExchangeManage() {
       width: 150,
     },
     {
-      title: '수령인',
-      dataIndex: 'receiver_name',
-      key: 'receiver_name',
-      width: 100,
+      title: '회수 운송장',
+      key: 'collect_tracking',
+      render: (_: unknown, record: Exchange) => {
+        if (record.collect_tracking_number) {
+          return (
+            <div>
+              <div style={{ fontSize: '12px', color: '#666' }}>{record.collect_courier}</div>
+              <div>{record.collect_tracking_number}</div>
+            </div>
+          )
+        }
+        return <span style={{ color: '#999' }}>-</span>
+      },
+      width: 150,
     },
     {
-      title: '연락처',
-      dataIndex: 'receiver_phone',
-      key: 'receiver_phone',
-      width: 130,
-    },
-    {
-      title: '교환 주소',
-      dataIndex: 'exchange_address',
-      key: 'exchange_address',
-      ellipsis: true,
-      width: 200,
-    },
-    {
-      title: '운송장',
+      title: '교환 배송 운송장',
       key: 'tracking',
-      render: (_, record: Exchange) => {
+      render: (_: unknown, record: Exchange) => {
         if (record.tracking_number) {
           return (
             <div>
@@ -380,16 +384,11 @@ function AdminExchangeManage() {
       dataIndex: 'created_at',
       key: 'created_at',
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => {
-        const dateObj = new Date(date)
-        return dateObj.toLocaleString('ko-KR', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      },
+      render: (date: string) =>
+        new Date(date).toLocaleString('ko-KR', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        }),
       width: 160,
     },
     {
@@ -397,16 +396,11 @@ function AdminExchangeManage() {
       dataIndex: 'updated_at',
       key: 'updated_at',
       sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
-      render: (date: string) => {
-        const dateObj = new Date(date)
-        return dateObj.toLocaleString('ko-KR', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      },
+      render: (date: string) =>
+        new Date(date).toLocaleString('ko-KR', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        }),
       width: 160,
     },
   ]
@@ -437,7 +431,9 @@ function AdminExchangeManage() {
                 onChange={(value) => setSearchExchangeStatus(value)}
               >
                 <Option value="EXCHANGE_REQUESTED">교환 요청</Option>
-                <Option value="EXCHANGE_APPROVED">교환 승인 (배송 중)</Option>
+                <Option value="EXCHANGE_COLLECTING">회수 중</Option>
+                <Option value="EXCHANGE_RETURN_COMPLETED">회수 완료</Option>
+                <Option value="EXCHANGE_SHIPPING">교환 배송 중</Option>
                 <Option value="EXCHANGED">교환 완료</Option>
                 <Option value="EXCHANGE_REJECTED">교환 거절</Option>
               </Select>
@@ -446,9 +442,7 @@ function AdminExchangeManage() {
           <div className="filter-actions">
             <Space>
               <Button onClick={handleReset}>초기화</Button>
-              <Button type="primary" onClick={handleSearch}>
-                검색
-              </Button>
+              <Button type="primary" onClick={handleSearch}>검색</Button>
             </Space>
           </div>
         </div>
@@ -490,59 +484,101 @@ function AdminExchangeManage() {
           onClose={handleExchangeItemsModalClose}
         />
 
-        {/* 교환 승인 모달 (교환품 배송지 설정) */}
+        {/* 교환 승인 모달 — 회수 수거지 정보 입력 */}
         <Modal
-          title="교환 승인 및 교환품 배송지 설정"
+          title="교환 승인 — 회수 수거지 정보 입력"
           open={isApprovalModalVisible}
           onCancel={handleApprovalModalClose}
           onOk={handleApprovalSave}
-          okText="승인 및 저장"
+          okText="승인"
           cancelText="취소"
-          okButtonProps={{
-            style: { backgroundColor: '#28a745', borderColor: '#28a745' }
-          }}
+          okButtonProps={{ style: { backgroundColor: '#28a745', borderColor: '#28a745' } }}
         >
           {selectedExchange && (
-            <div style={{ marginBottom: '1rem' }}>
-              <p><strong>주문 번호:</strong> {selectedExchange.order_number}</p>
-              <p><strong>교환 사유:</strong> {selectedExchange.exchange_reason || '-'}</p>
+            <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#f6f8fa', borderRadius: '4px' }}>
+              <p style={{ margin: '2px 0' }}><strong>주문 번호:</strong> {selectedExchange.order_number}</p>
+              <p style={{ margin: '2px 0' }}><strong>교환 사유:</strong> {selectedExchange.exchange_reason || '-'}</p>
             </div>
           )}
-          <Form
-            form={approvalForm}
-            layout="vertical"
-          >
+          <Form form={approvalForm} layout="vertical">
+            <Form.Item
+              label="회수 수령인"
+              name="collect_receiver_name"
+              rules={[{ required: true, message: '회수 수령인을 입력하세요' }]}
+            >
+              <Input placeholder="회수 담당자 이름" />
+            </Form.Item>
+            <Form.Item
+              label="회수 수령인 연락처"
+              name="collect_receiver_phone"
+              rules={[{ required: true, message: '연락처를 입력하세요' }]}
+            >
+              <Input placeholder="010-0000-0000" />
+            </Form.Item>
+            <Form.Item
+              label="회수 주소"
+              name="collect_address"
+              rules={[{ required: true, message: '회수 주소를 입력하세요' }]}
+            >
+              <Input placeholder="물품을 수거할 주소" />
+            </Form.Item>
+            <Form.Item label="우편번호" name="collect_postal_code">
+              <Input placeholder="우편번호" />
+            </Form.Item>
+          </Form>
+          <div style={{ marginTop: '12px', padding: '10px 12px', background: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: '#0056b3' }}>
+              ℹ️ 승인 시 택배사 API를 통해 회수 운송장이 자동 발급됩니다.
+            </p>
+          </div>
+        </Modal>
+
+        {/*
+          교환품 배송지 모달 — EXCHANGE_RETURN_COMPLETED → EXCHANGE_SHIPPING 시 사용 예정
+          현재 보관 중 (isShippingModalVisible / shippingForm)
+        */}
+        <Modal
+          title="교환품 발송 — 배송지 정보 입력"
+          open={isShippingModalVisible}
+          onCancel={() => { setIsShippingModalVisible(false); setSelectedExchange(null); shippingForm.resetFields() }}
+          onOk={() => { /* TODO: startShipping API 연동 */ }}
+          okText="발송 처리"
+          cancelText="취소"
+        >
+          {selectedExchange && (
+            <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#f6f8fa', borderRadius: '4px' }}>
+              <p style={{ margin: '2px 0' }}><strong>주문 번호:</strong> {selectedExchange.order_number}</p>
+            </div>
+          )}
+          <Form form={shippingForm} layout="vertical">
             <Form.Item
               label="교환품 수령인"
               name="receiver_name"
               rules={[{ required: true, message: '수령인을 입력하세요' }]}
             >
-              <Input placeholder="교환품 수령인 이름을 입력하세요" />
+              <Input placeholder="교환품 수령인 이름" />
             </Form.Item>
             <Form.Item
               label="교환품 수령 연락처"
               name="receiver_phone"
-              rules={[{ required: true, message: '수령 연락처를 입력하세요' }]}
+              rules={[{ required: true, message: '연락처를 입력하세요' }]}
             >
-              <Input placeholder="교환품 수령 연락처를 입력하세요" />
+              <Input placeholder="010-0000-0000" />
             </Form.Item>
             <Form.Item
               label="교환품 배송 주소"
               name="exchange_address"
               rules={[{ required: true, message: '배송 주소를 입력하세요' }]}
             >
-              <Input placeholder="교환품 배송 주소를 입력하세요" />
+              <Input placeholder="교환품을 배송할 주소" />
             </Form.Item>
-            <Form.Item
-              label="우편번호"
-              name="postal_code"
-            >
-              <Input placeholder="우편번호를 입력하세요" />
+            <Form.Item label="우편번호" name="postal_code">
+              <Input placeholder="우편번호" />
             </Form.Item>
           </Form>
-          <div style={{ marginTop: '16px', padding: '12px', background: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
+          <div style={{ marginTop: '12px', padding: '10px 12px', background: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
             <p style={{ margin: 0, fontSize: '13px', color: '#0056b3' }}>
-              ℹ️ 교환 승인 시 택배사 API를 통해 자동으로 운송장이 발급됩니다.
+              ℹ️ 발송 처리 시 택배사 API를 통해 배송 운송장이 자동 발급됩니다.
             </p>
           </div>
         </Modal>
@@ -552,4 +588,3 @@ function AdminExchangeManage() {
 }
 
 export default AdminExchangeManage
-
