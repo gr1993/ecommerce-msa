@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Space, Empty, message, Modal, Form, Input, Select, Descriptions, Tabs } from 'antd'
+import { Card, Table, Tag, Button, Space, Empty, message, Modal, Form, Input, Select, Descriptions, Tabs, InputNumber } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { UndoOutlined, EyeOutlined, SwapOutlined } from '@ant-design/icons'
 import { getReturnableShippings, getMyReturns, type MarketShippingResponse, type MarketReturnResponse } from '../../../api/shippingApi'
-import { requestReturn, requestExchange } from '../../../api/orderApi'
+import { requestReturn, requestExchange, getOrderItemsWithProductDetails, type ExchangeItemRequest, type OrderItemWithProductDetail } from '../../../api/orderApi'
+import { formatSkuOptions } from '../../../api/catalogApi'
 import './MarketMyPageReturns.css'
 
 const { TabPane } = Tabs
@@ -69,6 +70,7 @@ function MarketMyPageReturns() {
   const [loading, setLoading] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<ReturnableOrder | null>(null)
   const [selectedExchangeOrder, setSelectedExchangeOrder] = useState<ReturnableOrder | null>(null)
+  const [orderItemsWithDetails, setOrderItemsWithDetails] = useState<OrderItemWithProductDetail[]>([])
   const [isRequestModalVisible, setIsRequestModalVisible] = useState(false)
   const [isExchangeModalVisible, setIsExchangeModalVisible] = useState(false)
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false)
@@ -78,6 +80,7 @@ function MarketMyPageReturns() {
   const [requestForm] = Form.useForm()
   const [exchangeForm] = Form.useForm()
   const [activeTab, setActiveTab] = useState('history')
+  const [loadingOrderItems, setLoadingOrderItems] = useState(false)
 
   useEffect(() => {
     loadReturnRefunds()
@@ -283,30 +286,84 @@ function MarketMyPageReturns() {
     setIsDetailModalVisible(true)
   }
 
-  const handleRequestExchange = (order: ReturnableOrder) => {
+  const handleRequestExchange = async (order: ReturnableOrder) => {
     setSelectedExchangeOrder(order)
-    exchangeForm.resetFields()
-    exchangeForm.setFieldsValue({
-      order_id: order.order_id,
-      exchange_reason: undefined,
-      exchange_reason_detail: ''
-    })
-    setIsExchangeModalVisible(true)
+    setLoadingOrderItems(true)
+
+    try {
+      // API 함수를 사용하여 주문 상품과 상품 상세 정보를 함께 조회
+      const itemsWithDetails = await getOrderItemsWithProductDetails(Number(order.order_id))
+
+      setOrderItemsWithDetails(itemsWithDetails)
+
+      // 각 상품에 대한 초기값 설정 (현재 SKU와 수량을 기본값으로)
+      const initialValues: Record<string, number | string | undefined> = {
+        order_id: order.order_id,
+        exchange_reason: undefined,
+        exchange_reason_detail: ''
+      }
+
+      itemsWithDetails.forEach(({ orderItem }) => {
+        initialValues[`newSkuId_${orderItem.orderItemId}`] = orderItem.skuId // 현재 SKU를 기본값으로
+        initialValues[`quantity_${orderItem.orderItemId}`] = orderItem.quantity // 현재 수량을 기본값으로
+      })
+
+      exchangeForm.resetFields()
+      exchangeForm.setFieldsValue(initialValues)
+      setIsExchangeModalVisible(true)
+    } catch (error) {
+      console.error('교환 신청 데이터 로드 오류:', error)
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('주문 상세 정보를 불러오는데 실패했습니다.')
+      }
+    } finally {
+      setLoadingOrderItems(false)
+    }
   }
 
   const handleSubmitExchange = async () => {
     try {
-      if (!selectedExchangeOrder) return
+      if (!selectedExchangeOrder || orderItemsWithDetails.length === 0) return
 
       const formValues = exchangeForm.getFieldsValue()
       const reason = formValues.exchange_reason_detail
         ? `${formValues.exchange_reason}: ${formValues.exchange_reason_detail}`
         : formValues.exchange_reason
 
-      await requestExchange(Number(selectedExchangeOrder.order_id), reason)
+      // 교환 상품 목록 생성
+      const exchangeItems: ExchangeItemRequest[] = orderItemsWithDetails.map(({ orderItem }) => {
+        const newSkuId = formValues[`newSkuId_${orderItem.orderItemId}`]
+        const quantity = formValues[`quantity_${orderItem.orderItemId}`]
+
+        if (!newSkuId) {
+          throw new Error(`${orderItem.productName}의 교환 옵션을 선택해주세요.`)
+        }
+
+        if (!quantity || quantity < 1) {
+          throw new Error(`${orderItem.productName}의 교환 수량을 입력해주세요.`)
+        }
+
+        if (quantity > orderItem.quantity) {
+          throw new Error(`${orderItem.productName}의 교환 수량이 주문 수량(${orderItem.quantity}개)을 초과할 수 없습니다.`)
+        }
+
+        return {
+          orderItemId: orderItem.orderItemId,
+          newSkuId: Number(newSkuId),
+          quantity: Number(quantity)
+        }
+      })
+
+      await requestExchange(Number(selectedExchangeOrder.order_id), {
+        exchangeItems,
+        reason
+      })
 
       message.success('교환 신청이 완료되었습니다.')
       setIsExchangeModalVisible(false)
+      setOrderItemsWithDetails([])
       loadExchanges()
       loadExchangeableOrders()
     } catch (error) {
@@ -780,9 +837,12 @@ function MarketMyPageReturns() {
       <Modal
         title="교환 신청"
         open={isExchangeModalVisible}
-        onCancel={() => setIsExchangeModalVisible(false)}
+        onCancel={() => {
+          setIsExchangeModalVisible(false)
+          setOrderItemsWithDetails([])
+        }}
         footer={null}
-        width={600}
+        width={800}
       >
         {selectedExchangeOrder && (
           <Form
@@ -799,6 +859,84 @@ function MarketMyPageReturns() {
                 {selectedExchangeOrder.order_number}
               </Descriptions.Item>
             </Descriptions>
+
+            {/* 주문 상품 목록 */}
+            {loadingOrderItems ? (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                주문 상품 정보를 불러오는 중...
+              </div>
+            ) : orderItemsWithDetails.length > 0 ? (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>교환할 상품 정보</h4>
+                {orderItemsWithDetails.map(({ orderItem, productDetail }, index) => {
+                  const currentSku = productDetail?.skus.find(sku => sku.id === orderItem.skuId)
+
+                  return (
+                    <Card
+                      key={orderItem.orderItemId}
+                      size="small"
+                      style={{ marginBottom: '1rem' }}
+                      title={`${index + 1}. ${orderItem.productName} (${orderItem.productCode})`}
+                    >
+                      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        {currentSku && productDetail && (
+                          <div style={{ padding: '0.5rem', background: '#f0f0f0', borderRadius: '4px' }}>
+                            <strong>현재 옵션:</strong> {formatSkuOptions(currentSku, productDetail)} |
+                            <strong> 수량:</strong> {orderItem.quantity}개 |
+                            <strong> 단가:</strong> {orderItem.unitPrice.toLocaleString()}원
+                          </div>
+                        )}
+
+                        <Form.Item
+                          name={`newSkuId_${orderItem.orderItemId}`}
+                          label="교환할 옵션 선택"
+                          rules={[{ required: true, message: '교환할 옵션을 선택해주세요.' }]}
+                          style={{ marginBottom: '0.5rem' }}
+                        >
+                          <Select
+                            placeholder="교환할 옵션을 선택해주세요"
+                            size="large"
+                            disabled={!productDetail}
+                          >
+                            {productDetail?.skus
+                              .filter(sku => sku.status === 'ACTIVE' && sku.stockQty > 0)
+                              .map(sku => (
+                                <Option key={sku.id} value={sku.id}>
+                                  {formatSkuOptions(sku, productDetail)} - {sku.price.toLocaleString()}원
+                                  {sku.id === orderItem.skuId && ' (현재 옵션)'}
+                                  {sku.stockQty < 10 && ` (재고 ${sku.stockQty}개)`}
+                                </Option>
+                              ))}
+                          </Select>
+                        </Form.Item>
+
+                        <Form.Item
+                          name={`quantity_${orderItem.orderItemId}`}
+                          label="교환 수량"
+                          rules={[
+                            { required: true, message: '교환 수량을 입력해주세요.' },
+                            { type: 'number', min: 1, message: '최소 1개 이상 입력해주세요.' },
+                            { type: 'number', max: orderItem.quantity, message: `최대 ${orderItem.quantity}개까지 입력 가능합니다.` }
+                          ]}
+                          style={{ marginBottom: '0.5rem' }}
+                        >
+                          <InputNumber
+                            placeholder="교환 수량"
+                            style={{ width: '100%' }}
+                            min={1}
+                            max={orderItem.quantity}
+                          />
+                        </Form.Item>
+
+                        <div style={{ color: '#666', fontSize: '0.9rem' }}>
+                          * 동일 옵션으로도 교환 신청 가능합니다 (불량/하자 등의 사유)
+                        </div>
+                      </Space>
+                    </Card>
+                  )
+                })}
+              </div>
+            ) : null}
 
             <Form.Item
               name="exchange_reason"
@@ -828,10 +966,13 @@ function MarketMyPageReturns() {
 
             <Form.Item>
               <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button onClick={() => setIsExchangeModalVisible(false)}>
+                <Button onClick={() => {
+                  setIsExchangeModalVisible(false)
+                  setOrderItemsWithDetails([])
+                }}>
                   취소
                 </Button>
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" disabled={loadingOrderItems || orderItemsWithDetails.length === 0}>
                   교환 신청
                 </Button>
               </Space>

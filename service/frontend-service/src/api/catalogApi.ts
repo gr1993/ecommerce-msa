@@ -274,3 +274,37 @@ export const getProductDetail = async (productId: number): Promise<ProductDetail
     throw error
   }
 }
+
+// ==================== Utility Functions ====================
+
+/**
+ * SKU 옵션을 사용자 친화적인 문자열로 포맷팅
+ *
+ * SKU의 optionValueIds를 옵션 그룹과 매칭하여 "빨강 / M 사이즈" 형태로 변환합니다.
+ *
+ * @param sku - SKU 정보
+ * @param productDetail - 상품 상세 정보 (옵션 그룹 포함)
+ * @returns 포맷팅된 옵션 문자열
+ *
+ * @example
+ * formatSkuOptions(sku, productDetail)
+ * // Returns: "빨강 / M 사이즈"
+ */
+export const formatSkuOptions = (sku: SkuResponse, productDetail: ProductDetailResponse): string => {
+  if (!sku.optionValueIds || sku.optionValueIds.length === 0) {
+    return '옵션 없음'
+  }
+
+  const optionNames: string[] = []
+
+  sku.optionValueIds.forEach(valueId => {
+    productDetail.optionGroups.forEach(group => {
+      const value = group.optionValues.find(v => v.id === valueId)
+      if (value) {
+        optionNames.push(value.optionValueName)
+      }
+    })
+  })
+
+  return optionNames.length > 0 ? optionNames.join(' / ') : '알 수 없는 옵션'
+}

@@ -13,6 +13,7 @@
 import { API_BASE_URL } from '../config/env'
 import { TokenRefreshError, AuthRequiredError } from '../utils/authFetch'
 import { getAdminHeaders, userFetch } from '../utils/apiHelper'
+import { getProductDetail, type ProductDetailResponse } from './catalogApi'
 import type { Order, OrderItem, OrderShipping } from '../pages/admin/order/OrderDetailModal'
 
 // ==================== Interfaces ====================
@@ -155,6 +156,7 @@ export const createOrder = async (request: OrderCreateRequest): Promise<OrderRes
 export interface MyOrderItemResponse {
   orderItemId: number
   productId: number
+  skuId: number
   productName: string
   productCode: string
   quantity: number
@@ -278,9 +280,23 @@ export interface ReturnOrderResponse {
 }
 
 /**
+ * 교환 상품 요청 DTO
+ */
+export interface ExchangeItemRequest {
+  /** 주문 상품 ID */
+  orderItemId: number
+  /** 새 SKU ID (교환받을 상품 옵션) */
+  newSkuId: number
+  /** 교환 수량 */
+  quantity: number
+}
+
+/**
  * 교환 신청 요청 DTO
  */
 export interface ExchangeOrderRequest {
+  /** 교환 상품 목록 */
+  exchangeItems: ExchangeItemRequest[]
   /** 교환 사유 */
   reason?: string
 }
@@ -387,18 +403,18 @@ export const requestReturn = async (
  * 배송 완료(DELIVERED) 상태의 주문에 대해 교환을 신청합니다.
  *
  * @param orderId - 주문 ID
- * @param reason - 교환 사유
+ * @param request - 교환 신청 요청 (교환 상품 목록, 교환 사유)
  * @returns 교환 신청 결과
  */
 export const requestExchange = async (
   orderId: number,
-  reason?: string,
+  request: ExchangeOrderRequest,
 ): Promise<ExchangeOrderResponse> => {
   try {
     const response = await userFetch(`${API_BASE_URL}/api/orders/${orderId}/exchanges`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: reason ? JSON.stringify({ reason }) : '{}',
+      body: JSON.stringify(request),
     })
 
     if (!response.ok) {
@@ -408,6 +424,9 @@ export const requestExchange = async (
       }
       if (response.status === 404) {
         throw new Error(error.message || '주문을 찾을 수 없습니다.')
+      }
+      if (response.status === 400) {
+        throw new Error(error.message || '교환 신청 정보를 확인해주세요.')
       }
       throw new Error(error.message || `교환 신청 실패 (HTTP ${response.status})`)
     }
@@ -709,5 +728,65 @@ export const updateAdminOrder = async (orderId: string, orderStatus: string, ord
     console.error('Update admin order error:', error)
     if (error instanceof Error) throw error
     throw new Error('주문 수정 중 오류가 발생했습니다.')
+  }
+}
+
+// ==================== Exchange Helper Functions ====================
+
+/**
+ * 주문 상품과 상품 상세 정보를 함께 조회하는 인터페이스
+ */
+export interface OrderItemWithProductDetail {
+  /** 주문 상품 정보 */
+  orderItem: MyOrderItemResponse
+  /** 상품 상세 정보 (SKU 옵션 포함) */
+  productDetail: ProductDetailResponse | null
+}
+
+/**
+ * 교환 신청을 위한 주문 상품 및 상품 상세 정보 조회
+ *
+ * 주문 ID로 주문 상품 목록을 조회하고, 각 상품의 상세 정보(SKU 옵션)를 함께 가져옵니다.
+ *
+ * @param orderId - 주문 ID
+ * @returns 주문 상품과 상품 상세 정보 배열
+ * @throws Error - 조회 실패 시
+ */
+export const getOrderItemsWithProductDetails = async (
+  orderId: number
+): Promise<OrderItemWithProductDetail[]> => {
+  try {
+    // 1. 주문 상세 정보 조회
+    const ordersData = await getMyOrders(0, 100)
+    const orderDetail = ordersData.content.find(o => o.orderId === orderId)
+
+    if (!orderDetail || !orderDetail.items || orderDetail.items.length === 0) {
+      throw new Error('주문 상품 정보를 찾을 수 없습니다.')
+    }
+
+    // 2. 각 상품의 상세 정보 조회 (병렬 처리)
+    const itemsWithDetails = await Promise.all(
+      orderDetail.items.map(async (orderItem) => {
+        try {
+          const productDetail = await getProductDetail(orderItem.productId)
+          return {
+            orderItem,
+            productDetail
+          }
+        } catch (error) {
+          console.error(`상품 ${orderItem.productId} 상세 정보 로드 실패:`, error)
+          return {
+            orderItem,
+            productDetail: null
+          }
+        }
+      })
+    )
+
+    return itemsWithDetails
+  } catch (error) {
+    console.error('Get order items with product details error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('주문 상품 정보를 불러오는데 실패했습니다.')
   }
 }
