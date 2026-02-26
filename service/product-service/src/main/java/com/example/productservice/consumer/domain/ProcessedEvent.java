@@ -92,6 +92,18 @@ public class ProcessedEvent {
     }
 
     /**
+     * 교환 승인 재고 차감 이벤트 처리 이력 생성
+     */
+    public static ProcessedEvent ofInventoryDecrease(Long exchangeId, String reason) {
+        return ProcessedEvent.builder()
+                .eventType("INVENTORY_DECREASE")
+                .aggregateId(exchangeId.toString())
+                .eventPayload(String.format("{\"exchangeId\":%d,\"reason\":\"%s\"}", exchangeId, reason))
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
      * 범용 이벤트 처리 이력 생성
      */
     public static ProcessedEvent of(String eventType, String aggregateId, String payload) {

@@ -149,4 +149,4 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 | 구분 | 설명 |
 |-----|------|
 | 발행(Published) | product.created, product.updated, category.created, category.updated, category.deleted, keyword.created, keyword.deleted, stock.rejected |
-| 구독(Subscribed) | order.created, payment.cancelled, order.cancelled |
+| 구독(Subscribed) | order.created, payment.cancelled, order.cancelled, inventory.decrease |
