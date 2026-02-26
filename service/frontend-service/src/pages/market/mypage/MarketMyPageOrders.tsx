@@ -41,9 +41,22 @@ function MarketMyPageOrders() {
   const statusMap: Record<string, { label: string; color: string }> = {
     CREATED: { label: '주문 생성', color: 'blue' },
     PAID: { label: '결제 완료', color: 'green' },
+    FAILED: { label: '결제 실패', color: 'red' },
     SHIPPING: { label: '배송 중', color: 'orange' },
     DELIVERED: { label: '배송 완료', color: 'cyan' },
-    CANCELED: { label: '취소됨', color: 'red' }
+    CANCELED: { label: '취소됨', color: 'red' },
+    RETURN_REQUESTED: { label: '반품 신청', color: 'purple' },
+    RETURN_APPROVED: { label: '반품 승인', color: 'purple' },
+    RETURN_REJECTED: { label: '반품 거절', color: 'red' },
+    RETURN_IN_TRANSIT: { label: '반품 배송 중', color: 'purple' },
+    RETURNED: { label: '반품 완료', color: 'default' },
+    EXCHANGE_REQUESTED: { label: '교환 신청', color: 'geekblue' },
+    EXCHANGE_APPROVED: { label: '교환 승인', color: 'geekblue' },
+    EXCHANGE_REJECTED: { label: '교환 거절', color: 'red' },
+    EXCHANGE_COLLECTING: { label: '회수 중', color: 'geekblue' },
+    EXCHANGE_RETURN_COMPLETED: { label: '회수 완료', color: 'geekblue' },
+    EXCHANGE_SHIPPING: { label: '교환 배송 중', color: 'geekblue' },
+    EXCHANGED: { label: '교환 완료', color: 'default' }
   }
 
   const handleViewDetail = (_orderId: number) => {
