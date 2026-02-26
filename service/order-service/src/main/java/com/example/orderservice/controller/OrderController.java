@@ -227,9 +227,18 @@ public class OrderController {
             @RequestHeader("X-User-Id") Long userId,
             @Parameter(description = "주문 ID", required = true, example = "1")
             @PathVariable Long orderId,
-            @RequestBody(required = false) ExchangeOrderRequest request) {
-        String reason = (request != null) ? request.getReason() : null;
-        ExchangeOrderResponse response = orderExchangeService.requestExchange(userId, orderId, reason);
+            @Valid @RequestBody ExchangeOrderRequest request) {
+
+        if (request.getExchangeItems() == null || request.getExchangeItems().isEmpty()) {
+            throw new IllegalArgumentException("교환 상품 목록(exchangeItems)은 비어 있을 수 없습니다.");
+        }
+
+        ExchangeOrderResponse response = orderExchangeService.requestExchange(
+                userId,
+                orderId,
+                request.getExchangeItems(),
+                request.getReason()
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

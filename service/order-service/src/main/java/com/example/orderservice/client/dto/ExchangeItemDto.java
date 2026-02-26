@@ -5,16 +5,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreateExchangeRequest {
+public class ExchangeItemDto {
 
-    private Long orderId;
-    private Long userId;
-    private List<ExchangeItemDto> exchangeItems;
-    private String reason;
+    private Long orderItemId;
+    private Long originalOptionId;
+    private Long newOptionId;
+    private Integer quantity;
 }
