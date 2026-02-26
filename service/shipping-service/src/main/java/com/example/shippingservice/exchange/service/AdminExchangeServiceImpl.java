@@ -6,6 +6,7 @@ import com.example.shippingservice.client.dto.BulkUploadResult;
 import com.example.shippingservice.client.dto.PageResponse;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeApproveRequest;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeRejectRequest;
+import com.example.shippingservice.exchange.dto.request.AdminExchangeShippingRequest;
 import com.example.shippingservice.exchange.dto.response.AdminExchangeResponse;
 import com.example.shippingservice.exchange.entity.OrderExchange;
 import com.example.shippingservice.exchange.enums.ExchangeStatus;
@@ -32,7 +33,6 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
     @Override
     public PageResponse<AdminExchangeResponse> getExchanges(String exchangeStatus, Long orderId, Pageable pageable) {
         ExchangeStatus status = parseExchangeStatus(exchangeStatus);
-
         Page<OrderExchange> exchangePage = orderExchangeRepository.findAllBySearchCondition(status, orderId, pageable);
         Page<AdminExchangeResponse> responsePage = exchangePage.map(AdminExchangeResponse::from);
         return PageResponse.from(responsePage);
@@ -40,8 +40,7 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
 
     @Override
     public AdminExchangeResponse getExchange(Long exchangeId) {
-        OrderExchange orderExchange = findExchangeById(exchangeId);
-        return AdminExchangeResponse.from(orderExchange);
+        return AdminExchangeResponse.from(findExchangeById(exchangeId));
     }
 
     @Override
@@ -54,37 +53,40 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
                     "교환 신청 상태에서만 승인할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
         }
 
-        // 교환품 배송지 설정
-        orderExchange.updateExchangeAddress(
-                request.getReceiverName(),
-                request.getReceiverPhone(),
-                request.getExchangeAddress(),
-                request.getPostalCode()
+        // 회수 수거지 정보 저장
+        orderExchange.updateCollectInfo(
+                request.getCollectReceiverName(),
+                request.getCollectReceiverPhone(),
+                request.getCollectAddress(),
+                request.getCollectPostalCode()
         );
+
         ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
-        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_APPROVED);
+        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_COLLECTING);
 
-        // Mock 택배사 API로 교환품 송장 발급
-        String trackingNumber = issueExchangeTrackingNumber(orderExchange);
-        if (trackingNumber != null) {
-            orderExchange.updateTrackingInfo("CJ대한통운", trackingNumber);
-            log.info("교환품 송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, trackingNumber);
-
-            // 교환 이력 우선 기록 (교환품 배송 접수 상태)
+        // Mock 택배사 API로 회수 운송장 자동 발급
+        String collectTrackingNumber = issueTrackingNumber(
+                request.getCollectReceiverName(),
+                request.getCollectReceiverPhone(),
+                request.getCollectAddress(),
+                "회수상품"
+        );
+        if (collectTrackingNumber != null) {
+            orderExchange.updateCollectTrackingInfo("CJ대한통운", collectTrackingNumber);
+            log.info("회수 운송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, collectTrackingNumber);
             orderExchange.addExchangeHistory(
                     previousStatus,
-                    ExchangeStatus.EXCHANGE_APPROVED,
-                    "배송 준비 중",
-                    "교환품 배송 운송장 정상 발급 (배송 지시 완료)",
+                    ExchangeStatus.EXCHANGE_COLLECTING,
+                    "회수 접수",
+                    "회수 운송장 정상 발급",
                     "ACCEPTED",
                     "ADMIN"
             );
         } else {
-            log.warn("교환품 송장 발급 실패 - exchangeId={}, 수동 발급이 필요합니다.", exchangeId);
+            log.warn("회수 운송장 발급 실패 - exchangeId={}", exchangeId);
         }
 
         log.info("교환 승인 완료 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
-
         return AdminExchangeResponse.from(orderExchange);
     }
 
@@ -99,10 +101,79 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         }
 
         orderExchange.reject(request.getRejectReason());
+        log.info("교환 거절 완료 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
+        return AdminExchangeResponse.from(orderExchange);
+    }
 
-        log.info("교환 거절 완료 - exchangeId={}, orderId={}, reason={}",
-                exchangeId, orderExchange.getOrderId(), request.getRejectReason());
+    @Override
+    @Transactional
+    public AdminExchangeResponse completeCollect(Long exchangeId) {
+        OrderExchange orderExchange = findExchangeById(exchangeId);
 
+        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_COLLECTING) {
+            throw new IllegalStateException(
+                    "회수 중 상태에서만 회수 완료 처리할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
+        }
+
+        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
+        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_RETURN_COMPLETED);
+        orderExchange.addExchangeHistory(
+                previousStatus,
+                ExchangeStatus.EXCHANGE_RETURN_COMPLETED,
+                "회수 완료",
+                "반품 상품 회수 완료 및 검수 대기",
+                "DELIVERED",
+                "ADMIN"
+        );
+
+        log.info("회수 완료 처리 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
+        return AdminExchangeResponse.from(orderExchange);
+    }
+
+    @Override
+    @Transactional
+    public AdminExchangeResponse startShipping(Long exchangeId, AdminExchangeShippingRequest request) {
+        OrderExchange orderExchange = findExchangeById(exchangeId);
+
+        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_RETURN_COMPLETED) {
+            throw new IllegalStateException(
+                    "회수 완료 상태에서만 교환 배송을 시작할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
+        }
+
+        // 교환품 배송지 저장
+        orderExchange.updateExchangeAddress(
+                request.getReceiverName(),
+                request.getReceiverPhone(),
+                request.getExchangeAddress(),
+                request.getPostalCode()
+        );
+
+        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
+        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_SHIPPING);
+
+        // Mock 택배사 API로 교환품 배송 운송장 자동 발급
+        String trackingNumber = issueTrackingNumber(
+                request.getReceiverName(),
+                request.getReceiverPhone(),
+                request.getExchangeAddress(),
+                "교환상품"
+        );
+        if (trackingNumber != null) {
+            orderExchange.updateTrackingInfo("CJ대한통운", trackingNumber);
+            log.info("교환품 배송 운송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, trackingNumber);
+            orderExchange.addExchangeHistory(
+                    previousStatus,
+                    ExchangeStatus.EXCHANGE_SHIPPING,
+                    "배송 준비 중",
+                    "교환품 배송 운송장 정상 발급",
+                    "ACCEPTED",
+                    "ADMIN"
+            );
+        } else {
+            log.warn("교환품 배송 운송장 발급 실패 - exchangeId={}", exchangeId);
+        }
+
+        log.info("교환 배송 시작 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
         return AdminExchangeResponse.from(orderExchange);
     }
 
@@ -111,24 +182,33 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
     public AdminExchangeResponse completeExchange(Long exchangeId) {
         OrderExchange orderExchange = findExchangeById(exchangeId);
 
-        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_APPROVED) {
+        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_SHIPPING) {
             throw new IllegalStateException(
-                    "승인된 교환 건만 완료 처리할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
+                    "교환 배송 중 상태에서만 완료 처리할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
         }
 
+        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
         orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGED);
+        orderExchange.addExchangeHistory(
+                previousStatus,
+                ExchangeStatus.EXCHANGED,
+                "교환 완료",
+                "교환 최종 완료",
+                "DELIVERED",
+                "ADMIN"
+        );
 
         log.info("교환 완료 처리 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
-
         return AdminExchangeResponse.from(orderExchange);
     }
 
-    private String issueExchangeTrackingNumber(OrderExchange exchange) {
+    private String issueTrackingNumber(String receiverName, String receiverPhone,
+                                       String address, String goodsName) {
         BulkUploadItem item = BulkUploadItem.builder()
-                .receiverName(exchange.getReceiverName())
-                .receiverPhone1(exchange.getReceiverPhone())
-                .receiverAddress(exchange.getExchangeAddress())
-                .goodsName("교환상품")
+                .receiverName(receiverName)
+                .receiverPhone1(receiverPhone)
+                .receiverAddress(address)
+                .goodsName(goodsName)
                 .goodsQty(1)
                 .build();
 
@@ -140,7 +220,6 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
                 return result.getTrackingNumber();
             }
         }
-
         return null;
     }
 

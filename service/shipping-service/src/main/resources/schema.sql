@@ -96,15 +96,23 @@ CREATE TABLE order_exchange (
     exchange_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 ID',
     order_id BIGINT NOT NULL COMMENT '주문 ID',
     user_id BIGINT NOT NULL COMMENT '사용자 ID',
-    exchange_status VARCHAR(30) NOT NULL COMMENT '교환 상태 (EXCHANGE_REQUESTED, EXCHANGE_APPROVED, EXCHANGE_REJECTED, EXCHANGED)',
+    exchange_status VARCHAR(30) NOT NULL COMMENT '교환 상태',
     reason VARCHAR(500) COMMENT '교환 사유',
     reject_reason VARCHAR(500) COMMENT '교환 거절 사유',
-    tracking_number VARCHAR(50) COMMENT '회수/배송용 운송장 번호',
-    courier VARCHAR(50) COMMENT '택배사',
+    -- 회수 정보 (교환 승인 시 입력)
+    collect_courier VARCHAR(50) COMMENT '회수 택배사',
+    collect_tracking_number VARCHAR(50) COMMENT '회수 운송장 번호',
+    collect_receiver_name VARCHAR(100) COMMENT '회수 수령인 이름',
+    collect_receiver_phone VARCHAR(20) COMMENT '회수 수령인 연락처',
+    collect_address VARCHAR(500) COMMENT '회수 주소',
+    collect_postal_code VARCHAR(20) COMMENT '회수 우편번호',
+    -- 교환 배송 정보 (새 물품 발송 시 입력)
+    courier VARCHAR(50) COMMENT '교환 배송 택배사',
+    tracking_number VARCHAR(50) COMMENT '교환 배송 운송장 번호',
     receiver_name VARCHAR(100) COMMENT '교환 수령인 이름',
     receiver_phone VARCHAR(20) COMMENT '교환 수령인 연락처',
-    exchange_address VARCHAR(500) COMMENT '교환 회수/배송 주소',
-    postal_code VARCHAR(20) COMMENT '교환 우편번호',
+    exchange_address VARCHAR(500) COMMENT '교환 배송 주소',
+    postal_code VARCHAR(20) COMMENT '교환 배송 우편번호',
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '교환 신청 일시',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '교환 정보 수정 일시'
 ) COMMENT='주문 상품 교환 정보 테이블';

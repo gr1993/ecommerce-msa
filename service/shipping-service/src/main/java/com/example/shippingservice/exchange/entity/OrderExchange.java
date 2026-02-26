@@ -40,6 +40,26 @@ public class OrderExchange {
     @Column(name = "reject_reason", length = 500)
     private String rejectReason;
 
+    // 회수 정보 (교환 승인 시 입력)
+    @Column(name = "collect_courier", length = 50)
+    private String collectCourier;
+
+    @Column(name = "collect_tracking_number", length = 50)
+    private String collectTrackingNumber;
+
+    @Column(name = "collect_receiver_name", length = 100)
+    private String collectReceiverName;
+
+    @Column(name = "collect_receiver_phone", length = 20)
+    private String collectReceiverPhone;
+
+    @Column(name = "collect_address", length = 500)
+    private String collectAddress;
+
+    @Column(name = "collect_postal_code", length = 20)
+    private String collectPostalCode;
+
+    // 교환 배송 정보 (새 물품 발송 시 입력)
     @Column(name = "tracking_number", length = 50)
     private String trackingNumber;
 
@@ -73,19 +93,11 @@ public class OrderExchange {
     private List<OrderExchangeItem> exchangeItems = new ArrayList<>();
 
     @Builder
-    public OrderExchange(Long orderId, Long userId, ExchangeStatus exchangeStatus, String reason,
-                         String trackingNumber, String courier, String receiverName,
-                         String receiverPhone, String exchangeAddress, String postalCode) {
+    public OrderExchange(Long orderId, Long userId, ExchangeStatus exchangeStatus, String reason) {
         this.orderId = orderId;
         this.userId = userId;
         this.exchangeStatus = exchangeStatus;
         this.reason = reason;
-        this.trackingNumber = trackingNumber;
-        this.courier = courier;
-        this.receiverName = receiverName;
-        this.receiverPhone = receiverPhone;
-        this.exchangeAddress = exchangeAddress;
-        this.postalCode = postalCode;
     }
 
     public void updateExchangeStatus(ExchangeStatus exchangeStatus) {
@@ -97,17 +109,34 @@ public class OrderExchange {
         this.rejectReason = rejectReason;
     }
 
-    public void updateTrackingInfo(String courier, String trackingNumber) {
-        this.courier = courier;
-        this.trackingNumber = trackingNumber;
+    /** 교환 승인 시: 회수용 수거지 정보 저장 */
+    public void updateCollectInfo(String collectReceiverName, String collectReceiverPhone,
+                                  String collectAddress, String collectPostalCode) {
+        this.collectReceiverName = collectReceiverName;
+        this.collectReceiverPhone = collectReceiverPhone;
+        this.collectAddress = collectAddress;
+        this.collectPostalCode = collectPostalCode;
     }
 
+    /** 교환 승인 시: 회수 운송장 자동 발급 후 저장 */
+    public void updateCollectTrackingInfo(String collectCourier, String collectTrackingNumber) {
+        this.collectCourier = collectCourier;
+        this.collectTrackingNumber = collectTrackingNumber;
+    }
+
+    /** 교환 배송 시작 시: 교환품 배송지 정보 저장 */
     public void updateExchangeAddress(String receiverName, String receiverPhone,
                                       String exchangeAddress, String postalCode) {
         this.receiverName = receiverName;
         this.receiverPhone = receiverPhone;
         this.exchangeAddress = exchangeAddress;
         this.postalCode = postalCode;
+    }
+
+    /** 교환 배송 시작 시: 교환품 배송 운송장 자동 발급 후 저장 */
+    public void updateTrackingInfo(String courier, String trackingNumber) {
+        this.courier = courier;
+        this.trackingNumber = trackingNumber;
     }
 
     public void addExchangeHistory(ExchangeStatus previousStatus, ExchangeStatus newStatus, String location,
