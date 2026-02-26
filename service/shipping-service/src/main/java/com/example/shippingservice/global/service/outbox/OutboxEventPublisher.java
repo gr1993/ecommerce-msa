@@ -71,6 +71,8 @@ public class OutboxEventPublisher {
 				returnEventPublisher.publishReturnCompletedEvent(outbox);
 
 			// Exchange Events
+			case EventTypeConstants.TOPIC_EXCHANGE_APPROVED ->
+				exchangeEventPublisher.publishExchangeApprovedEvent(outbox);
 			case EventTypeConstants.TOPIC_EXCHANGE_COLLECTING ->
 				exchangeEventPublisher.publishExchangeCollectingEvent(outbox);
 			case EventTypeConstants.TOPIC_EXCHANGE_RETURN_COMPLETED ->

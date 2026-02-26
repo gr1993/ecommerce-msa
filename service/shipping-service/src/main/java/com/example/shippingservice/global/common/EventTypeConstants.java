@@ -16,6 +16,7 @@ public final class EventTypeConstants {
 	public static final String TOPIC_RETURN_COMPLETED = "return.completed";
 
 	// Kafka Topics - Exchange
+	public static final String TOPIC_EXCHANGE_APPROVED = "exchange.approved";
 	public static final String TOPIC_EXCHANGE_COLLECTING = "exchange.collecting";
 	public static final String TOPIC_EXCHANGE_RETURN_COMPLETED = "exchange.return-completed";
 	public static final String TOPIC_EXCHANGE_SHIPPING = "exchange.shipping";
@@ -31,6 +32,7 @@ public final class EventTypeConstants {
 	public static final String TYPE_ID_RETURN_COMPLETED = "returnCompletedEvent";
 
 	// Kafka Type IDs - Exchange
+	public static final String TYPE_ID_EXCHANGE_APPROVED = "exchangeApprovedEvent";
 	public static final String TYPE_ID_EXCHANGE_COLLECTING = "exchangeCollectingEvent";
 	public static final String TYPE_ID_EXCHANGE_RETURN_COMPLETED = "exchangeReturnCompletedEvent";
 	public static final String TYPE_ID_EXCHANGE_SHIPPING = "exchangeShippingEvent";

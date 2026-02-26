@@ -1,6 +1,7 @@
 package com.example.shippingservice.global.service.outbox;
 
 import com.example.shippingservice.domain.entity.Outbox;
+import com.example.shippingservice.domain.event.ExchangeApprovedEvent;
 import com.example.shippingservice.domain.event.ExchangeCollectingEvent;
 import com.example.shippingservice.domain.event.ExchangeCompletedEvent;
 import com.example.shippingservice.domain.event.ExchangeReturnCompletedEvent;
@@ -27,6 +28,48 @@ public class ExchangeEventPublisher {
 
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 	private final ObjectMapper objectMapper;
+
+	@AsyncPublisher(
+		operation = @AsyncOperation(
+			channelName = EventTypeConstants.TOPIC_EXCHANGE_APPROVED,
+			description = "교환 승인 이벤트 발행",
+			payloadType = ExchangeApprovedEvent.class,
+			headers = @Headers(
+				schemaName = "ExchangeApprovedEventHeaders",
+				values = {
+					@Headers.Header(
+						name = AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
+						description = "Spring Kafka 타입 ID 헤더 - Consumer의 TYPE_MAPPINGS와 매핑됨",
+						value = EventTypeConstants.TYPE_ID_EXCHANGE_APPROVED
+					)
+				}
+			)
+		)
+	)
+	@KafkaAsyncOperationBinding(
+		messageBinding = @KafkaAsyncMessageBinding(
+			key = @KafkaAsyncKey(
+				description = "집계 타입과 집계 ID를 조합한 키 (형식: {aggregateType}-{aggregateId})",
+				example = "Exchange-123"
+			)
+		)
+	)
+	public void publishExchangeApprovedEvent(Outbox outbox) {
+		String topic = EventTypeConstants.TOPIC_EXCHANGE_APPROVED;
+		String key = buildKey(outbox.getAggregateType(), outbox.getAggregateId());
+
+		try {
+			ExchangeApprovedEvent event = objectMapper.readValue(outbox.getPayload(), ExchangeApprovedEvent.class);
+			kafkaTemplate.send(topic, key, event).get();
+			log.debug("Kafka 메시지 전송 성공: topic={}, key={}", topic, key);
+		} catch (JsonProcessingException e) {
+			log.error("이벤트 역직렬화 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("이벤트 역직렬화 실패", e);
+		} catch (Exception e) {
+			log.error("Kafka 메시지 전송 실패: topic={}, key={}", topic, key, e);
+			throw new RuntimeException("Kafka 메시지 전송 실패", e);
+		}
+	}
 
 	@AsyncPublisher(
 		operation = @AsyncOperation(

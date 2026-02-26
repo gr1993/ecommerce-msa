@@ -4,6 +4,9 @@ import com.example.shippingservice.client.dto.BulkUploadItem;
 import com.example.shippingservice.client.dto.BulkUploadResponse;
 import com.example.shippingservice.client.dto.BulkUploadResult;
 import com.example.shippingservice.client.dto.PageResponse;
+import com.example.shippingservice.domain.entity.Outbox;
+import com.example.shippingservice.domain.event.ExchangeApprovedEvent;
+import com.example.shippingservice.exchange.dto.ExchangeItemDto;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeApproveRequest;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeRejectRequest;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeShippingRequest;
@@ -11,7 +14,11 @@ import com.example.shippingservice.exchange.dto.response.AdminExchangeResponse;
 import com.example.shippingservice.exchange.entity.OrderExchange;
 import com.example.shippingservice.exchange.enums.ExchangeStatus;
 import com.example.shippingservice.exchange.repository.OrderExchangeRepository;
+import com.example.shippingservice.global.common.EventTypeConstants;
+import com.example.shippingservice.repository.OutboxRepository;
 import com.example.shippingservice.shipping.service.MockDeliveryService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -29,6 +37,8 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
 
     private final OrderExchangeRepository orderExchangeRepository;
     private final MockDeliveryService mockDeliveryService;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PageResponse<AdminExchangeResponse> getExchanges(String exchangeStatus, Long orderId, Pageable pageable) {
@@ -87,6 +97,10 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         }
 
         log.info("교환 승인 완료 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
+
+        // Outbox에 교환 승인 이벤트 저장
+        saveExchangeApprovedOutbox(orderExchange);
+
         return AdminExchangeResponse.from(orderExchange);
     }
 
@@ -200,6 +214,42 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
 
         log.info("교환 완료 처리 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
         return AdminExchangeResponse.from(orderExchange);
+    }
+
+    private void saveExchangeApprovedOutbox(OrderExchange orderExchange) {
+        List<ExchangeItemDto> itemDtos = orderExchange.getExchangeItems().stream()
+                .map(item -> ExchangeItemDto.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .originalOptionId(item.getOriginalOptionId())
+                        .newOptionId(item.getNewOptionId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        ExchangeApprovedEvent event = ExchangeApprovedEvent.builder()
+                .exchangeId(orderExchange.getExchangeId())
+                .orderId(orderExchange.getOrderId())
+                .userId(orderExchange.getUserId())
+                .exchangeItems(itemDtos)
+                .collectCourier(orderExchange.getCollectCourier())
+                .collectTrackingNumber(orderExchange.getCollectTrackingNumber())
+                .approvedAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Exchange")
+                    .aggregateId(String.valueOf(orderExchange.getExchangeId()))
+                    .eventType(EventTypeConstants.TOPIC_EXCHANGE_APPROVED)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.info("교환 승인 Outbox 저장 완료 - exchangeId={}", orderExchange.getExchangeId());
+        } catch (JsonProcessingException e) {
+            log.error("교환 승인 이벤트 직렬화 실패 - exchangeId={}", orderExchange.getExchangeId(), e);
+            throw new RuntimeException("교환 승인 이벤트 직렬화 실패", e);
+        }
     }
 
     private String issueTrackingNumber(String receiverName, String receiverPhone,
