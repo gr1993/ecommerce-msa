@@ -19,6 +19,9 @@ public class MyOrderItemResponse {
     @Schema(description = "상품 ID", example = "1")
     private Long productId;
 
+    @Schema(description = "SKU ID", example = "10")
+    private Long skuId;
+
     @Schema(description = "상품명", example = "프리미엄 노트북")
     private String productName;
 
@@ -38,6 +41,7 @@ public class MyOrderItemResponse {
         return MyOrderItemResponse.builder()
                 .orderItemId(orderItem.getId())
                 .productId(orderItem.getProductId())
+                .skuId(orderItem.getSkuId())
                 .productName(orderItem.getProductName())
                 .productCode(orderItem.getProductCode())
                 .quantity(orderItem.getQuantity())
