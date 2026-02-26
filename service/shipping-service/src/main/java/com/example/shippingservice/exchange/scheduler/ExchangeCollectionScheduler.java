@@ -5,6 +5,7 @@ import com.example.shippingservice.client.dto.TrackingInfoResponse;
 import com.example.shippingservice.domain.entity.Outbox;
 import com.example.shippingservice.domain.event.ExchangeCollectingEvent;
 import com.example.shippingservice.domain.event.ExchangeReturnCompletedEvent;
+import com.example.shippingservice.exchange.dto.ExchangeItemDto;
 import com.example.shippingservice.exchange.entity.OrderExchange;
 import com.example.shippingservice.exchange.enums.ExchangeStatus;
 import com.example.shippingservice.exchange.repository.OrderExchangeHistoryRepository;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -169,10 +171,20 @@ public class ExchangeCollectionScheduler {
     }
 
     private void saveExchangeCollectingOutbox(OrderExchange orderExchange) {
+        List<ExchangeItemDto> exchangeItems = orderExchange.getExchangeItems().stream()
+                .map(item -> ExchangeItemDto.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .originalOptionId(item.getOriginalOptionId())
+                        .newOptionId(item.getNewOptionId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .collect(Collectors.toList());
+
         ExchangeCollectingEvent event = ExchangeCollectingEvent.builder()
                 .exchangeId(orderExchange.getExchangeId())
                 .orderId(orderExchange.getOrderId())
                 .userId(orderExchange.getUserId())
+                .exchangeItems(exchangeItems)
                 .courier(orderExchange.getCourier())
                 .trackingNumber(orderExchange.getTrackingNumber())
                 .collectingAt(LocalDateTime.now())
@@ -182,10 +194,20 @@ public class ExchangeCollectionScheduler {
     }
 
     private void saveExchangeReturnCompletedOutbox(OrderExchange orderExchange) {
+        List<ExchangeItemDto> exchangeItems = orderExchange.getExchangeItems().stream()
+                .map(item -> ExchangeItemDto.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .originalOptionId(item.getOriginalOptionId())
+                        .newOptionId(item.getNewOptionId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .collect(Collectors.toList());
+
         ExchangeReturnCompletedEvent event = ExchangeReturnCompletedEvent.builder()
                 .exchangeId(orderExchange.getExchangeId())
                 .orderId(orderExchange.getOrderId())
                 .userId(orderExchange.getUserId())
+                .exchangeItems(exchangeItems)
                 .courier(orderExchange.getCourier())
                 .trackingNumber(orderExchange.getTrackingNumber())
                 .returnCompletedAt(LocalDateTime.now())

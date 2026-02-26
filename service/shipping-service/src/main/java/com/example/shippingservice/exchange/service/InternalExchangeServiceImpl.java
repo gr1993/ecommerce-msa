@@ -65,10 +65,20 @@ public class InternalExchangeServiceImpl implements InternalExchangeService {
                 .reason(request.getReason())
                 .build();
 
+        // 교환 상품 목록 추가
+        request.getExchangeItems().forEach(item -> {
+            orderExchange.addExchangeItem(
+                    item.getOrderItemId(),
+                    item.getOriginalOptionId(),
+                    item.getNewOptionId(),
+                    item.getQuantity()
+            );
+        });
+
         orderExchangeRepository.save(orderExchange);
 
-        log.info("교환 생성 완료 - exchangeId={}, orderId={}, userId={}",
-                orderExchange.getExchangeId(), orderId, request.getUserId());
+        log.info("교환 생성 완료 - exchangeId={}, orderId={}, userId={}, itemCount={}",
+                orderExchange.getExchangeId(), orderId, request.getUserId(), request.getExchangeItems().size());
 
         return InternalCreateExchangeResponse.from(orderExchange);
     }

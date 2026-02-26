@@ -110,6 +110,21 @@ CREATE TABLE order_exchange (
 ) COMMENT='주문 상품 교환 정보 테이블';
 
 
+-- 주문 교환 상품 목록 테이블
+CREATE TABLE order_exchange_item (
+    exchange_item_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 상품 ID',
+    exchange_id BIGINT NOT NULL COMMENT '교환 ID',
+    order_item_id BIGINT NOT NULL COMMENT '주문 상품 ID',
+    original_option_id BIGINT NOT NULL COMMENT '기존 옵션 ID (반품할 상품 옵션)',
+    new_option_id BIGINT NOT NULL COMMENT '새 옵션 ID (교환받을 상품 옵션, 동일 옵션 교환 시 original_option_id와 같음)',
+    quantity INT NOT NULL DEFAULT 1 COMMENT '교환 수량',
+    CONSTRAINT fk_exchange_item_exchange
+        FOREIGN KEY (exchange_id)
+        REFERENCES order_exchange(exchange_id)
+        ON DELETE CASCADE
+) COMMENT='교환 상품 목록 테이블 (한 교환 건에 여러 상품 가능)';
+
+
 -- 주문 교환 상태 변경 이력 테이블
 CREATE TABLE order_exchange_history (
     exchange_history_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '교환 상태 이력 ID',

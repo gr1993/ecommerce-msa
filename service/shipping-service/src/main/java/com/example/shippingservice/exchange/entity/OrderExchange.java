@@ -69,6 +69,9 @@ public class OrderExchange {
     @OneToMany(mappedBy = "orderExchange", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderExchangeHistory> exchangeHistories = new ArrayList<>();
 
+    @OneToMany(mappedBy = "orderExchange", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderExchangeItem> exchangeItems = new ArrayList<>();
+
     @Builder
     public OrderExchange(Long orderId, Long userId, ExchangeStatus exchangeStatus, String reason,
                          String trackingNumber, String courier, String receiverName,
@@ -120,5 +123,16 @@ public class OrderExchange {
                 .changedBy(changedBy)
                 .build();
         this.exchangeHistories.add(history);
+    }
+
+    public void addExchangeItem(Long orderItemId, Long originalOptionId, Long newOptionId, Integer quantity) {
+        OrderExchangeItem item = OrderExchangeItem.builder()
+                .orderExchange(this)
+                .orderItemId(orderItemId)
+                .originalOptionId(originalOptionId)
+                .newOptionId(newOptionId)
+                .quantity(quantity)
+                .build();
+        this.exchangeItems.add(item);
     }
 }

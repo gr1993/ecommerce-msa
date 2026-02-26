@@ -1,5 +1,6 @@
 package com.example.shippingservice.exchange.dto.response;
 
+import com.example.shippingservice.exchange.dto.ExchangeItemDto;
 import com.example.shippingservice.exchange.entity.OrderExchange;
 import com.example.shippingservice.exchange.enums.ExchangeStatus;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -8,6 +9,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Schema(description = "관리자 교환 조회 응답")
 @Getter
@@ -22,6 +25,9 @@ public class AdminExchangeResponse {
 
     @Schema(description = "사용자 ID", example = "1")
     private Long userId;
+
+    @Schema(description = "교환 상품 목록")
+    private List<ExchangeItemDto> exchangeItems;
 
     @Schema(description = "교환 상태", example = "EXCHANGE_REQUESTED")
     private ExchangeStatus exchangeStatus;
@@ -59,10 +65,20 @@ public class AdminExchangeResponse {
     private LocalDateTime updatedAt;
 
     public static AdminExchangeResponse from(OrderExchange orderExchange) {
+        List<ExchangeItemDto> exchangeItems = orderExchange.getExchangeItems().stream()
+                .map(item -> ExchangeItemDto.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .originalOptionId(item.getOriginalOptionId())
+                        .newOptionId(item.getNewOptionId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .collect(Collectors.toList());
+
         return AdminExchangeResponse.builder()
                 .exchangeId(orderExchange.getExchangeId())
                 .orderId(orderExchange.getOrderId())
                 .userId(orderExchange.getUserId())
+                .exchangeItems(exchangeItems)
                 .exchangeStatus(orderExchange.getExchangeStatus())
                 .reason(orderExchange.getReason())
                 .rejectReason(orderExchange.getRejectReason())
