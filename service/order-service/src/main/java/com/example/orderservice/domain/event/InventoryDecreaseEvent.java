@@ -22,6 +22,7 @@ import java.util.List;
 public class InventoryDecreaseEvent {
 
     private Long orderId;
+    private String orderNumber;
     private Long exchangeId;
     private String reason;  // EXCHANGE_APPROVED 등
     private List<DecreaseItem> items;

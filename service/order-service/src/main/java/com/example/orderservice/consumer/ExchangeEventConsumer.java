@@ -394,6 +394,7 @@ public class ExchangeEventConsumer {
                                              List<InventoryDecreaseEvent.DecreaseItem> decreaseItems) {
         InventoryDecreaseEvent event = InventoryDecreaseEvent.builder()
                 .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
                 .exchangeId(exchangeId)
                 .reason("EXCHANGE_APPROVED")
                 .items(decreaseItems)
