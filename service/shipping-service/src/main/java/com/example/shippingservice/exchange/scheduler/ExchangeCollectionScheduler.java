@@ -42,7 +42,7 @@ public class ExchangeCollectionScheduler {
     @Transactional
     public void pollCollectionStatuses() {
         List<OrderExchange> targets = orderExchangeRepository.findByExchangeStatusIn(
-                List.of(ExchangeStatus.EXCHANGE_APPROVED, ExchangeStatus.EXCHANGE_COLLECTING)
+                List.of(ExchangeStatus.EXCHANGE_COLLECTING)
         );
 
         if (targets.isEmpty()) {
@@ -62,8 +62,8 @@ public class ExchangeCollectionScheduler {
                 if (changed) updated++;
                 else skipped++;
             } catch (Exception e) {
-                log.error("교환 회수 상태 업데이트 실패 - exchangeId: {}, trackingNumber: {}",
-                        orderExchange.getExchangeId(), orderExchange.getTrackingNumber(), e);
+                log.error("교환 회수 상태 업데이트 실패 - exchangeId: {}, collectTrackingNumber: {}",
+                        orderExchange.getExchangeId(), orderExchange.getCollectTrackingNumber(), e);
                 failed++;
             }
         }
@@ -72,15 +72,15 @@ public class ExchangeCollectionScheduler {
     }
 
     private boolean pollAndUpdate(OrderExchange orderExchange) {
-        String courierCode = resolveCarrierCode(orderExchange.getCourier());
+        String courierCode = resolveCarrierCode(orderExchange.getCollectCourier());
 
         TrackingInfoResponse response = (courierCode != null)
-                ? mockDeliveryService.getTrackingInfo(courierCode, orderExchange.getTrackingNumber())
-                : mockDeliveryService.getTrackingInfo(orderExchange.getTrackingNumber());
+                ? mockDeliveryService.getTrackingInfo(courierCode, orderExchange.getCollectTrackingNumber())
+                : mockDeliveryService.getTrackingInfo(orderExchange.getCollectTrackingNumber());
 
         if (response == null || response.getLastDetail() == null) {
-            log.warn("배송 조회 응답 없음 - exchangeId: {}, trackingNumber: {}",
-                    orderExchange.getExchangeId(), orderExchange.getTrackingNumber());
+            log.warn("배송 조회 응답 없음 - exchangeId: {}, collectTrackingNumber: {}",
+                    orderExchange.getExchangeId(), orderExchange.getCollectTrackingNumber());
             return false;
         }
 
@@ -185,8 +185,8 @@ public class ExchangeCollectionScheduler {
                 .orderId(orderExchange.getOrderId())
                 .userId(orderExchange.getUserId())
                 .exchangeItems(exchangeItems)
-                .courier(orderExchange.getCourier())
-                .trackingNumber(orderExchange.getTrackingNumber())
+                .courier(orderExchange.getCollectCourier())
+                .trackingNumber(orderExchange.getCollectTrackingNumber())
                 .collectingAt(LocalDateTime.now())
                 .build();
 
@@ -208,8 +208,8 @@ public class ExchangeCollectionScheduler {
                 .orderId(orderExchange.getOrderId())
                 .userId(orderExchange.getUserId())
                 .exchangeItems(exchangeItems)
-                .courier(orderExchange.getCourier())
-                .trackingNumber(orderExchange.getTrackingNumber())
+                .courier(orderExchange.getCollectCourier())
+                .trackingNumber(orderExchange.getCollectTrackingNumber())
                 .returnCompletedAt(LocalDateTime.now())
                 .build();
 
