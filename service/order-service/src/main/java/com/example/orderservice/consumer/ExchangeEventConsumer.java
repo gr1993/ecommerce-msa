@@ -5,9 +5,16 @@ import com.example.orderservice.consumer.event.ExchangeCollectingEvent;
 import com.example.orderservice.consumer.event.ExchangeCompletedEvent;
 import com.example.orderservice.consumer.event.ExchangeReturnCompletedEvent;
 import com.example.orderservice.consumer.event.ExchangeShippingEvent;
+import com.example.orderservice.client.dto.ExchangeItemDto;
 import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderStatus;
+import com.example.orderservice.domain.entity.Outbox;
+import com.example.orderservice.domain.event.InventoryDecreaseEvent;
+import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.repository.OrderRepository;
+import com.example.orderservice.repository.OutboxRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.DltHandler;
@@ -20,6 +27,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 교환 관련 이벤트 통합 컨슈머
@@ -42,11 +52,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExchangeEventConsumer {
 
     private final OrderRepository orderRepository;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * exchange.approved 이벤트 소비
      *
      * 멱등성: EXCHANGE_REQUESTED 상태에서만 EXCHANGE_APPROVED로 변경
+     * 신규 옵션이 있는 경우(originalOptionId != newOptionId) inventory.decrease 이벤트 발행
      */
     @RetryableTopic(
             attempts = "4",
@@ -72,7 +85,7 @@ public class ExchangeEventConsumer {
                 event.getExchangeId(), event.getOrderId(), event.getCollectCourier(), event.getCollectTrackingNumber(), topic, offset);
 
         try {
-            Order order = orderRepository.findById(event.getOrderId())
+            Order order = orderRepository.findByIdWithOrderItems(event.getOrderId())
                     .orElse(null);
 
             if (order == null) {
@@ -90,6 +103,27 @@ public class ExchangeEventConsumer {
             // 주문 상태 → EXCHANGE_APPROVED 변경
             order.updateStatus(OrderStatus.EXCHANGE_APPROVED);
             orderRepository.save(order);
+
+            // 신규 옵션(newOptionId != originalOptionId)에 대한 재고 차감 이벤트 발행
+            List<ExchangeItemDto> exchangeItems = event.getExchangeItems();
+            if (exchangeItems != null && !exchangeItems.isEmpty()) {
+                List<InventoryDecreaseEvent.DecreaseItem> decreaseItems = exchangeItems.stream()
+                        .filter(item -> !item.getNewOptionId().equals(item.getOriginalOptionId()))
+                        .map(item -> InventoryDecreaseEvent.DecreaseItem.builder()
+                                .skuId(item.getNewOptionId())
+                                .quantity(item.getQuantity())
+                                .build())
+                        .toList();
+
+                if (!decreaseItems.isEmpty()) {
+                    saveInventoryDecreaseOutbox(order, event.getExchangeId(), decreaseItems);
+                    log.info("inventory.decrease Outbox 저장 완료: orderId={}, exchangeId={}, 차감 항목 수={}",
+                            event.getOrderId(), event.getExchangeId(), decreaseItems.size());
+                } else {
+                    log.info("신규 옵션 없음 - inventory.decrease 이벤트 발행 생략: orderId={}, exchangeId={}",
+                            event.getOrderId(), event.getExchangeId());
+                }
+            }
 
             log.info("교환 승인 처리 성공: orderId={}, exchangeId={}, collectCourier={}, collectTrackingNumber={}",
                     event.getOrderId(), event.getExchangeId(), event.getCollectCourier(), event.getCollectTrackingNumber());
@@ -347,6 +381,40 @@ public class ExchangeEventConsumer {
             log.error("Failed to process exchange.completed event: exchangeId={}, orderId={}",
                     event.getExchangeId(), event.getOrderId(), e);
             throw e;
+        }
+    }
+
+    /**
+     * inventory.decrease Outbox 저장
+     *
+     * 교환 승인 시 신규 옵션(newOptionId != originalOptionId)에 대한 재고를
+     * Product Service에서 차감하도록 이벤트를 발행한다.
+     */
+    private void saveInventoryDecreaseOutbox(Order order, Long exchangeId,
+                                             List<InventoryDecreaseEvent.DecreaseItem> decreaseItems) {
+        InventoryDecreaseEvent event = InventoryDecreaseEvent.builder()
+                .orderId(order.getId())
+                .exchangeId(exchangeId)
+                .reason("EXCHANGE_APPROVED")
+                .items(decreaseItems)
+                .occurredAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Order")
+                    .aggregateId(String.valueOf(order.getId()))
+                    .eventType(EventTypeConstants.TOPIC_INVENTORY_DECREASE)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("InventoryDecreaseEvent Outbox 저장 완료: orderId={}, exchangeId={}",
+                    order.getId(), exchangeId);
+        } catch (JsonProcessingException e) {
+            log.error("InventoryDecreaseEvent 직렬화 실패: orderId={}, exchangeId={}",
+                    order.getId(), exchangeId, e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
         }
     }
 

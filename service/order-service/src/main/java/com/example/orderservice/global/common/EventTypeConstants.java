@@ -9,6 +9,7 @@ public final class EventTypeConstants {
 	// Kafka Topics - Order
 	public static final String TOPIC_ORDER_CREATED = "order.created";
 	public static final String TOPIC_ORDER_CANCELLED = "order.cancelled";
+	public static final String TOPIC_INVENTORY_DECREASE = "inventory.decrease";
 
 	// Kafka Topics - Coupon
 	public static final String TOPIC_COUPON_USED = "coupon.used";
