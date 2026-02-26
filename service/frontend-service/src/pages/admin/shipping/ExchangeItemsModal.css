@@ -1,0 +1,12 @@
+.exchange-items-modal .ant-modal-body {
+  padding: 20px;
+}
+
+.exchange-items-modal .ant-table {
+  font-size: 14px;
+}
+
+.exchange-items-modal .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+}

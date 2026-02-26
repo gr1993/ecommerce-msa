@@ -551,3 +551,227 @@ export const getMyReturns = async (
     throw new Error('반품 목록 조회 중 오류가 발생했습니다.')
   }
 }
+
+// ==================== Exchange Management APIs ====================
+
+/**
+ * 교환 상태
+ */
+export type ExchangeStatus = 'EXCHANGE_REQUESTED' | 'EXCHANGE_APPROVED' | 'RETURNED' | 'EXCHANGE_SHIPPING' | 'EXCHANGED'
+
+/**
+ * 관리자 교환 응답 DTO
+ */
+export interface AdminExchangeResponse {
+  /** 교환 ID */
+  exchangeId: number
+  /** 주문 ID */
+  orderId: number
+  /** 주문 번호 (백엔드 수정 필요 - order_shipping join) */
+  orderNumber?: string
+  /** 사용자 ID */
+  userId: number
+  /** 교환 상품 목록 */
+  exchangeItems: ExchangeItemDto[]
+  /** 교환 상태 */
+  exchangeStatus: ExchangeStatus
+  /** 교환 사유 */
+  reason?: string
+  /** 수령인 이름 */
+  receiverName: string
+  /** 수령인 연락처 */
+  receiverPhone: string
+  /** 교환 주소 */
+  address: string
+  /** 우편번호 */
+  postalCode?: string
+  /** 택배사 */
+  courier?: string
+  /** 운송장 번호 */
+  trackingNumber?: string
+  /** 신청 일시 */
+  requestedAt: string
+  /** 수정 일시 */
+  updatedAt: string
+}
+
+/**
+ * 교환 품목 DTO
+ */
+export interface ExchangeItemDto {
+  /** 주문 상품 ID */
+  orderItemId: number
+  /** 원래 옵션 ID */
+  originalOptionId: number
+  /** 새 옵션 ID */
+  newOptionId: number
+  /** 교환 수량 */
+  quantity: number
+  /** 상품명 (추가 필요 - 백엔드 수정 대기) */
+  productName?: string
+  /** 원래 SKU 이름 (추가 필요 - 백엔드 수정 대기) */
+  originalSkuName?: string
+  /** 새 SKU 이름 (추가 필요 - 백엔드 수정 대기) */
+  newSkuName?: string
+}
+
+/**
+ * 교환 승인 요청 DTO
+ */
+export interface AdminExchangeApproveRequest {
+  /** 교환품 수령인 */
+  receiverName: string
+  /** 교환품 수령 연락처 */
+  receiverPhone: string
+  /** 교환품 배송 주소 */
+  exchangeAddress: string
+  /** 우편번호 */
+  postalCode?: string
+}
+
+/**
+ * 관리자 교환 목록 조회 (페이지네이션)
+ *
+ * @param exchangeStatus - 교환 상태 필터
+ * @param orderNumber - 주문 번호
+ * @param page - 페이지 번호 (0부터 시작)
+ * @param size - 페이지 크기
+ * @returns 페이지네이션된 교환 목록
+ */
+export const getAdminExchanges = async (
+  exchangeStatus?: string,
+  orderNumber?: string,
+  page: number = 0,
+  size: number = 20,
+): Promise<PageResponse<AdminExchangeResponse>> => {
+  try {
+    const queryParams = new URLSearchParams()
+    queryParams.append('page', String(page))
+    queryParams.append('size', String(size))
+    queryParams.append('sort', 'updatedAt,desc')
+    if (exchangeStatus) queryParams.append('exchangeStatus', exchangeStatus)
+    if (orderNumber) queryParams.append('orderNumber', orderNumber)
+
+    const url = `${API_BASE_URL}/api/admin/shipping/exchanges?${queryParams.toString()}`
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAdminHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      throw new Error(error.message || `교환 목록 조회 실패 (HTTP ${response.status})`)
+    }
+
+    const data: PageResponse<AdminExchangeResponse> = await response.json()
+    return data
+  } catch (error) {
+    console.error('Get admin exchanges error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('교환 목록 조회 중 오류가 발생했습니다.')
+  }
+}
+
+
+/**
+ * 교환 승인
+ *
+ * 교환을 승인하고 교환품 배송지를 설정합니다.
+ * Mock 택배사 API를 통해 교환품 송장이 자동 발급됩니다.
+ * EXCHANGE_REQUESTED 상태에서만 가능합니다.
+ *
+ * @param exchangeId - 교환 ID
+ * @param request - 교환 승인 요청 (교환품 배송지 정보)
+ * @returns 업데이트된 교환 정보
+ */
+export const approveExchange = async (
+  exchangeId: number,
+  request: AdminExchangeApproveRequest,
+): Promise<AdminExchangeResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/approve`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '교환 정보를 찾을 수 없습니다.')
+      }
+      if (response.status === 409) {
+        throw new Error(error.message || '승인 불가 상태입니다.')
+      }
+      throw new Error(error.message || `교환 승인 실패 (HTTP ${response.status})`)
+    }
+
+    const data: AdminExchangeResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Approve exchange error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('교환 승인 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * 교환 완료 처리
+ *
+ * 교환을 완료 처리합니다.
+ * EXCHANGE_SHIPPING 상태에서만 가능합니다.
+ *
+ * @param exchangeId - 교환 ID
+ * @returns 업데이트된 교환 정보
+ */
+export const completeExchange = async (
+  exchangeId: number,
+): Promise<AdminExchangeResponse> => {
+  try {
+    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/complete`
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getAdminHeaders(),
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+      if (response.status === 401) {
+        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
+      }
+      if (response.status === 403) {
+        throw new Error(error.message || '접근 권한이 없습니다.')
+      }
+      if (response.status === 404) {
+        throw new Error(error.message || '교환 정보를 찾을 수 없습니다.')
+      }
+      if (response.status === 409) {
+        throw new Error(error.message || '완료 불가 상태입니다.')
+      }
+      throw new Error(error.message || `교환 완료 처리 실패 (HTTP ${response.status})`)
+    }
+
+    const data: AdminExchangeResponse = await response.json()
+    return data
+  } catch (error) {
+    console.error('Complete exchange error:', error)
+    if (error instanceof Error) throw error
+    throw new Error('교환 완료 처리 중 오류가 발생했습니다.')
+  }
+}
