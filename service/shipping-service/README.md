@@ -241,10 +241,10 @@ ExchangeCollectionScheduler는 먼저 회수 상태를 폴링하여 완료를 �
 #### 상태 흐름
 ```
 EXCHANGE_REQUESTED (교환 신청)
-  → EXCHANGE_APPROVED (승인 및 회수/발송 운송장 발급, 이 시점에 새 옵션 재고 -1)
+  → EXCHANGE_APPROVED (승인 및 회수 운송장 발급, 이 시점에 새 옵션 재고 -1)
   → EXCHANGE_COLLECTING (기존 물품 회수 중)
   → EXCHANGE_RETURN_COMPLETED (회수 완료 및 검수 대기, 이 시점에 기존 옵션 재고 +1)
-  → EXCHANGE_SHIPPING (새 물품 발송 중)
+  → EXCHANGE_SHIPPING (발송 및 발송 운송장 발급, 새 물품 발송 중)
   → EXCHANGED (교환 최종 완료)
 ```
 
@@ -267,15 +267,16 @@ sequenceDiagram
     Ship-->>Order: 200 OK
     Order-->>User: 교환 신청 완료
 
-    Note over Admin, Mock: [Phase 2: 승인 및 투트랙(회수/발송) 운송장 발급]
+    Note over Admin, Mock: [Phase 2: 승인 및 회수 운송장 발급 (새 옵션 재고 선차감)]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/approve
-    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수용 1개, 발송용 1개)
-    Mock-->>Ship: 회수용 운송장(A), 발송용 운송장(B) 번호 반환
-    Ship->>Ship: order_exchange 상태 변경 (EXCHANGE_APPROVED) 및 운송장 저장
+    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (회수용 1개 요청)
+    Mock-->>Ship: 회수용 운송장(A) 번호 반환
+    Ship->>Ship: 상태 변경 (EXCHANGE_APPROVED) 및 회수 운송장 저장
     Ship->>Broker: Publish (exchange.approved)
+    Ship->>Broker: Publish (inventory.decrease - 새 옵션 재고 -1)
     Broker-->>Order: Consume (주문 상태 동기화)
 
-    Note over Ship, Mock: [Phase 3: 기존 물품 회수 추적 (Collection)]
+    Note over Ship, Mock: [Phase 3: 회수 추적 및 검수 대기 (기존 옵션 재고 복구)]
     loop 교환 회수 폴링 (ExchangeCollectionScheduler)
         Ship->>Mock: POST /api/v1/trackingInfo (회수용 운송장 A 조회)
         Mock-->>Ship: Response (status: IN_TRANSIT)
@@ -285,22 +286,21 @@ sequenceDiagram
         Mock-->>Ship: Response (status: DELIVERED - 창고 도착)
         Ship->>Ship: 상태 변경 (EXCHANGE_RETURN_COMPLETED)
         Ship->>Broker: Publish (exchange.return_completed)
+        Ship->>Broker: Publish (inventory.increase - 기존 옵션 재고 +1)
         Broker-->>Order: Consume (주문 상태 동기화)
     end
 
-    Note over Admin, Ship: [Phase 4: 물품 검수 및 새 물품 출고 지시]
+    Note over Admin, Mock: [Phase 4: 물품 검수 및 새 물품 출고 (발송 운송장 발급)]
     Admin->>Ship: PATCH /api/admin/shipping/exchanges/{exchangeId}/dispatch
-    Ship->>Ship: 새 물품 출고 처리 (물리적 발송 시작)
-    Ship->>Broker: Publish (exchange.dispatched)
+    Ship->>Mock: POST /api/v1/courier/orders/bulk-upload (발송용 1개 요청)
+    Mock-->>Ship: 발송용 운송장(B) 번호 반환
+    Ship->>Ship: 발송 운송장 저장 및 상태 변경 (EXCHANGE_SHIPPING)
+    Ship->>Broker: Publish (exchange.shipping)
     Broker-->>Order: Consume (주문 상태 동기화)
 
     Note over Ship, Mock: [Phase 5: 새 물품 배송 추적 (Reshipping)]
     loop 교환 발송 폴링 (ExchangeDeliveryScheduler)
         Ship->>Mock: POST /api/v1/trackingInfo (발송용 운송장 B 조회)
-        Mock-->>Ship: Response (status: IN_TRANSIT)
-        Ship->>Ship: 상태 변경 (EXCHANGE_SHIPPING)
-        Ship->>Broker: Publish (exchange.shipping)
-        
         Mock-->>Ship: Response (status: DELIVERED - 고객 수령)
         Ship->>Ship: 상태 변경 (EXCHANGED)
         Note over Ship: 원배송(order_shipping)은 DELIVERED로 보존
