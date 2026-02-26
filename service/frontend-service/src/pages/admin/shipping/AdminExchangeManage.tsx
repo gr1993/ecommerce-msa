@@ -185,7 +185,12 @@ function AdminExchangeManage() {
   // 교환 승인 모달 (회수 수거지 입력)
   const handleApprovalClick = (exchange: Exchange) => {
     setSelectedExchange(exchange)
-    approvalForm.resetFields()
+    approvalForm.setFieldsValue({
+      collect_receiver_name: '물류센터',
+      collect_receiver_phone: '02-1234-5678',
+      collect_address: '서울특별시 강남구 물류센터로 1',
+      collect_postal_code: '06234'
+    })
     setIsApprovalModalVisible(true)
   }
 
