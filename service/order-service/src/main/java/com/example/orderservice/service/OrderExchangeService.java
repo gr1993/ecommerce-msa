@@ -1,5 +1,6 @@
 package com.example.orderservice.service;
 
+import com.example.orderservice.client.ProductServiceClient;
 import com.example.orderservice.client.ShippingServiceClient;
 import com.example.orderservice.client.dto.CreateExchangeRequest;
 import com.example.orderservice.client.dto.CreateExchangeResponse;
