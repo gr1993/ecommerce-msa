@@ -1,6 +1,11 @@
 # ecommerce-msa
 Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 
+### 박신사 관리자
+
+### 박신사 마이페이지
+![mypage](./docs/mypage.gif)
+
 
 ## 프로젝트 개요
 
