@@ -72,7 +72,7 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         );
 
         ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
-        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_COLLECTING);
+        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_APPROVED);
 
         // Mock 택배사 API로 회수 운송장 자동 발급
         String collectTrackingNumber = issueTrackingNumber(
@@ -86,7 +86,7 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
             log.info("회수 운송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, collectTrackingNumber);
             orderExchange.addExchangeHistory(
                     previousStatus,
-                    ExchangeStatus.EXCHANGE_COLLECTING,
+                    ExchangeStatus.EXCHANGE_APPROVED,
                     "회수 접수",
                     "회수 운송장 정상 발급",
                     "ACCEPTED",
