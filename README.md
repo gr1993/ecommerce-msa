@@ -22,7 +22,7 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 ### 아키텍처 구성도
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
 사용하는 서비스들은 **하나의 MySQL 서버에서 논리적으로 분리된 데이터베이스를 사용하도록 할 예정**이다.  
-인프라 및 서비스를 구축하려면 [infra 폴더의 README 파일](https://github.com/gr1993/ecommerce-msa-config)을 참고하여 구성할 수 있다.
+인프라 및 서비스를 구축하려면 [infra 폴더의 README 파일](https://github.com/gr1993/ecommerce-msa/tree/main/infra)을 참고하여 구성할 수 있다.
 
 ```mermaid
 flowchart TD
@@ -77,7 +77,7 @@ flowchart TD
     click Ship "https://github.com/gr1993/ecommerce-msa/tree/main/service/shipping-service"
 ```
 
-#### Saga Pattern
+### Saga Pattern
 Saga Pattern은 하나의 비즈니스 행위가 여러 서비스에 걸쳐 수행되며, 해당 행위가 도메인 관점에서 원자적으로  
 보장되어야 할 때 사용된다. 즉, 중간 단계에서 실패가 발생했을 경우 이전 상태로 되돌리지 않으면 비즈니스적으로  
 잘못된 상태가 되는 경우에 보상 트랜잭션을 통해 일관성을 유지한다.  
