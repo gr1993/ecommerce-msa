@@ -78,7 +78,7 @@ com.example.promotionservice
 │   └── response
 ├── exception           # 커스텀 예외 처리 및 Global Handler
 ├── repository          # DB 접근 (Spring Data JPA Interface)
-└── service             # 비즈니스 로직 (JWT 토큰 생성/검증, 인증 처리)
+└── service             # 비즈니스 로직 (쿠폰 관리, 할인 정책 처리)
 ```
 
 

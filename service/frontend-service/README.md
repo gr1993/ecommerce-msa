@@ -22,7 +22,7 @@ React 환경에서 개발되었으며, 쇼핑몰 사용자 인터페이스와 �
 * react 19.2.5
 * react-router-dom 7.10.1
 * zustand 5.0.2 : 전역 상태 관리 라이브러리 (인증, 장바구니 등)
-* react-quill-new 3.6.0 : 에디터 라이브러리로 기존 react-quill는 React 19에서 ReactDOM.findDOMNode가 제거되었기 때문에 사용할 수 없어서 react-quill-new로 사용
+* react-quill-new 3.6.0 : 에디터 라이브러리로 기존 react-quill은 React 19에서 ReactDOM.findDOMNode가 제거되었기 때문에 사용할 수 없어서 react-quill-new로 사용
 * antd 6.1.0 : Ant Design 라이브러리로 Ant Design Table을 사용하기 위해 추가
 * @ant-design/charts : 차트 라이브러리
 
