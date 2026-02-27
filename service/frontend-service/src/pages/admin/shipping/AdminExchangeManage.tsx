@@ -7,8 +7,7 @@ import ExchangeItemsModal from './ExchangeItemsModal'
 import {
   getAdminExchanges,
   approveExchange,
-  completeExchangeCollect,
-  completeExchange,
+  startExchangeShipping,
   type AdminExchangeResponse,
   type ExchangeStatus,
   type ExchangeItemDto
@@ -68,6 +67,7 @@ function AdminExchangeManage() {
 
   const exchangeStatusMap: Record<string, { label: string; color: string }> = {
     EXCHANGE_REQUESTED: { label: '교환 요청', color: 'blue' },
+    EXCHANGE_APPROVED: { label: '교환 승인', color: 'geekblue' },
     EXCHANGE_COLLECTING: { label: '회수 중', color: 'orange' },
     EXCHANGE_RETURN_COMPLETED: { label: '회수 완료', color: 'cyan' },
     EXCHANGE_SHIPPING: { label: '교환 배송 중', color: 'purple' },
@@ -221,28 +221,35 @@ function AdminExchangeManage() {
     approvalForm.resetFields()
   }
 
-  // 회수 완료 처리
-  const handleCollectComplete = async (exchange: Exchange) => {
+  // 교환 배송 시작 모달
+  const handleShippingClick = (exchange: Exchange) => {
+    setSelectedExchange(exchange)
+    shippingForm.resetFields()
+    setIsShippingModalVisible(true)
+  }
+
+  const handleShippingSave = async () => {
+    if (!selectedExchange) return
     try {
-      await completeExchangeCollect(exchange.exchange_id)
-      message.success('회수 완료 처리되었습니다.')
+      const values = await shippingForm.validateFields()
+      await startExchangeShipping(selectedExchange.exchange_id, {
+        carrierCode: values.carrier_code,
+      })
+      message.success('교환품 배송이 시작되었습니다. 운송장이 자동 발급되었습니다.')
+      setIsShippingModalVisible(false)
+      setSelectedExchange(null)
+      shippingForm.resetFields()
       loadExchanges(pagination.current - 1)
     } catch (error) {
-      console.error('회수 완료 처리 실패:', error)
-      message.error(error instanceof Error ? error.message : '회수 완료 처리에 실패했습니다.')
+      console.error('교환 배송 시작 실패:', error)
+      message.error(error instanceof Error ? error.message : '교환 배송 시작에 실패했습니다.')
     }
   }
 
-  // 교환 완료 처리
-  const handleExchangeComplete = async (exchange: Exchange) => {
-    try {
-      await completeExchange(exchange.exchange_id)
-      message.success('교환이 완료 처리되었습니다.')
-      loadExchanges(pagination.current - 1)
-    } catch (error) {
-      console.error('교환 완료 처리 실패:', error)
-      message.error(error instanceof Error ? error.message : '교환 완료 처리에 실패했습니다.')
-    }
+  const handleShippingModalClose = () => {
+    setIsShippingModalVisible(false)
+    setSelectedExchange(null)
+    shippingForm.resetFields()
   }
 
   const columns: ColumnsType<Exchange> = [
@@ -301,43 +308,17 @@ function AdminExchangeManage() {
                 </Button>
               </Space>
             )}
-            {/* EXCHANGE_COLLECTING: 회수 완료 */}
-            {status === 'EXCHANGE_COLLECTING' && (
-              <Popconfirm
-                title="회수 완료 확인"
-                description="반품 상품 회수가 완료되었나요?"
-                onConfirm={() => handleCollectComplete(record)}
-                okText="완료 처리"
-                cancelText="취소"
+            {/* EXCHANGE_RETURN_COMPLETED: 배송 시작 */}
+            {status === 'EXCHANGE_RETURN_COMPLETED' && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckCircleOutlined />}
+                onClick={() => handleShippingClick(record)}
+                style={{ backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
               >
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<CheckCircleOutlined />}
-                  style={{ backgroundColor: '#17a2b8', borderColor: '#17a2b8' }}
-                >
-                  회수 완료
-                </Button>
-              </Popconfirm>
-            )}
-            {/* EXCHANGE_SHIPPING: 교환 완료 */}
-            {status === 'EXCHANGE_SHIPPING' && (
-              <Popconfirm
-                title="교환 완료 확인"
-                description="교환 상품 배송이 완료되었나요?"
-                onConfirm={() => handleExchangeComplete(record)}
-                okText="완료 처리"
-                cancelText="취소"
-              >
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<CheckCircleOutlined />}
-                  style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
-                >
-                  교환 완료
-                </Button>
-              </Popconfirm>
+                배송 시작
+              </Button>
             )}
           </Space>
         )
@@ -538,52 +519,40 @@ function AdminExchangeManage() {
           </div>
         </Modal>
 
-        {/*
-          교환품 배송지 모달 — EXCHANGE_RETURN_COMPLETED → EXCHANGE_SHIPPING 시 사용 예정
-          현재 보관 중 (isShippingModalVisible / shippingForm)
-        */}
+        {/* 교환품 배송 시작 모달 */}
         <Modal
-          title="교환품 발송 — 배송지 정보 입력"
+          title="교환품 발송 — 택배사 선택"
           open={isShippingModalVisible}
-          onCancel={() => { setIsShippingModalVisible(false); setSelectedExchange(null); shippingForm.resetFields() }}
-          onOk={() => { /* TODO: startShipping API 연동 */ }}
+          onCancel={handleShippingModalClose}
+          onOk={handleShippingSave}
           okText="발송 처리"
           cancelText="취소"
+          okButtonProps={{ style: { backgroundColor: '#17a2b8', borderColor: '#17a2b8' } }}
         >
           {selectedExchange && (
             <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#f6f8fa', borderRadius: '4px' }}>
               <p style={{ margin: '2px 0' }}><strong>주문 번호:</strong> {selectedExchange.order_number}</p>
+              <p style={{ margin: '2px 0' }}><strong>교환 사유:</strong> {selectedExchange.exchange_reason || '-'}</p>
             </div>
           )}
           <Form form={shippingForm} layout="vertical">
             <Form.Item
-              label="교환품 수령인"
-              name="receiver_name"
-              rules={[{ required: true, message: '수령인을 입력하세요' }]}
+              label="택배사"
+              name="carrier_code"
+              rules={[{ required: true, message: '택배사를 선택하세요' }]}
             >
-              <Input placeholder="교환품 수령인 이름" />
-            </Form.Item>
-            <Form.Item
-              label="교환품 수령 연락처"
-              name="receiver_phone"
-              rules={[{ required: true, message: '연락처를 입력하세요' }]}
-            >
-              <Input placeholder="010-0000-0000" />
-            </Form.Item>
-            <Form.Item
-              label="교환품 배송 주소"
-              name="exchange_address"
-              rules={[{ required: true, message: '배송 주소를 입력하세요' }]}
-            >
-              <Input placeholder="교환품을 배송할 주소" />
-            </Form.Item>
-            <Form.Item label="우편번호" name="postal_code">
-              <Input placeholder="우편번호" />
+              <Select placeholder="택배사를 선택하세요">
+                <Option value="04">CJ대한통운</Option>
+                <Option value="05">한진택배</Option>
+                <Option value="06">로젠택배</Option>
+                <Option value="08">롯데택배</Option>
+                <Option value="01">우체국택배</Option>
+              </Select>
             </Form.Item>
           </Form>
           <div style={{ marginTop: '12px', padding: '10px 12px', background: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
             <p style={{ margin: 0, fontSize: '13px', color: '#0056b3' }}>
-              ℹ️ 발송 처리 시 택배사 API를 통해 배송 운송장이 자동 발급됩니다.
+              ℹ️ 원주문 배송지로 운송장이 자동 발급됩니다.
             </p>
           </div>
         </Modal>

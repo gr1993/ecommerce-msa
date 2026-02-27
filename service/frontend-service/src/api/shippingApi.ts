@@ -558,12 +558,13 @@ export const getMyReturns = async (
  * 교환 상태
  */
 export type ExchangeStatus =
-  | 'EXCHANGE_REQUESTED'       // 교환 신청
-  | 'EXCHANGE_COLLECTING'      // 회수 중 (승인 후)
-  | 'EXCHANGE_RETURN_COMPLETED'// 회수 완료
-  | 'EXCHANGE_SHIPPING'        // 교환품 발송 중
-  | 'EXCHANGED'                // 교환 완료
-  | 'EXCHANGE_REJECTED'        // 교환 거절
+  | 'EXCHANGE_REQUESTED'        // 교환 신청
+  | 'EXCHANGE_APPROVED'         // 교환 승인 (회수 운송장 발급)
+  | 'EXCHANGE_COLLECTING'       // 회수 중
+  | 'EXCHANGE_RETURN_COMPLETED' // 회수 완료
+  | 'EXCHANGE_SHIPPING'         // 교환품 발송 중
+  | 'EXCHANGED'                 // 교환 완료
+  | 'EXCHANGE_REJECTED'         // 교환 거절
 
 /**
  * 관리자 교환 응답 DTO
@@ -639,6 +640,14 @@ export interface AdminExchangeApproveRequest {
   collectAddress: string
   /** 회수 우편번호 */
   collectPostalCode?: string
+}
+
+/**
+ * 교환 배송 시작 요청 DTO
+ */
+export interface AdminExchangeStartShippingRequest {
+  /** 택배사 코드 (01: 우체국, 04: CJ대한통운, 05: 한진택배, 06: 로젠택배, 08: 롯데택배) */
+  carrierCode: string
 }
 
 /**
@@ -743,19 +752,26 @@ export const approveExchange = async (
 }
 
 /**
- * 회수 완료 처리
+ * 교환 배송 시작
  *
- * EXCHANGE_COLLECTING → EXCHANGE_RETURN_COMPLETED
+ * 원주문 배송지 기반으로 교환품 운송장을 자동 발급합니다.
+ * EXCHANGE_RETURN_COMPLETED 상태에서만 가능합니다.
+ *
+ * @param exchangeId - 교환 ID
+ * @param request - 택배사 코드
+ * @returns 업데이트된 교환 정보
  */
-export const completeExchangeCollect = async (
+export const startExchangeShipping = async (
   exchangeId: number,
+  request: AdminExchangeStartShippingRequest,
 ): Promise<AdminExchangeResponse> => {
   try {
-    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/collect-complete`
+    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/shipping`
 
     const response = await fetch(url, {
       method: 'PATCH',
       headers: getAdminHeaders(),
+      body: JSON.stringify(request),
     })
 
     if (!response.ok) {
@@ -763,60 +779,14 @@ export const completeExchangeCollect = async (
       if (response.status === 401) throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
       if (response.status === 403) throw new Error(error.message || '접근 권한이 없습니다.')
       if (response.status === 404) throw new Error(error.message || '교환 정보를 찾을 수 없습니다.')
-      if (response.status === 409) throw new Error(error.message || '회수 완료 처리 불가 상태입니다.')
-      throw new Error(error.message || `회수 완료 처리 실패 (HTTP ${response.status})`)
+      if (response.status === 409) throw new Error(error.message || '배송 시작 불가 상태입니다.')
+      throw new Error(error.message || `교환 배송 시작 실패 (HTTP ${response.status})`)
     }
 
     return response.json()
   } catch (error) {
-    console.error('Complete exchange collect error:', error)
+    console.error('Start exchange shipping error:', error)
     if (error instanceof Error) throw error
-    throw new Error('회수 완료 처리 중 오류가 발생했습니다.')
-  }
-}
-
-/**
- * 교환 완료 처리
- *
- * 교환을 완료 처리합니다.
- * EXCHANGE_SHIPPING 상태에서만 가능합니다.
- *
- * @param exchangeId - 교환 ID
- * @returns 업데이트된 교환 정보
- */
-export const completeExchange = async (
-  exchangeId: number,
-): Promise<AdminExchangeResponse> => {
-  try {
-    const url = `${API_BASE_URL}/api/admin/shipping/exchanges/${exchangeId}/complete`
-
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: getAdminHeaders(),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }))
-      if (response.status === 401) {
-        throw new Error(error.message || '인증이 만료되었습니다. 다시 로그인해주세요.')
-      }
-      if (response.status === 403) {
-        throw new Error(error.message || '접근 권한이 없습니다.')
-      }
-      if (response.status === 404) {
-        throw new Error(error.message || '교환 정보를 찾을 수 없습니다.')
-      }
-      if (response.status === 409) {
-        throw new Error(error.message || '완료 불가 상태입니다.')
-      }
-      throw new Error(error.message || `교환 완료 처리 실패 (HTTP ${response.status})`)
-    }
-
-    const data: AdminExchangeResponse = await response.json()
-    return data
-  } catch (error) {
-    console.error('Complete exchange error:', error)
-    if (error instanceof Error) throw error
-    throw new Error('교환 완료 처리 중 오류가 발생했습니다.')
+    throw new Error('교환 배송 시작 중 오류가 발생했습니다.')
   }
 }
