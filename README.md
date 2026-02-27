@@ -128,7 +128,7 @@ sequenceDiagram
 Auth-Service는 인증과 관련된 책임만을 가지며, 로그인 시 JWT 토큰을 발급하는 역할을 수행한다.  
 토큰의 검증 및 인가 처리는 Gateway-Service에서 담당하여, 인증과 인가의 책임을 명확히 분리한다.  
 User-Service는 회원가입을 포함한 사용자 관련 API와 관리자 페이지에서의 회원 정보 관리 기능을 담당한다.  
-회원가입 또는 회원 정보 수정 요청이 User-Service로 유입되면, user.registered 등 같은 도메인 이벤트가 발행된다.  
+회원가입 또는 회원 정보 수정 요청이 User-Service로 유입되면, user.registered 등의 도메인 이벤트가 발행된다.  
 Auth-Service는 해당 이벤트를 구독하여 인증에 필요한 사용자 정보를 자체 인증 저장소에 반영한다.  
 
 ### 상품 / 카탈로그 서비스
@@ -203,7 +203,7 @@ sequenceDiagram
 ```
 
 Payment-Service는 외부 PG사 연동, 결제 승인 및 상태 관리, 결제 이력 저장을 전담하며,  
-Order-Service로부터 결제 로직을 분리하여 서비스 간 응집도를 높였다. 재고 관리는 주문 생성 시점에  
+Order-Service로부터 결제 로직을 분리하여 서비스 간 결합도를 낮췄다. 재고 관리는 주문 생성 시점에  
 선차감을 수행하며, 결제 실패 시 보상 트랜잭션을 통해 재고를 복구하는 방식으로 설계하였다.  
 
 #### 주문 단계
@@ -263,7 +263,7 @@ sequenceDiagram
     Order-->>Kafka: coupon.used 이벤트 발행
 
     Note over Kafka, Promotion: 3. 쿠폰 사용 처리
-    Kafka-->>Promotion: coupon.used 이벤트 전달
+    Kafka->>Promotion: coupon.used 이벤트 전달
     Promotion->>Promotion: 쿠폰 상태 변경 (ISSUED → USED)
 ```
 
