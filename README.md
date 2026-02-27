@@ -16,6 +16,10 @@ Spring Cloud를 활용한 MSA 기반 이커머스 서비스 구현 프로젝트
 본 프로젝트는 Spring Cloud 기반으로 구축한 MSA 전자 상거래 시스템이다.
 도메인별 설계 상세 방법을 정리한 내용이다.
 
+### 기술 스택
+* **Frontend:** React (`frontend-service`)
+* **Backend:** Spring Boot (Gateway를 포함한 나머지 모든 마이크로서비스)
+
 ### 아키텍처 구성도
 원래 MSA에서는 각 서비스가 자체 데이터 저장소(RDBMS, Redis 등)를 갖지만, 실습의 편의를 위해 RDBMS를  
 사용하는 서비스들은 **하나의 MySQL 서버에서 논리적으로 분리된 데이터베이스를 사용하도록 할 예정**이다.  
