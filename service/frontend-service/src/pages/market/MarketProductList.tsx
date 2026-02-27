@@ -170,12 +170,13 @@ function MarketProductList() {
     fetchCategories()
   }, [])
 
-  // 상품 데이터 로드 (API 호출)
+  // 상품 데이터 로드 (API 호출) - URL 파라미터 기준으로만 조회 (입력 중인 searchKeyword 제외)
   const fetchProducts = useCallback(async () => {
+    const keyword = searchParams.get('keyword') || ''
     setLoading(true)
     try {
       const response = await getCatalogProducts({
-        productName: searchKeyword || undefined,
+        productName: keyword || undefined,
         categoryId: selectedCategory !== 'all' ? Number(selectedCategory) : undefined,
         status: 'ACTIVE',
         page: currentPage - 1, // API는 0부터 시작
@@ -192,7 +193,7 @@ function MarketProductList() {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, selectedCategory, currentPage, pageSize, sortBy, getSortParam])
+  }, [searchParams, selectedCategory, currentPage, pageSize, sortBy, getSortParam])
 
   // URL 파라미터에서 초기값 설정
   useEffect(() => {
