@@ -9,7 +9,7 @@ import './MarketOrderComplete.css'
 function MarketOrderComplete() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [orderId, setOrderId] = useState<string>('')
+  const [orderNumber, setOrderNumber] = useState<string>('')
   const [paymentId, setPaymentId] = useState<string>('')
   const [receiptId, setReceiptId] = useState<string>('')
   const [totalAmount, setTotalAmount] = useState<number>(0)
@@ -17,7 +17,7 @@ function MarketOrderComplete() {
   useEffect(() => {
     // location.state에서 주문 정보 가져오기
     if (location.state?.orderId) {
-      setOrderId(location.state.orderId)
+      setOrderNumber(location.state.orderNumber || location.state.orderId)
       setPaymentId(location.state.paymentId || '')
       setReceiptId(location.state.receiptId || '')
       setTotalAmount(location.state.totalAmount || 0)
@@ -36,7 +36,7 @@ function MarketOrderComplete() {
           <Result
             icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
             title="주문이 완료되었습니다!"
-            subTitle={`주문번호: ${orderId}`}
+            subTitle={`주문번호: ${orderNumber}`}
             extra={[
               <Space key="actions" size="middle">
                 <Button
@@ -62,7 +62,7 @@ function MarketOrderComplete() {
               <div className="summary-content">
                 <div className="summary-row">
                   <span>주문번호</span>
-                  <span className="order-id">{orderId}</span>
+                  <span className="order-id">{orderNumber}</span>
                 </div>
                 {paymentId && (
                   <div className="summary-row">
