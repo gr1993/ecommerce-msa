@@ -6,6 +6,7 @@ import com.example.shippingservice.client.dto.BulkUploadResult;
 import com.example.shippingservice.client.dto.PageResponse;
 import com.example.shippingservice.domain.entity.Outbox;
 import com.example.shippingservice.domain.event.ExchangeApprovedEvent;
+import com.example.shippingservice.domain.event.ExchangeShippingEvent;
 import com.example.shippingservice.exchange.dto.ExchangeItemDto;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeApproveRequest;
 import com.example.shippingservice.exchange.dto.request.AdminExchangeRejectRequest;
@@ -173,7 +174,48 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         }
 
         log.info("교환 배송 시작 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
+
+        // Outbox에 교환 배송 시작 이벤트 저장
+        saveExchangeShippingOutbox(orderExchange);
+
         return AdminExchangeResponse.from(orderExchange);
+    }
+
+    private void saveExchangeShippingOutbox(OrderExchange orderExchange) {
+        List<ExchangeItemDto> itemDtos = orderExchange.getExchangeItems().stream()
+                .map(item -> ExchangeItemDto.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .originalOptionId(item.getOriginalOptionId())
+                        .newOptionId(item.getNewOptionId())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        ExchangeShippingEvent event = ExchangeShippingEvent.builder()
+                .exchangeId(orderExchange.getExchangeId())
+                .orderId(orderExchange.getOrderId())
+                .userId(orderExchange.getUserId())
+                .exchangeItems(itemDtos)
+                .courier(orderExchange.getCourier())
+                .trackingNumber(orderExchange.getTrackingNumber())
+                .shippingAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Exchange")
+                    .aggregateId(String.valueOf(orderExchange.getExchangeId()))
+                    .eventType(EventTypeConstants.TOPIC_EXCHANGE_SHIPPING)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.info("교환 배송 시작 Outbox 저장 완료 - exchangeId={}, trackingNumber={}",
+                    orderExchange.getExchangeId(), orderExchange.getTrackingNumber());
+        } catch (JsonProcessingException e) {
+            log.error("교환 배송 시작 이벤트 직렬화 실패 - exchangeId={}", orderExchange.getExchangeId(), e);
+            throw new RuntimeException("교환 배송 시작 이벤트 직렬화 실패", e);
+        }
     }
 
     private void saveExchangeApprovedOutbox(OrderExchange orderExchange) {
