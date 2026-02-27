@@ -42,7 +42,7 @@ public class ExchangeCollectionScheduler {
     @Transactional
     public void pollCollectionStatuses() {
         List<OrderExchange> targets = orderExchangeRepository.findByExchangeStatusIn(
-                List.of(ExchangeStatus.EXCHANGE_REQUESTED, ExchangeStatus.EXCHANGE_APPROVED, ExchangeStatus.EXCHANGE_COLLECTING)
+                List.of(ExchangeStatus.EXCHANGE_APPROVED, ExchangeStatus.EXCHANGE_COLLECTING)
         );
 
         if (targets.isEmpty()) {
