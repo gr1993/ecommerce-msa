@@ -23,9 +23,22 @@ function AdminOrderList() {
   const statusMap: Record<string, { label: string; color: string }> = {
     CREATED: { label: '주문 생성', color: 'blue' },
     PAID: { label: '결제 완료', color: 'green' },
+    FAILED: { label: '결제 실패', color: 'red' },
     SHIPPING: { label: '배송 중', color: 'orange' },
     DELIVERED: { label: '배송 완료', color: 'cyan' },
-    CANCELED: { label: '취소됨', color: 'red' }
+    CANCELED: { label: '취소됨', color: 'red' },
+    RETURN_REQUESTED: { label: '반품 신청', color: 'volcano' },
+    RETURN_APPROVED: { label: '반품 승인', color: 'gold' },
+    RETURN_REJECTED: { label: '반품 거절', color: 'red' },
+    RETURN_IN_TRANSIT: { label: '반품 회수 중', color: 'orange' },
+    RETURNED: { label: '반품 완료', color: 'purple' },
+    EXCHANGE_REQUESTED: { label: '교환 신청', color: 'volcano' },
+    EXCHANGE_APPROVED: { label: '교환 승인', color: 'gold' },
+    EXCHANGE_REJECTED: { label: '교환 거절', color: 'red' },
+    EXCHANGE_COLLECTING: { label: '교환 회수 중', color: 'orange' },
+    EXCHANGE_RETURN_COMPLETED: { label: '교환 회수 완료', color: 'lime' },
+    EXCHANGE_SHIPPING: { label: '교환 배송 중', color: 'geekblue' },
+    EXCHANGED: { label: '교환 완료', color: 'purple' },
   }
 
   const fetchOrders = async (orderNumber?: string, orderStatus?: string, page: number = 1, size: number = pageSize) => {
