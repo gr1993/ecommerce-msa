@@ -16,4 +16,11 @@ public interface OrderExchangeHistoryRepository extends JpaRepository<OrderExcha
             "WHERE h.orderExchange.exchangeId = :exchangeId AND h.trackingKind IS NOT NULL " +
             "ORDER BY h.changedAt DESC LIMIT 1")
     Optional<String> findLastTrackingKindByExchangeId(@Param("exchangeId") Long exchangeId);
+
+    @Query("SELECT h.trackingKind FROM OrderExchangeHistory h " +
+            "WHERE h.orderExchange.exchangeId = :exchangeId AND h.trackingNumber = :trackingNumber " +
+            "AND h.trackingKind IS NOT NULL ORDER BY h.changedAt DESC LIMIT 1")
+    Optional<String> findLastTrackingKindByExchangeIdAndTrackingNumber(
+            @Param("exchangeId") Long exchangeId,
+            @Param("trackingNumber") String trackingNumber);
 }

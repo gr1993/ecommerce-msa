@@ -176,31 +176,6 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
         return AdminExchangeResponse.from(orderExchange);
     }
 
-    @Override
-    @Transactional
-    public AdminExchangeResponse completeExchange(Long exchangeId) {
-        OrderExchange orderExchange = findExchangeById(exchangeId);
-
-        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_SHIPPING) {
-            throw new IllegalStateException(
-                    "교환 배송 중 상태에서만 완료 처리할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
-        }
-
-        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
-        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGED);
-        orderExchange.addExchangeHistory(
-                previousStatus,
-                ExchangeStatus.EXCHANGED,
-                "교환 완료",
-                "교환 최종 완료",
-                "DELIVERED",
-                "ADMIN"
-        );
-
-        log.info("교환 완료 처리 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
-        return AdminExchangeResponse.from(orderExchange);
-    }
-
     private void saveExchangeApprovedOutbox(OrderExchange orderExchange) {
         List<ExchangeItemDto> itemDtos = orderExchange.getExchangeItems().stream()
                 .map(item -> ExchangeItemDto.builder()

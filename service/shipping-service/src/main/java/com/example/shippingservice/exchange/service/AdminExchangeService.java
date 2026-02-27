@@ -30,8 +30,4 @@ public interface AdminExchangeService {
      */
     AdminExchangeResponse startShipping(Long exchangeId, AdminExchangeShippingRequest request);
 
-    /**
-     * 교환 완료: EXCHANGE_SHIPPING → EXCHANGED
-     */
-    AdminExchangeResponse completeExchange(Long exchangeId);
 }

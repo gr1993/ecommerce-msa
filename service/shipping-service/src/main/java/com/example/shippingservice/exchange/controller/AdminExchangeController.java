@@ -82,12 +82,4 @@ public class AdminExchangeController {
         return ResponseEntity.ok(adminExchangeService.startShipping(exchangeId, request));
     }
 
-    @Operation(summary = "교환 완료 처리",
-            description = "EXCHANGE_SHIPPING → EXCHANGED",
-            responses = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "409")})
-    @PatchMapping("/{exchangeId}/complete")
-    public ResponseEntity<AdminExchangeResponse> completeExchange(
-            @Parameter(description = "교환 ID", required = true) @PathVariable Long exchangeId) {
-        return ResponseEntity.ok(adminExchangeService.completeExchange(exchangeId));
-    }
 }
