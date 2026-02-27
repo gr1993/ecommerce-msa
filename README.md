@@ -118,12 +118,11 @@ sequenceDiagram
     User->>US: 회원가입 요청 (ID, PW, Profile 등)
     US->>US: 회원 정보 저장
     US-->>Kafka: user.registered 이벤트 발행 (ID, PW 등)
-    
+    US-->>User: 회원가입 완료 응답
+
     Note over AS: Auth-Service는 인증에 필요한<br/>최소 정보만 구독하여 저장
     Kafka->>AS: user.registered 구독
     AS->>AS: 인증용 사용자 정보 저장 (ID, PW)
-    
-    US-->>User: 회원가입 완료 응답
 ```
 
 Auth-Service는 인증과 관련된 책임만을 가지며, 로그인 시 JWT 토큰을 발급하는 역할을 수행한다.  
@@ -282,11 +281,13 @@ Promotion-Service는 해당 이벤트를 구독하여 쿠폰 상태를 최종적
 ```mermaid
 sequenceDiagram
     participant Order as Order Service
+    participant Kafka
     participant Ship as Shipping Service
     participant Mock as Mock Delivery Server
 
     Note over Order, Ship: 1. 주문 생성 이벤트 전달
-    Order->>Ship: order.created 이벤트 발행
+    Order-->>Kafka: order.created 이벤트 발행
+    Kafka->>Ship: order.created 구독
     Ship->>Ship: 배송 정보 저장 (status: READY)
 
     Note over Ship, Mock: 2. 송장 발급 요청
@@ -304,15 +305,18 @@ sequenceDiagram
 그러나 현재 모든 서비스를 로컬 PC에서 구동하고 있으며, 사이드 프로젝트 특성상 인프라 복잡도를 최소화하기 위해  
 Shipping-Service에서 배송, 반품, 교환 기능을 모두 지원하도록 결정하였다.  
 이 서비스의 핵심인 배송 처리 프로세스에서는 실제 업무처럼 외부 API(스마트 택배나 특정 택배사 API)를 사용하여  
-송장 발급 및 발송을 처리하려 했으나, PG 결제 모듈과 달리 배송까지 테스트할 수 있는 서비스가 없었고, 조회 또한 실제 배송 중인 택배만 추적 가능했다.  
-따라서 직접 배송 및 추적을 지원하는 **Mock 서버를 구현**하고, 이를 Shipping-Service와 연동하여 시뮬레이션 환경을 구성하였다.  
-또한 배송과 관련된 테이블의 쓰기 책임은 Shipping-Service가 전담하며, Order-Service는 배송 처리 이벤트를 구독하여 배송 관련 정보를 읽기 전용으로 관리한다.  
+송장 발급 및 발송을 처리하려 했으나, PG 결제 모듈과 달리 배송까지 테스트할 수 있는 서비스가 없었고, 조회 또한 실제  
+배송 중인 택배만 추적 가능했다. 따라서 직접 배송 및 추적을 지원하는 **Mock 서버를 구현**하고, 이를 Shipping-Service와  
+연동하여 시뮬레이션 환경을 구성하였다.  
+또한 배송과 관련된 테이블의 쓰기 책임은 Shipping-Service가 전담하며, Order-Service는 배송 처리 이벤트를  
+구독하여 배송 관련 정보를 읽기 전용으로 관리한다.  
 
 
 ### 정산 / 분석 서비스
 
 원래 이 프로젝트에서 정산 서비스(Settlement)와 분석 서비스(Analytics, 통계/대시보드)까지 모두 구현할 계획이었으나,  
-현재 로컬 환경에서 모든 서비스를 동시에 구동하면서 JVM 메모리(16GB) 한계로 인해 심각한 리소스 부족 문제가 발생했다.  
+현재 로컬 환경에서 MySQL, Kafka(3대), MongoDB, Elasticsearch 등 다수의 인프라 서비스와 모든 마이크로서비스를 동시에  ㅇ
+구동하다 보니 PC 전체 리소스가 한계에 달하는 문제가 발생했다.  
 
 이에 따라 정산과 분석 서비스는 별도의 사이드 프로젝트로 분리하기로 결정하였다. 두 서비스는 이벤트 소비와 DB 처리  
 중심으로 동작하기 때문에, 기존 주문/결제/배송 서비스 없이도 이벤트 시뮬레이션만으로 충분히 개발 및 로직 검증이 가능하다.  
