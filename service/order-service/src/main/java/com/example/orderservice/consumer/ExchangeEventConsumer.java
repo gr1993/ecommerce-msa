@@ -10,6 +10,7 @@ import com.example.orderservice.domain.entity.Order;
 import com.example.orderservice.domain.entity.OrderStatus;
 import com.example.orderservice.domain.entity.Outbox;
 import com.example.orderservice.domain.event.InventoryDecreaseEvent;
+import com.example.orderservice.domain.event.InventoryIncreaseEvent;
 import com.example.orderservice.global.common.EventTypeConstants;
 import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.repository.OutboxRepository;
@@ -310,6 +311,25 @@ public class ExchangeEventConsumer {
             order.updateStatus(OrderStatus.EXCHANGE_RETURN_COMPLETED);
             orderRepository.save(order);
 
+            // 원래 옵션(originalOptionId)에 대한 재고 증가 이벤트 발행
+            // 신규 옵션과 다른 경우에만 발행 (승인 시 차감이 일어난 경우에만 복구)
+            List<ExchangeItemDto> exchangeItems = event.getExchangeItems();
+            if (exchangeItems != null && !exchangeItems.isEmpty()) {
+                List<InventoryIncreaseEvent.IncreaseItem> increaseItems = exchangeItems.stream()
+                        .filter(item -> !item.getNewOptionId().equals(item.getOriginalOptionId()))
+                        .map(item -> InventoryIncreaseEvent.IncreaseItem.builder()
+                                .skuId(item.getOriginalOptionId())
+                                .quantity(item.getQuantity())
+                                .build())
+                        .toList();
+
+                if (!increaseItems.isEmpty()) {
+                    saveInventoryIncreaseOutbox(order, event.getExchangeId(), increaseItems);
+                    log.info("inventory.increase Outbox 저장 완료: orderId={}, exchangeId={}, 증가 항목 수={}",
+                            event.getOrderId(), event.getExchangeId(), increaseItems.size());
+                }
+            }
+
             log.info("교환 물품 회수 완료 처리 성공: orderId={}, exchangeId={}, courier={}, trackingNumber={}",
                     event.getOrderId(), event.getExchangeId(), event.getCourier(), event.getTrackingNumber());
 
@@ -414,6 +434,41 @@ public class ExchangeEventConsumer {
                     order.getId(), exchangeId);
         } catch (JsonProcessingException e) {
             log.error("InventoryDecreaseEvent 직렬화 실패: orderId={}, exchangeId={}",
+                    order.getId(), exchangeId, e);
+            throw new RuntimeException("이벤트 직렬화 실패", e);
+        }
+    }
+
+    /**
+     * inventory.increase Outbox 저장
+     *
+     * 교환 회수 완료 시 원래 옵션(originalOptionId != newOptionId)의 재고를
+     * Product Service에서 증가하도록 이벤트를 발행한다.
+     */
+    private void saveInventoryIncreaseOutbox(Order order, Long exchangeId,
+                                             List<InventoryIncreaseEvent.IncreaseItem> increaseItems) {
+        InventoryIncreaseEvent event = InventoryIncreaseEvent.builder()
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .exchangeId(exchangeId)
+                .reason("EXCHANGE_RETURN_COMPLETED")
+                .items(increaseItems)
+                .occurredAt(LocalDateTime.now())
+                .build();
+
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+            Outbox outbox = Outbox.builder()
+                    .aggregateType("Order")
+                    .aggregateId(String.valueOf(order.getId()))
+                    .eventType(EventTypeConstants.TOPIC_INVENTORY_INCREASE)
+                    .payload(payload)
+                    .build();
+            outboxRepository.save(outbox);
+            log.debug("InventoryIncreaseEvent Outbox 저장 완료: orderId={}, exchangeId={}",
+                    order.getId(), exchangeId);
+        } catch (JsonProcessingException e) {
+            log.error("InventoryIncreaseEvent 직렬화 실패: orderId={}, exchangeId={}",
                     order.getId(), exchangeId, e);
             throw new RuntimeException("이벤트 직렬화 실패", e);
         }

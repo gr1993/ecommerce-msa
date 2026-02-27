@@ -133,5 +133,5 @@ processed_events 테이블에서 관리하여 중복 전송 시에도 멱등성�
 
 | 구분 | 설명 |
 |-----|-----|
-| 발행(Published) | order.created, order.cancelled, coupon.used, coupon.restored, inventory.decrease |
+| 발행(Published) | order.created, order.cancelled, coupon.used, coupon.restored, inventory.increase, inventory.decrease |
 | 구독(Subscribed) | payment.confirmed, payment.cancelled, shipping.started, shipping.delivered, return.approved, return.in-transit, return.completed, exchange.approved, exchange.collecting, exchange.return-completed, exchange.shipping, exchange.completed |

@@ -69,6 +69,8 @@ public class OutboxEventPublisher {
 			// Inventory Events
 			case EventTypeConstants.TOPIC_INVENTORY_DECREASE ->
 				orderEventPublisher.publishInventoryDecreaseEvent(outbox);
+			case EventTypeConstants.TOPIC_INVENTORY_INCREASE ->
+				orderEventPublisher.publishInventoryIncreaseEvent(outbox);
 
 			default -> {
 				log.warn("알 수 없는 이벤트 타입: {}", eventType);
