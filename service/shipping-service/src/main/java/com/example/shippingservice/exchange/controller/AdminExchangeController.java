@@ -71,17 +71,8 @@ public class AdminExchangeController {
         return ResponseEntity.ok(adminExchangeService.rejectExchange(exchangeId, request));
     }
 
-    @Operation(summary = "회수 완료 처리",
-            description = "EXCHANGE_COLLECTING → EXCHANGE_RETURN_COMPLETED",
-            responses = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "409")})
-    @PatchMapping("/{exchangeId}/collect-complete")
-    public ResponseEntity<AdminExchangeResponse> completeCollect(
-            @Parameter(description = "교환 ID", required = true) @PathVariable Long exchangeId) {
-        return ResponseEntity.ok(adminExchangeService.completeCollect(exchangeId));
-    }
-
     @Operation(summary = "교환 배송 시작",
-            description = "교환품 배송지를 입력하고 Mock 택배사로 배송 운송장을 자동 발급합니다. " +
+            description = "택배사 코드를 입력하면 원주문 배송지 기반으로 운송장을 자동 발급합니다. " +
                     "EXCHANGE_RETURN_COMPLETED → EXCHANGE_SHIPPING",
             responses = {@ApiResponse(responseCode = "200"), @ApiResponse(responseCode = "409")})
     @PatchMapping("/{exchangeId}/shipping")

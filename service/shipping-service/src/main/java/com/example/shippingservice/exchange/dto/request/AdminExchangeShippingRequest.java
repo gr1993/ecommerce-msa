@@ -5,23 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-@Schema(description = "관리자 교환 배송 시작 요청 (교환품 배송지 정보)")
+@Schema(description = "관리자 교환 배송 시작 요청")
 @Getter
 @NoArgsConstructor
 public class AdminExchangeShippingRequest {
 
-    @Schema(description = "교환품 수령인", example = "홍길동")
-    @NotBlank(message = "수령인은 필수입니다.")
-    private String receiverName;
-
-    @Schema(description = "교환품 수령 연락처", example = "010-1234-5678")
-    @NotBlank(message = "연락처는 필수입니다.")
-    private String receiverPhone;
-
-    @Schema(description = "교환품 배송 주소", example = "서울특별시 강남구 테헤란로 123")
-    @NotBlank(message = "배송 주소는 필수입니다.")
-    private String exchangeAddress;
-
-    @Schema(description = "우편번호", example = "06234")
-    private String postalCode;
+    @Schema(description = "택배사 코드 (01: 우체국, 04: CJ대한통운, 05: 한진택배, 06: 로젠택배, 08: 롯데택배)",
+            example = "04")
+    @NotBlank(message = "택배사 코드는 필수입니다.")
+    private String carrierCode;
 }

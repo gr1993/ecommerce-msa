@@ -16,6 +16,9 @@ import com.example.shippingservice.exchange.enums.ExchangeStatus;
 import com.example.shippingservice.exchange.repository.OrderExchangeRepository;
 import com.example.shippingservice.global.common.EventTypeConstants;
 import com.example.shippingservice.repository.OutboxRepository;
+import com.example.shippingservice.shipping.entity.OrderShipping;
+import com.example.shippingservice.shipping.enums.CarrierCode;
+import com.example.shippingservice.shipping.repository.OrderShippingRepository;
 import com.example.shippingservice.shipping.service.MockDeliveryService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +39,7 @@ import java.util.List;
 public class AdminExchangeServiceImpl implements AdminExchangeService {
 
     private final OrderExchangeRepository orderExchangeRepository;
+    private final OrderShippingRepository orderShippingRepository;
     private final MockDeliveryService mockDeliveryService;
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -121,31 +125,6 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
 
     @Override
     @Transactional
-    public AdminExchangeResponse completeCollect(Long exchangeId) {
-        OrderExchange orderExchange = findExchangeById(exchangeId);
-
-        if (orderExchange.getExchangeStatus() != ExchangeStatus.EXCHANGE_COLLECTING) {
-            throw new IllegalStateException(
-                    "회수 중 상태에서만 회수 완료 처리할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
-        }
-
-        ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
-        orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_RETURN_COMPLETED);
-        orderExchange.addExchangeHistory(
-                previousStatus,
-                ExchangeStatus.EXCHANGE_RETURN_COMPLETED,
-                "회수 완료",
-                "반품 상품 회수 완료 및 검수 대기",
-                "DELIVERED",
-                "ADMIN"
-        );
-
-        log.info("회수 완료 처리 - exchangeId={}, orderId={}", exchangeId, orderExchange.getOrderId());
-        return AdminExchangeResponse.from(orderExchange);
-    }
-
-    @Override
-    @Transactional
     public AdminExchangeResponse startShipping(Long exchangeId, AdminExchangeShippingRequest request) {
         OrderExchange orderExchange = findExchangeById(exchangeId);
 
@@ -154,26 +133,32 @@ public class AdminExchangeServiceImpl implements AdminExchangeService {
                     "회수 완료 상태에서만 교환 배송을 시작할 수 있습니다. 현재 상태: " + orderExchange.getExchangeStatus());
         }
 
-        // 교환품 배송지 저장
+        // 원주문 배송지 조회
+        OrderShipping orderShipping = orderShippingRepository.findByOrderId(orderExchange.getOrderId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "원주문 배송 정보를 찾을 수 없습니다. orderId=" + orderExchange.getOrderId()));
+
+        // 원주문 배송지를 교환품 배송지로 저장
         orderExchange.updateExchangeAddress(
-                request.getReceiverName(),
-                request.getReceiverPhone(),
-                request.getExchangeAddress(),
-                request.getPostalCode()
+                orderShipping.getReceiverName(),
+                orderShipping.getReceiverPhone(),
+                orderShipping.getAddress(),
+                orderShipping.getPostalCode()
         );
 
+        CarrierCode carrier = CarrierCode.fromCode(request.getCarrierCode());
         ExchangeStatus previousStatus = orderExchange.getExchangeStatus();
         orderExchange.updateExchangeStatus(ExchangeStatus.EXCHANGE_SHIPPING);
 
         // Mock 택배사 API로 교환품 배송 운송장 자동 발급
         String trackingNumber = issueTrackingNumber(
-                request.getReceiverName(),
-                request.getReceiverPhone(),
-                request.getExchangeAddress(),
+                orderShipping.getReceiverName(),
+                orderShipping.getReceiverPhone(),
+                orderShipping.getAddress(),
                 "교환상품"
         );
         if (trackingNumber != null) {
-            orderExchange.updateTrackingInfo("CJ대한통운", trackingNumber);
+            orderExchange.updateTrackingInfo(carrier.getName(), trackingNumber);
             log.info("교환품 배송 운송장 발급 완료 - exchangeId={}, trackingNumber={}", exchangeId, trackingNumber);
             orderExchange.addExchangeHistory(
                     previousStatus,

@@ -25,12 +25,7 @@ public interface AdminExchangeService {
     AdminExchangeResponse rejectExchange(Long exchangeId, AdminExchangeRejectRequest request);
 
     /**
-     * 회수 완료: EXCHANGE_COLLECTING → EXCHANGE_RETURN_COMPLETED
-     */
-    AdminExchangeResponse completeCollect(Long exchangeId);
-
-    /**
-     * 교환 배송 시작: 교환품 배송지 저장 + Mock 택배사로 배송 운송장 자동 발급
+     * 교환 배송 시작: 원주문 배송지 기반으로 Mock 택배사 운송장 자동 발급
      * EXCHANGE_RETURN_COMPLETED → EXCHANGE_SHIPPING
      */
     AdminExchangeResponse startShipping(Long exchangeId, AdminExchangeShippingRequest request);
