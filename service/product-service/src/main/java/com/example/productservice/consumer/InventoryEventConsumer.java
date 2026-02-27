@@ -1,6 +1,7 @@
 package com.example.productservice.consumer;
 
 import com.example.productservice.consumer.event.InventoryDecreaseEvent;
+import com.example.productservice.consumer.event.InventoryIncreaseEvent;
 import com.example.productservice.product.service.InventoryService;
 import io.github.springwolf.bindings.kafka.annotations.KafkaAsyncOperationBinding;
 import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Component;
  *
  * 구독 이벤트:
  * - inventory.decrease: 교환 승인 시 신규 SKU 재고 차감
+ * - inventory.increase: 교환 회수 완료 시 원래 SKU 재고 복구
  */
 @Slf4j
 @Component
@@ -81,6 +83,51 @@ public class InventoryEventConsumer {
         }
     }
 
+    @AsyncListener(
+            operation = @AsyncOperation(
+                    channelName = "inventory.increase",
+                    description = "재고 증가 이벤트 구독 - 교환 회수 완료 시 원래 SKU 재고 복구",
+                    message = @AsyncMessage(
+                            messageId = "inventoryIncreaseEvent",
+                            name = "InventoryIncreaseEvent"
+                    )
+            )
+    )
+    @KafkaAsyncOperationBinding
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(
+                    delay = 1000,
+                    multiplier = 2.0,
+                    maxDelay = 10000
+            ),
+            autoCreateTopics = "false",
+            include = {Exception.class},
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            retryTopicSuffix = "-product-retry",
+            dltTopicSuffix = "-product-dlt"
+    )
+    @KafkaListener(topics = "inventory.increase", groupId = "${spring.kafka.consumer.group-id:product-service}")
+    public void consumeInventoryIncreaseEvent(
+            @Payload InventoryIncreaseEvent event,
+            @Header(value = KafkaHeaders.RECEIVED_TOPIC, required = false) String topic,
+            @Header(value = KafkaHeaders.OFFSET, required = false) Long offset
+    ) {
+        log.info("Received inventory.increase event: orderId={}, exchangeId={}, reason={}, itemCount={}, topic={}, offset={}",
+                event.getOrderId(), event.getExchangeId(), event.getReason(),
+                event.getItems() != null ? event.getItems().size() : 0, topic, offset);
+
+        try {
+            inventoryService.increaseStockForExchangeReturnCompleted(event);
+            log.info("Successfully processed inventory.increase event: orderId={}, exchangeId={}",
+                    event.getOrderId(), event.getExchangeId());
+        } catch (Exception e) {
+            log.error("Failed to process inventory.increase event: orderId={}, exchangeId={}",
+                    event.getOrderId(), event.getExchangeId(), e);
+            throw e;
+        }
+    }
+
     /**
      * DLQ(Dead Letter Queue) 핸들러
      * 모든 재시도가 실패한 후 호출됩니다.
@@ -115,6 +162,10 @@ public class InventoryEventConsumer {
 
         if (payload instanceof InventoryDecreaseEvent event) {
             log.error("DLQ 처리 필요 - inventory.decrease 실패: orderId={}, exchangeId={}, reason={}, itemCount={}",
+                    event.getOrderId(), event.getExchangeId(), event.getReason(),
+                    event.getItems() != null ? event.getItems().size() : 0);
+        } else if (payload instanceof InventoryIncreaseEvent event) {
+            log.error("DLQ 처리 필요 - inventory.increase 실패: orderId={}, exchangeId={}, reason={}, itemCount={}",
                     event.getOrderId(), event.getExchangeId(), event.getReason(),
                     event.getItems() != null ? event.getItems().size() : 0);
         } else {

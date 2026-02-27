@@ -24,6 +24,7 @@ public final class EventTypeConstants {
 
 	// Kafka Topics - Inventory (Exchange)
 	public static final String TOPIC_INVENTORY_DECREASE = "inventory.decrease";
+	public static final String TOPIC_INVENTORY_INCREASE = "inventory.increase";
 
 	// Kafka Type IDs (Consumer의 TYPE_MAPPINGS와 일치해야 함) - Product
 	public static final String TYPE_ID_PRODUCT_CREATED = "productCreatedEvent";

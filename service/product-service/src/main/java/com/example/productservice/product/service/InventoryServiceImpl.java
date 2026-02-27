@@ -2,6 +2,7 @@ package com.example.productservice.product.service;
 
 import com.example.productservice.consumer.domain.ProcessedEvent;
 import com.example.productservice.consumer.event.InventoryDecreaseEvent;
+import com.example.productservice.consumer.event.InventoryIncreaseEvent;
 import com.example.productservice.consumer.event.OrderCancelledEvent;
 import com.example.productservice.consumer.event.OrderCreatedEvent;
 import com.example.productservice.consumer.event.PaymentCancelledEvent;
@@ -32,6 +33,7 @@ public class InventoryServiceImpl implements InventoryService {
     private static final String EVENT_TYPE_ORDER_CANCELLED = "ORDER_CANCELLED";
     private static final String EVENT_TYPE_PAYMENT_CANCELLED = "PAYMENT_CANCELLED";
     private static final String EVENT_TYPE_INVENTORY_DECREASE = "INVENTORY_DECREASE";
+    private static final String EVENT_TYPE_INVENTORY_INCREASE = "INVENTORY_INCREASE";
 
     private final ProductSkuRepository productSkuRepository;
     private final ProductSkuHistoryService productSkuHistoryService;
@@ -263,6 +265,53 @@ public class InventoryServiceImpl implements InventoryService {
         processedEventRepository.save(processedEvent);
 
         log.info("Completed stock decrease for exchange: exchangeId={}, orderId={}, itemCount={} - marked as processed",
+                event.getExchangeId(), event.getOrderId(), event.getItems().size());
+    }
+
+    @Override
+    @Transactional
+    public void increaseStockForExchangeReturnCompleted(InventoryIncreaseEvent event) {
+        log.info("Starting stock increase for exchange return completed: orderId={}, exchangeId={}, reason={}, itemCount={}",
+                event.getOrderId(), event.getExchangeId(), event.getReason(), event.getItems().size());
+
+        String aggregateId = event.getExchangeId().toString();
+
+        // 멱등성 체크: 이미 처리된 교환 회수 완료 이벤트인지 확인
+        if (processedEventRepository.existsByEventTypeAndAggregateId(EVENT_TYPE_INVENTORY_INCREASE, aggregateId)) {
+            log.warn("Inventory increase already processed (idempotency check): eventType={}, exchangeId={} - skipping",
+                    EVENT_TYPE_INVENTORY_INCREASE, event.getExchangeId());
+            return;
+        }
+
+        String orderRef = event.getOrderNumber();
+
+        for (InventoryIncreaseEvent.IncreaseItem item : event.getItems()) {
+            ProductSku sku = productSkuRepository.findByIdForUpdate(item.getSkuId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "SKU not found: skuId=" + item.getSkuId()));
+
+            int currentStock = sku.getStockQty();
+            int recoveryQty = item.getQuantity();
+            int newStock = currentStock + recoveryQty;
+
+            sku.setStockQty(newStock);
+            productSkuRepository.save(sku);
+
+            // 재고 복구 이력 기록
+            productSkuHistoryService.recordRestore(sku, orderRef, recoveryQty, newStock, event.getReason());
+
+            log.info("Stock increased for exchange return: skuId={}, before={}, after={}, quantity={}, exchangeId={}",
+                    item.getSkuId(), currentStock, newStock, recoveryQty, event.getExchangeId());
+        }
+
+        // 처리 완료 기록 (멱등성 보장)
+        ProcessedEvent processedEvent = ProcessedEvent.ofInventoryIncrease(
+                event.getExchangeId(),
+                event.getReason()
+        );
+        processedEventRepository.save(processedEvent);
+
+        log.info("Completed stock increase for exchange return: exchangeId={}, orderId={}, itemCount={} - marked as processed",
                 event.getExchangeId(), event.getOrderId(), event.getItems().size());
     }
 

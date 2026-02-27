@@ -1,6 +1,7 @@
 package com.example.productservice.product.service;
 
 import com.example.productservice.consumer.event.InventoryDecreaseEvent;
+import com.example.productservice.consumer.event.InventoryIncreaseEvent;
 import com.example.productservice.consumer.event.OrderCancelledEvent;
 import com.example.productservice.consumer.event.OrderCreatedEvent;
 import com.example.productservice.consumer.event.PaymentCancelledEvent;
@@ -34,4 +35,11 @@ public interface InventoryService {
      * @param event 재고 차감 이벤트 (inventory.decrease)
      */
     void decreaseStockForExchangeApproved(InventoryDecreaseEvent event);
+
+    /**
+     * 교환 회수 완료 이벤트에 따른 원래 SKU 재고 증가
+     *
+     * @param event 재고 증가 이벤트 (inventory.increase)
+     */
+    void increaseStockForExchangeReturnCompleted(InventoryIncreaseEvent event);
 }
